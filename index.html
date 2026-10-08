@@ -72,12 +72,26 @@ td .x{border:0;background:none;color:#6a6a82;padding:2px 6px}
 td .x:hover{color:#ff5566}
 a.open2{color:var(--text);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:12px}
 a.open2:hover{background:#2e2e3e}
-@media (max-width:600px){header,.lead,main,footer{padding-left:16px;padding-right:16px}#board{margin:0 16px 20px}}
+#audio{margin:0 40px 20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#audio .bhead label{gap:4px}
+#audio .opts{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}
+#amsg{padding:12px 18px;color:var(--dim);font-size:13px}
+#amsg code{color:#c8c8d8}
+.au-song{font-weight:600}
+.au-path{color:#6a6a82;font-size:12px}
+.au-stat{display:inline-flex;gap:4px;flex-wrap:wrap}
+.au-stat span{font-size:11px;border-radius:8px;padding:0 6px;color:#14141b;font-weight:600}
+.au-stat .todo{background:#9696ad}.au-stat .doing{background:#ffd24a}.au-stat .review{background:#9fcaff}.au-stat .done{background:#8fd9a8}
+.au-new{color:#ffb38a;font-size:12px;font-weight:600}
+.au-play{min-width:34px}
+.hasaudio{color:#8fd9a8;font-size:12px;margin-left:4px;cursor:default}
+@media (max-width:600px){header,.lead,main,footer{padding-left:16px;padding-right:16px}#board,#audio{margin:0 16px 20px}}
 </style>
 </head>
 <body>
 <header><h1>MS2026 <b>Chart Editor</b></h1><small>譜面エディタ</small><span class="sp"></span>
   <label class="me" title="譜面ボードで使う名前（このブラウザに保存）">あなたの名前 <input type="text" id="me" size="10" placeholder="未設定" spellcheck="false"></label>
+  <a class="hbtn" id="audioDriveBtn" target="_blank" rel="noopener" title="音源（曲の音声ファイル）を入れる Google ドライブのフォルダ">♪ 音源フォルダ</a>
   <a class="hbtn" id="driveBtn" target="_blank" rel="noopener" title="ノーツ（.asset）を保存する Google ドライブのフォルダ"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>ノーツ保存フォルダ（Google ドライブ）</a>
 </header>
 <p class="lead">編集する譜面を選んでください。各エディタのヘッダー左上からも切り替えられます。</p>
@@ -112,6 +126,29 @@ a.open2:hover{background:#2e2e3e}
     <tbody></tbody>
   </table></div>
 </section>
+<section id="audio">
+  <div class="bhead">
+    <h2>音源</h2><span class="sum" id="asum"></span><span class="sp"></span>
+    <span class="opts" title="「ボードに追加」で作る譜面">追加する譜面
+      <label><input type="checkbox" class="aopt" data-part="TECH" checked>TECH</label>
+      <label><input type="checkbox" class="aopt" data-part="POWER" checked>POWER</label>
+      <span class="dim">/</span>
+      <label><input type="checkbox" class="aopt" data-diff="Easy" checked>Easy</label>
+      <label><input type="checkbox" class="aopt" data-diff="Normal" checked>Normal</label>
+      <label><input type="checkbox" class="aopt" data-diff="Hard" checked>Hard</label>
+      <label><input type="checkbox" class="aopt" data-diff="Extra" checked>Extra</label>
+    </span>
+    <button id="aReload" title="音源フォルダを読み直す">↻</button>
+    <button class="primary" id="aAddAll">未登録をすべてボードに追加</button>
+  </div>
+  <div id="amsg"></div>
+  <div class="tw"><table id="atable" hidden>
+    <thead><tr><th></th><th>曲（ファイル名）</th><th>サイズ</th><th>更新</th><th>ボード</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <audio id="aplayer" hidden></audio>
+</section>
+<datalist id="audioNames"></datalist>
 <footer>保存した .asset は <a href="#" id="driveLink" target="_blank" rel="noopener" style="color:var(--dim)">Google ドライブのノーツ保存フォルダ</a> に置き、Unity では <code>Assets/WorkSpace/ScriptableObjects/</code> に入れると使えます。</footer>
 <script>
 'use strict';
@@ -184,6 +221,7 @@ addEventListener('resize', resize); resize();
 })(0);
 </script>
 <script src="config.js"></script>
+<script src="drive-audio.js"></script>
 <script src="board-index.js"></script>
 </body>
 </html>

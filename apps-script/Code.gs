@@ -3,15 +3,76 @@
  *
  * 「作るべき譜面のリスト」と「誰がどの譜面を作成中か」を charts シートに保存し、
  * chart-editor のページ（index.html / 各エディタ）から読み書きする。
+ * 音源フォルダ（AUDIO_FOLDER_ID）の中の音声ファイルの一覧と中身も返す（ページから音源を直接読み込むため）。
  * 設定方法は BOARD_SETUP.md を参照。
  */
+// 音源を入れる Google ドライブのフォルダ（URL の folders/ の後ろ）。このフォルダ（とその中のフォルダ）以外のファイルは返さない
+const AUDIO_FOLDER_ID = '12SSJ2qgAaitkxpuXNrYUMcT1_6AIrxLT';
+const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac|flac|opus|webm)$/i;
+const AUDIO_CHUNK = 6 * 1024 * 1024; // 1回で返す大きさ（base64 にすると約 8MB）
 const SHEET_NAME = 'charts';
 const HEAD = ['id', 'part', 'song', 'difficulty', 'asset', 'status', 'assignee', 'due', 'note',
   'updatedAt', 'updatedBy', 'editingBy', 'editingAt'];
 const EDITABLE = ['part', 'song', 'difficulty', 'asset', 'status', 'assignee', 'due', 'note'];
 
-function doGet() {
-  return json_({ ok: true, rows: readRows_(sheet_()), now: new Date().toISOString() });
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  try {
+    if (p.action === 'audioList') return json_({ ok: true, files: listAudio_(), now: new Date().toISOString() });
+    if (p.action === 'audio') return json_(audioChunk_(p.id, Number(p.offset) || 0));
+    return json_({ ok: true, rows: readRows_(sheet_()), now: new Date().toISOString() });
+  } catch (err) {
+    return json_({ ok: false, error: String(err) });
+  }
+}
+
+/** 音源フォルダの音声ファイル一覧（中のフォルダも含む。path はフォルダ名/） */
+function listAudio_() {
+  const out = [];
+  const walk = (folder, path, depth) => {
+    const files = folder.getFiles();
+    while (files.hasNext()) {
+      const f = files.next();
+      if (!AUDIO_EXT.test(f.getName()) && !/^audio\//.test(f.getMimeType())) continue;
+      out.push({ id: f.getId(), name: f.getName(), path: path, size: f.getSize(), mime: f.getMimeType(), updated: f.getLastUpdated().toISOString() });
+    }
+    if (depth >= 3) return;
+    const subs = folder.getFolders();
+    while (subs.hasNext()) { const sub = subs.next(); walk(sub, path + sub.getName() + '/', depth + 1); }
+  };
+  walk(DriveApp.getFolderById(AUDIO_FOLDER_ID), '', 0);
+  return out.sort((a, b) => (a.path + a.name).localeCompare(b.path + b.name));
+}
+
+/** 音源フォルダの中にあるファイルか（親を数段さかのぼって確かめる） */
+function inAudioFolder_(file) {
+  let level = [file];
+  for (let depth = 0; depth < 5 && level.length; depth++) {
+    const next = [];
+    for (const item of level) {
+      const parents = item.getParents();
+      while (parents.hasNext()) {
+        const parent = parents.next();
+        if (parent.getId() === AUDIO_FOLDER_ID) return true;
+        next.push(parent);
+      }
+    }
+    level = next;
+  }
+  return false;
+}
+
+/** 音声ファイルの中身を offset から AUDIO_CHUNK バイトだけ base64 で返す（大きいファイルは何回かに分けて読む） */
+function audioChunk_(id, offset) {
+  const file = DriveApp.getFileById(String(id));
+  if (!inAudioFolder_(file)) return { ok: false, error: '音源フォルダの外のファイルです' };
+  const bytes = file.getBlob().getBytes();
+  const end = Math.min(bytes.length, offset + AUDIO_CHUNK);
+  return {
+    ok: true, id: file.getId(), name: file.getName(), mime: file.getMimeType(), size: bytes.length,
+    updated: file.getLastUpdated().toISOString(), offset: offset, next: end < bytes.length ? end : null,
+    data: Utilities.base64Encode(bytes.slice(offset, end)),
+  };
 }
 
 function doPost(e) {
@@ -34,6 +95,16 @@ function doPost(e) {
         EDITABLE.forEach(k => { if (req.row && req.row[k] != null) row[k] = String(req.row[k]); });
         row.updatedAt = now; row.updatedBy = user;
         sh.appendRow(HEAD.map(k => row[k] == null ? '' : row[k]));
+        break;
+      }
+      case 'addMany': {
+        const list = (req.rows || []).slice(0, 50).map(src => {
+          const row = { id: Utilities.getUuid().slice(0, 8), status: 'todo' };
+          EDITABLE.forEach(k => { if (src[k] != null) row[k] = String(src[k]); });
+          row.updatedAt = now; row.updatedBy = user;
+          return HEAD.map(k => row[k] == null ? '' : row[k]);
+        });
+        if (list.length) sh.getRange(sh.getLastRow() + 1, 1, list.length, HEAD.length).setValues(list);
         break;
       }
       case 'update': {
