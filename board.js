@@ -118,7 +118,10 @@
   const asset = () => (typeof S !== 'undefined' && S.name) || '';
   const hasAudio = () => typeof buffer !== 'undefined' && !!buffer;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  let rows = [], files = [], loadedId = null, loading = null, autoTried = new Set(), boardAudioFor = '', filesReady = false;
+  const ROWS_KEY = 'ms2026.board.rows';
+  const peekRows = () => { try { return JSON.parse(localStorage.getItem(ROWS_KEY)) || []; } catch (e) { return []; } };
+  const keepRows = r => { try { localStorage.setItem(ROWS_KEY, JSON.stringify(r)); } catch (e) { } };
+  let rows = peekRows(), files = DA && DA.enabled() ? DA.peek() : [], loadedId = null, loading = null, autoTried = new Set(), boardAudioFor = '', filesReady = files.length > 0;
 
   // ====== 音源の読み込み ======
   async function useDriveAudio(f, label) {
@@ -333,16 +336,35 @@
 
   // ボードの「開く」から来たとき（#open=アセット名）：ドライブにあれば開き、なければその名前で新しい譜面にする
   async function openFromHash() {
-    const m = location.hash.match(/^#open=(.+)$/); if (!m || !DC || !DC.enabled()) return;
-    const want = decodeURIComponent(m[1]);
+    const h = new URLSearchParams(location.hash.slice(1)), want = h.get('open'), song = h.get('song') || '';
+    if (!want || !DC || !DC.enabled()) return;
     history.replaceState(null, '', location.pathname + location.search);
     if (DA && DA.enabled()) boardAudioFor = want.toLowerCase(); // 開いたら曲の音源も読み込む
-    if (want.toLowerCase() === asset().toLowerCase()) { render(); return; } // もう開いている
-    try {
-      const f = DC.find(await DC.list(true), PART, want);
-      if (f) { await openFromDrive(f); return; }
-    } catch (e) { toast('ドライブの譜面一覧を読めませんでした: ' + e.message); return; }
-    if (!confirm(`「${want}」はまだドライブに保存されていません。この名前で新しい譜面を作りますか？\n（今の譜面は${dirty ? '未保存の変更ごと' : ''}閉じます）`)) boardAudioFor = '';
+    // 曲名が分かっていて音源の一覧もあれば、譜面を待たずに音源の読み込みを始める
+    const startAudio = () => {
+      if (!song || !DA || !DA.enabled()) return;
+      const f = DA.find(files.length ? files : DA.peek(), song);
+      if (f && (loadedId !== f.id || !hasAudio())) { boardAudioFor = ''; autoTried.add(f.id); useDriveAudio(f); }
+    };
+    if (want.toLowerCase() === asset().toLowerCase()) { startAudio(); render(); return; } // もう開いている
+    if (dirty && !confirm(`今の譜面に未保存の変更があります。破棄して「${want}」を開きますか？`)) { boardAudioFor = ''; return; }
+    busy(`ドライブから「${want}.asset」を読み込み中…`);
+    startAudio();
+    let j = null;
+    try { j = await DC.byAsset(PART, want); }
+    catch (e) { unbusy(); toast('ドライブの譜面を読めませんでした: ' + e.message); return; }
+    if (!j.missing) {
+      try {
+        if (importText(j.content, j.file.name)) {
+          rememberHandle(null); // ローカルの保存先は外す（Ctrl+S で別のファイルを上書きしないように）
+          toast(`ドライブの「${j.file.name}」を開きました（${j.file.notes} ノーツ）`);
+          lastAsset = '';
+        }
+      } finally { unbusy(); }
+      return;
+    }
+    unbusy();
+    if (!confirm(`「${want}」はまだドライブに保存されていません。この名前で新しい譜面を作りますか？\n（今の譜面は閉じます）`)) boardAudioFor = '';
     else {
       loadChartObj({ name: want, notes: [] }); rememberHandle(null); seek(0);
       lastAsset = '';
@@ -355,7 +377,7 @@
   async function post(body) {
     const res = await fetch(CFG.boardApiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: CFG.boardKey, ...body }) });
     const j = await res.json();
-    if (j.ok) rows = j.rows;
+    if (j.ok && j.rows) { rows = j.rows; keepRows(rows); }
     return j;
   }
   async function beat() {
@@ -363,7 +385,7 @@
     try {
       // 名前を設定していて、画面を見ているときだけ「作成中」を知らせる
       if (user() && asset() && document.visibilityState === 'visible') await post({ action: 'heartbeat', part: PART, asset: asset(), user: user() });
-      else { const j = await (await fetch(CFG.boardApiUrl)).json(); if (j.ok) rows = j.rows; }
+      else { const j = await (await fetch(CFG.boardApiUrl)).json(); if (j.ok && j.rows) { rows = j.rows; keepRows(rows); } }
     } catch (e) { /* オフラインなどは無視 */ }
     render();
   }
@@ -383,6 +405,7 @@
   setInterval(beat, BEAT_MS);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
   if (DA && DA.enabled()) refreshFiles().then(render);
+  render(); // 前回のボードの内容ですぐ表示
   setTimeout(openFromHash, 300); // エディタの起動（自動保存の読み込み）が終わってから
   showMe();
   if (window.NameGate) NameGate.onChange(() => { showMe(); render(); beat(); });
