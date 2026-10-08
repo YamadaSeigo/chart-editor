@@ -11,7 +11,29 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif;overflow:hidden}
-#app{display:grid;grid-template-rows:auto 150px 1fr 76px;height:100vh}
+#app{--tl-h:150px;--side-w:310px;--tools-w:60px;display:grid;grid-template-rows:auto var(--tl-h) 1fr 76px;grid-template-areas:"hd" "tl" "mn" "ft";height:100vh}
+#app>header{grid-area:hd}#app>#tlwrap{grid-area:tl}#app>main{grid-area:mn}#app>footer{grid-area:ft}
+#app.tl-bottom{grid-template-rows:auto 1fr var(--tl-h) 76px;grid-template-areas:"hd" "mn" "tl" "ft"}
+#app.tl-bottom #tlwrap{border-bottom:0;border-top:1px solid var(--line)}
+#app.no-tools{--tools-w:0px}#app.no-tools #tools{display:none}
+#app.no-side{--side-w:0px}#app.no-side aside{display:none}
+.sizer{position:absolute;z-index:6;transition:background .15s}
+.sizer:hover,.sizer.active{background:rgba(255,102,170,.5)}
+.sz-tl{left:0;right:0;height:6px;bottom:-3px;cursor:row-resize}
+#app.tl-bottom .sz-tl{bottom:auto;top:-3px}
+.sz-side{top:0;bottom:0;width:6px;left:-3px;cursor:col-resize}
+#app.side-left .sz-side{left:auto;right:-3px}
+.pop{position:fixed;z-index:30;width:360px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;box-shadow:0 14px 36px rgba(0,0,0,.55)}
+.pop h4{margin:0 0 6px;font-size:13px}
+.pop .pr{display:flex;align-items:center;gap:8px;margin:9px 0;color:var(--dim);flex-wrap:wrap}
+.pop .pr>span:first-child{width:118px;flex:none}
+.pop input[type=range]{flex:1;accent-color:var(--accent);min-width:80px}
+.pop output{width:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.pop p{margin:10px 0 8px;line-height:1.5}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:3px 10px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:#3a2a36;color:var(--accent)}
 button,select,input{font:inherit;color:inherit}
 button{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
 button:hover{border-color:#55556e;background:#2e2e3e}
@@ -35,12 +57,15 @@ input.short{width:58px}
 .savetarget .dirty{color:var(--accent);font-size:13px}
 .savetarget button{padding:0 6px;font-size:11px;line-height:16px}
 
-#tlwrap{position:relative;background:#191922;border-bottom:1px solid var(--line)}
+#tlwrap{position:relative;z-index:2;background:#191922;border-bottom:1px solid var(--line)}
 #tl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:default}
 .tlzoom{position:absolute;right:8px;top:2px;display:flex;gap:4px}
 .tlzoom button{padding:0 8px;font-size:12px;line-height:18px}
 
-main{display:grid;grid-template-columns:60px 1fr 310px;min-height:0}
+main{display:grid;grid-template-columns:var(--tools-w) 1fr var(--side-w);grid-template-areas:"tools pf side";min-height:0}
+main>#tools{grid-area:tools}main>#pfwrap{grid-area:pf}main>aside{grid-area:side}
+#app.side-left main{grid-template-columns:var(--tools-w) var(--side-w) 1fr;grid-template-areas:"tools side pf"}
+#app.side-left aside{border-left:0;border-right:1px solid var(--line)}
 #tools{display:flex;flex-direction:column;gap:6px;padding:10px 8px;background:var(--panel);border-right:1px solid var(--line);user-select:none}
 #tools button{position:relative;width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:9px}
 #tools button svg{width:24px;height:24px}
@@ -52,7 +77,7 @@ main{display:grid;grid-template-columns:60px 1fr 310px;min-height:0}
 #pfinfo{position:absolute;left:10px;top:8px;color:var(--dim);font-size:12px;pointer-events:none;font-variant-numeric:tabular-nums}
 #pfhint{position:absolute;right:10px;bottom:8px;color:#6a6a82;font-size:11px;pointer-events:none}
 
-aside{display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);min-height:0}
+aside{position:relative;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);min-height:0}
 #insp{padding:12px;border-bottom:1px solid var(--line)}
 #insp h3{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
 .dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
@@ -157,6 +182,7 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
       <input id="fieldW" class="short" type="number" step="0.5" min="1" title="幅"><span class="muted">×</span><input id="fieldH" class="short" type="number" step="0.5" min="1" title="高さ">
     </div>
     <div class="spacer"></div>
+    <button data-act="layout" title="画面レイアウトの設定">レイアウト</button>
     <button data-act="undo" title="Ctrl+Z">↶</button>
     <button data-act="redo" title="Ctrl+Y">↷</button>
     <button data-act="help" title="ヘルプ">?</button>
@@ -165,6 +191,7 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
   </header>
 
   <section id="tlwrap">
+    <div class="sizer sz-tl" title="ドラッグで高さを変更（ダブルクリックで元に戻す）"></div>
     <canvas id="tl"></canvas>
     <div class="tlzoom"><button data-act="zoomOut" title="Ctrl+ホイール">−</button><button data-act="zoomIn" title="Ctrl+ホイール">＋</button></div>
   </section>
@@ -184,6 +211,7 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
       <div id="pfhint">ホイール: シーク ／ 右クリック: 削除 ／ Alt+ドラッグ: 始点だけ移動</div>
     </section>
     <aside>
+      <div class="sizer sz-side" title="ドラッグで幅を変更（ダブルクリックで元に戻す）"></div>
       <div id="insp"></div>
       <div class="tabs"><button data-tab="list" class="on">ノーツ一覧</button><button data-tab="check">チェック <span id="badge"></span></button></div>
       <div id="tabbody"></div>
@@ -213,6 +241,21 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
   </footer>
 </div>
 <div id="toast"></div>
+<div id="layoutPop" class="pop" hidden>
+  <h4>レイアウト</h4>
+  <div class="pr"><span>プリセット</span><div class="seg"><button data-layout="default">標準</button><button data-layout="timeline">タイムライン重視</button><button data-layout="field">フィールド重視</button></div></div>
+  <div class="pr"><span>タイムラインの位置</span><div class="seg"><button data-lset="tlPos:top">上</button><button data-lset="tlPos:bottom">下</button></div></div>
+  <div class="pr"><span>サイドパネルの位置</span><div class="seg"><button data-lset="sidePos:right">右</button><button data-lset="sidePos:left">左</button></div></div>
+  <label class="pr"><span>タイムラインの高さ</span><input type="range" id="lyTl" min="90" max="480" step="2"><output id="lyTlV"></output></label>
+  <label class="pr"><span>サイドパネルの幅</span><input type="range" id="lySide" min="220" max="680" step="2"><output id="lySideV"></output></label>
+  <div class="pr"><span>表示</span>
+    <label><input type="checkbox" id="lyTools"> ツール</label>
+    <label><input type="checkbox" id="lySideOn"> サイドパネル</label>
+    <label><input type="checkbox" id="lyMascot"> マスコット</label>
+  </div>
+  <p class="muted">境界線をドラッグしても大きさを変えられます（ダブルクリックで元に戻す）。<br>画面全体の拡大・縮小は <kbd>Ctrl</kbd> + <kbd>＋</kbd> / <kbd>−</kbd>、元に戻すのは <kbd>Ctrl</kbd> + <kbd>0</kbd>。</p>
+  <div style="text-align:right"><button data-layout="reset">すべてリセット</button></div>
+</div>
 <div id="drop">ここにドロップ（音源 or .asset / .json）</div>
 
 <dialog id="helpDlg">
@@ -551,7 +594,10 @@ function fit(cv) {
   return [r.width, r.height];
 }
 function resize() { [tlW, tlH] = fit(tl); [pfW, pfH] = fit(pf); [ovW, ovH] = fit(ov); [rsW, rsH] = fit(rs); }
-new ResizeObserver(resize).observe(document.body);
+{
+  const ro = new ResizeObserver(resize);
+  ['#tlwrap', '#pfwrap', '.ovwrap', '.rswrap'].forEach(q => ro.observe(document.querySelector(q)));
+}
 const local = (e, cv) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
 function circle(c, x, y, r) { c.beginPath(); c.arc(x, y, Math.max(0, r), 0, Math.PI * 2); }
 function line(c, a, b) { c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
@@ -716,9 +762,10 @@ let PS = 1, OX = 0, OY = 0, GUTTER = 0;
 const MASCOT_ROOM = 64; // 左側にマスコット用の余白を確保する
 function computeView() {
   const m = 34;
-  PS = Math.max(1, Math.min((pfW - m * 2 - MASCOT_ROOM) / FIELD.w, (pfH - m * 2) / FIELD.h));
+  const room = LY.mascot ? MASCOT_ROOM : 0;
+  PS = Math.max(1, Math.min((pfW - m * 2 - room) / FIELD.w, (pfH - m * 2) / FIELD.h));
   const W = FIELD.w * PS;
-  GUTTER = Math.max(m + MASCOT_ROOM, (pfW - W) / 2);
+  GUTTER = Math.max(m + room, (pfW - W) / 2);
   OX = GUTTER + W / 2; OY = pfH / 2;
 }
 const toPx = p => [OX + p.x * PS, OY - p.y * PS];
@@ -1008,7 +1055,7 @@ function drawField() {
     c.fillText(`${TYPE_JP[S.tool]}  (${p.x}, ${p.y})  @ ${fmtTime(snapT(S.time))}`, P[0] + HIT_R * PS + 6, P[1] - 6);
   }
   // マスコット（左の余白、フィールド下端に立たせる）
-  drawMascot(c, GUTTER / 2, Tp + H + 2, performance.now());
+  if (LY.mascot) drawMascot(c, GUTTER / 2, Tp + H + 2, performance.now());
 
   const mp = pfMouse ? snapPos(pfMouse) : null;
   $('#pfinfo').textContent = `表示中 ${vis.length} ノーツ` + (mp ? `　カーソル (${mp.x}, ${mp.y})` : '');
@@ -1538,7 +1585,81 @@ async function openChart() {
   } catch (e) { if (e.name !== 'AbortError') toast('開けませんでした: ' + e.message); }
 }
 
+// ====== レイアウト（配置・大きさのカスタマイズ） ======
+const LAYOUT_KEY = 'ms2026.techChartEditor.layout';
+const LAYOUT_DEFAULT = { tlH: 150, sideW: 310, tlPos: 'top', sidePos: 'right', tools: true, side: true, mascot: true };
+const LAYOUT_PRESETS = {
+  default: { tlH: 150, sideW: 310 },
+  timeline: { tlH: 300, sideW: 280 },
+  field: { tlH: 110, sideW: 260 },
+};
+let LY = { ...LAYOUT_DEFAULT };
+try { Object.assign(LY, JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}); } catch (e) { }
+function applyLayout(persist = true) {
+  const app = $('#app');
+  const tlMax = Math.max(90, innerHeight - 280), sideMax = Math.max(220, innerWidth - 480);
+  const tlH = clamp(LY.tlH, 90, tlMax), sideW = clamp(LY.sideW, 220, sideMax);
+  app.style.setProperty('--tl-h', tlH + 'px');
+  app.style.setProperty('--side-w', (LY.side ? sideW : 0) + 'px');
+  app.classList.toggle('tl-bottom', LY.tlPos === 'bottom');
+  app.classList.toggle('side-left', LY.sidePos === 'left');
+  app.classList.toggle('no-tools', !LY.tools);
+  app.classList.toggle('no-side', !LY.side);
+  $('#lyTl').value = tlH; $('#lyTlV').textContent = tlH + 'px';
+  $('#lySide').value = sideW; $('#lySideV').textContent = sideW + 'px';
+  $('#lyTools').checked = LY.tools; $('#lySideOn').checked = LY.side; $('#lyMascot').checked = LY.mascot;
+  document.querySelectorAll('[data-lset]').forEach(b => { const [k, v] = b.dataset.lset.split(':'); b.classList.toggle('on', LY[k] === v); });
+  if (persist) try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(LY)); } catch (e) { }
+}
+function toggleLayoutPop() {
+  const pop = $('#layoutPop');
+  if (!pop.hidden) { pop.hidden = true; return; }
+  const r = document.querySelector('[data-act="layout"]').getBoundingClientRect();
+  pop.style.top = (r.bottom + 6) + 'px';
+  pop.style.left = clamp(r.right - 360, 8, innerWidth - 368) + 'px';
+  pop.hidden = false;
+}
+$('#layoutPop').addEventListener('click', e => {
+  const set = e.target.closest('[data-lset]'), pre = e.target.closest('[data-layout]');
+  if (set) { const [k, v] = set.dataset.lset.split(':'); LY[k] = v; applyLayout(); }
+  if (pre) {
+    if (pre.dataset.layout === 'reset') LY = { ...LAYOUT_DEFAULT };
+    else Object.assign(LY, LAYOUT_PRESETS[pre.dataset.layout]);
+    applyLayout();
+  }
+});
+$('#lyTl').addEventListener('input', e => { LY.tlH = +e.target.value; applyLayout(); });
+$('#lySide').addEventListener('input', e => { LY.sideW = +e.target.value; applyLayout(); });
+$('#lyTools').addEventListener('change', e => { LY.tools = e.target.checked; applyLayout(); });
+$('#lySideOn').addEventListener('change', e => { LY.side = e.target.checked; applyLayout(); });
+$('#lyMascot').addEventListener('change', e => { LY.mascot = e.target.checked; applyLayout(); });
+document.addEventListener('mousedown', e => {
+  const pop = $('#layoutPop');
+  if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('[data-act="layout"]')) pop.hidden = true;
+});
+window.addEventListener('resize', () => applyLayout(false));
+// 境界線ドラッグでの大きさ変更
+function bindSizer(el, onMove, onReset) {
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    try { el.setPointerCapture(e.pointerId); } catch (err) { } el.classList.add('active');
+    const st = { x: e.clientX, y: e.clientY, tlH: LY.tlH, sideW: LY.sideW };
+    const mv = ev => { onMove(ev.clientX - st.x, ev.clientY - st.y, st); applyLayout(false); };
+    const up = () => {
+      el.classList.remove('active');
+      el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up);
+      LY.tlH = +$('#lyTl').value; LY.sideW = +$('#lySide').value; // 画面に収まる値に丸めて保存
+      applyLayout();
+    };
+    el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up);
+  });
+  el.addEventListener('dblclick', () => { onReset(); applyLayout(); });
+}
+bindSizer($('.sz-tl'), (dx, dy, st) => { LY.tlH = st.tlH + (LY.tlPos === 'bottom' ? -dy : dy); }, () => { LY.tlH = LAYOUT_DEFAULT.tlH; });
+bindSizer($('.sz-side'), (dx, dy, st) => { LY.sideW = st.sideW + (LY.sidePos === 'left' ? dx : -dx); }, () => { LY.sideW = LAYOUT_DEFAULT.sideW; });
+
 const ACTIONS = {
+  layout: toggleLayoutPop,
   new() { if (S.notes.length && !confirm('現在の譜面を破棄して新規作成しますか？')) return; loadChartObj({ name: 'TechChart', notes: [] }); rememberHandle(null); seek(0); },
   open: openChart,
   sample() { if (S.notes.length && !confirm('TechTestChart を読み込みます。現在の譜面は破棄されます。')) return; loadSample(); rememberHandle(null); toast('TechTestChart を読み込みました'); },
@@ -1632,6 +1753,7 @@ function frame() {
 
 // ====== 起動 ======
 (function init() {
+  applyLayout(false);
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) { }
   if (saved && saved.chart) {
