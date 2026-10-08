@@ -273,6 +273,7 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
     <li>Hold / Sync はクリックしたままドラッグで 終点 / 相方の位置 を決定</li>
     <li>タイムラインの空き部分をクリックしても配置できます（位置は直前のノーツ）</li>
     <li>タイムラインで Hold / Rush の末尾をドラッグ → 長さを変更</li>
+    <li>右のパネルで、ノーツごとに <b>大きさ</b>（当たる半径の倍率）・<b>出現まで</b>（出現してから判定までの秒数。空欄ならヘッダーの Approach）・連射の <b>長さ（秒）</b>と<b>回数</b>（空欄なら長さ × 6 発/秒）を指定できます。複数選択で一括変更も可</li>
     <li>ノーツが重なっているときは下のノーツが一回り大きく表示されます。選択中のノーツをもう一度クリックすると下のノーツが選択されます（繰り返すと順番に切り替わります）</li>
   </ul>
   <h4>ショートカット</h4>
@@ -337,6 +338,12 @@ const snapT = t => Math.max(0, r6(Math.round(t / step()) * step()));
 const hasDur = n => n.type === 'Hold' || n.type === 'Rush';
 const endT = n => n.t + (hasDur(n) ? n.hold : 0);
 const endPos = n => n.type === 'Hold' ? n.move : n.pos;
+// ノーツごとの値（0 / 未指定なら既定）。ゲームの Notes.hitRadiusScale / rushCount / hitTime に対応
+const apprOf = n => n.appr > 0 ? n.appr : S.approach;                         // 出現してから判定までの秒数
+const scaleOf = n => n.scale > 0 ? n.scale : 1;                                // 大きさ（当たる半径の倍率）
+const radOf = n => HIT_R * scaleOf(n);
+const autoRush = n => Math.max(1, Math.ceil(n.hold * RUSH_HPS));
+const rushCountOf = n => n.count > 0 ? n.count : autoRush(n);                  // 連射で必要な回数
 const byId = id => S.notes.find(n => n.id === id);
 const selected = () => S.notes.filter(n => S.sel.has(n.id));
 const clampPos = p => ({ x: clamp(p.x, -HW, HW), y: clamp(p.y, -HH, HH) });
@@ -361,11 +368,13 @@ function makeNote(type, t, pos, o = {}) {
     move: o.move ? { ...o.move } : { x: 0, y: 0 },
     pair: o.pair ? { ...o.pair } : { x: 0, y: 0 },
     hold: o.hold || 0,
+    scale: o.scale || 1, count: o.count || 0, appr: o.appr || 0,
   };
   applyTypeDefaults(n);
   return n;
 }
 function applyTypeDefaults(n) {
+  if (n.type !== 'Rush') n.count = 0;
   if (n.type === 'Hold') {
     if (n.hold <= 0) n.hold = r6(beatLen() * 2);
     if (dist(n.move, n.pos) < 1e-6) n.move = clampPos({ x: n.pos.x + (n.pos.x > 0 ? -4 : 4), y: n.pos.y });
@@ -404,7 +413,8 @@ function resetHistory() { hist = [JSON.stringify(S.notes)]; hi = 0; }
 function toJSONObj() {
   return {
     format: 'ms2026-tech-chart', version: 1, name: S.name, bpm: S.bpm, offset: S.offset, approach: S.approach, field: [FIELD.w, FIELD.h],
-    notes: S.notes.map(n => ({ type: n.type, time: n.t, pos: [n.pos.x, n.pos.y], movePos: [n.move.x, n.move.y], pairPos: [n.pair.x, n.pair.y], holdTime: n.hold })),
+    notes: S.notes.map(n => ({ type: n.type, time: n.t, pos: [n.pos.x, n.pos.y], movePos: [n.move.x, n.move.y], pairPos: [n.pair.x, n.pair.y], holdTime: n.hold,
+      hitRadiusScale: scaleOf(n), rushCount: n.type === 'Rush' ? (n.count || 0) : 0, approach: n.appr || 0 })),
   };
 }
 function save() {
@@ -423,6 +433,8 @@ function loadChartObj(o) {
     id: nextId++, type: TYPES.includes(n.type) ? n.type : 'Shot', t: +n.time,
     pos: { x: +n.pos[0], y: +n.pos[1] }, move: { x: +(n.movePos || [0, 0])[0], y: +(n.movePos || [0, 0])[1] },
     pair: { x: +(n.pairPos || [0, 0])[0], y: +(n.pairPos || [0, 0])[1] }, hold: +n.holdTime || 0,
+    scale: +n.hitRadiusScale > 0 ? +n.hitRadiusScale : 1, count: n.type === 'Rush' ? Math.max(0, Math.round(+n.rushCount || 0)) : 0,
+    appr: +n.approach > 0 ? +n.approach : 0,
   }));
   S.sel.clear(); sortNotes(); resetHistory(); syncHeader(); save(); refreshPanels();
   dirty = false; updateSaveUI();
@@ -447,12 +459,15 @@ function toAsset() {
   L.push('  notesList:');
   const v2 = p => `{x: ${num(p.x)}, y: ${num(p.y)}}`, zero = { x: 0, y: 0 };
   for (const n of S.notes) {
-    L.push(`  - spawnTime: ${num(Math.max(0.1, n.t - S.approach))}`,
-      `    hitTime: ${num(Math.min(S.approach, n.t - 0.1))}`,
+    const A = apprOf(n);
+    L.push(`  - spawnTime: ${num(Math.max(0.1, n.t - A))}`,
+      `    hitTime: ${num(Math.min(A, n.t - 0.1))}`,
       `    pos: ${v2(n.pos)}`,
       `    type: ${TYPES.indexOf(n.type)}`,
       `    movePos: ${v2(n.type === 'Hold' ? n.move : zero)}`,
       `    holdTime: ${num(hasDur(n) ? n.hold : 0)}`,
+      `    rushCount: ${n.type === 'Rush' ? (n.count || 0) : 0}`,
+      `    hitRadiusScale: ${num(scaleOf(n) === 1 ? 0 : scaleOf(n))}`,
       `    pairPos: ${v2(n.type === 'Sync' ? n.pair : zero)}`,
       `    pairTime: 0`);
   }
@@ -472,10 +487,15 @@ function parseAsset(text) {
   const approach = +Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || S.approach;
   return {
     name, approach,
-    notes: out.map(n => ({
-      type: TYPES[n.type | 0] || 'Shot', time: r6(n.spawnTime + (n.hitTime || 0)),
-      pos: n.pos || [0, 0], movePos: n.movePos, pairPos: n.pairPos, holdTime: n.holdTime || 0,
-    })),
+    notes: out.map(n => {
+      const ht = n.hitTime || 0, clipped = n.spawnTime <= 0.1 + 1e-4 && ht < approach; // 曲の頭で短くなっただけのものは既定のまま
+      return {
+        type: TYPES[n.type | 0] || 'Shot', time: r6(n.spawnTime + ht),
+        pos: n.pos || [0, 0], movePos: n.movePos, pairPos: n.pairPos, holdTime: n.holdTime || 0,
+        hitRadiusScale: n.hitRadiusScale || 0, rushCount: n.rushCount || 0,
+        approach: !clipped && Math.abs(ht - approach) > 1e-3 ? r3(ht) : 0,
+      };
+    }),
   };
 }
 function importText(text, fileName) {
@@ -692,6 +712,16 @@ function drawTimeline() {
       c.fillText(TYPE_JP[n.type] + (under ? `  +${under}` : ''), x, mid + headR(R, under) + 10);
     }
   }
+  // 選択中のノーツは、出現してから判定までを点線で出す
+  c.save(); c.setLineDash([4, 4]); c.lineWidth = 1.5; c.font = '10px "Segoe UI",sans-serif'; c.textAlign = 'left';
+  for (const { n, x } of vis) {
+    if (!S.sel.has(n.id)) continue;
+    const xs = tX(n.t - apprOf(n)), y = RULER + 6;
+    c.strokeStyle = n.appr > 0 ? 'rgba(255,210,74,.85)' : 'rgba(255,255,255,.45)';
+    line(c, [xs, y], [x, y]); line(c, [xs, y - 4], [xs, y + 4]);
+    c.fillStyle = c.strokeStyle; c.fillText(`出現 ${r3(apprOf(n))}秒前`, xs + 3, y + 12);
+  }
+  c.restore();
   // 同時刻バッジ
   c.font = 'bold 10px "Segoe UI",sans-serif';
   for (const grp of sameTimeGroups()) {
@@ -781,9 +811,9 @@ function computeView() {
 }
 const toPx = p => [OX + p.x * PS, OY - p.y * PS];
 const toField = (x, y) => ({ x: (x - OX) / PS, y: -(y - OY) / PS });
-function visibleAt(n, T) { return T >= n.t - S.approach && T <= endT(n) + FADE_OUT; }
+function visibleAt(n, T) { return T >= n.t - apprOf(n) && T <= endT(n) + FADE_OUT; }
 function noteAlpha(n, T) {
-  const fin = clamp((T - (n.t - S.approach)) / (S.approach / 3), 0, 1);
+  const fin = clamp((T - (n.t - apprOf(n))) / (apprOf(n) / 3), 0, 1);
   const fout = T > endT(n) ? 1 - (T - endT(n)) / FADE_OUT : 1;
   return clamp(Math.min(fin, fout), 0, 1);
 }
@@ -802,7 +832,7 @@ function drawHandle(c, P) {
   c.fillRect(P[0] - 4, P[1] - 4, 8, 8); c.strokeRect(P[0] - 4, P[1] - 4, 8, 8);
 }
 function drawNote(c, n, T, alpha, sel, num) {
-  const r = HIT_R * PS, col = COLORS[n.type], P = toPx(n.pos);
+  const r = radOf(n) * PS, col = COLORS[n.type], P = toPx(n.pos);
   c.save(); c.globalAlpha = alpha; c.lineCap = 'round';
   let Q = null;
   if (n.type === 'Hold') {
@@ -832,11 +862,11 @@ function drawNote(c, n, T, alpha, sel, num) {
   }
   if (n.type === 'Rush') {
     c.font = `bold ${Math.round(r * 0.42)}px "Segoe UI",sans-serif`; c.textAlign = 'center'; c.fillStyle = col;
-    c.fillText(`連射 ${Math.max(1, Math.ceil(n.hold * RUSH_HPS))}発`, P[0], P[1] + r + r * 0.55);
+    c.fillText(`連射 ${rushCountOf(n)}発 / ${r3(n.hold)}秒`, P[0], P[1] + r + Math.max(12, r * 0.55));
   }
   // アプローチリング
   if (T < n.t) {
-    const k = clamp((T - (n.t - S.approach)) / S.approach, 0, 1), rr = r * (1 + (APPROACH_SCALE - 1) * (1 - k));
+    const A = apprOf(n), k = clamp((T - (n.t - A)) / A, 0, 1), rr = r * (1 + (APPROACH_SCALE - 1) * (1 - k));
     c.lineWidth = 3; c.strokeStyle = n.type === 'Shot' || n.type === 'Hold' ? '#fff' : hexA(col, 1);
     circle(c, P[0], P[1], rr); c.stroke();
     if (Q && n.type === 'Sync') { circle(c, Q[0], Q[1], rr); c.stroke(); }
@@ -1077,13 +1107,13 @@ function pfHits(m) {
   const add = (n, handle) => { if (!seen.has(n.id)) { seen.add(n.id); out.push({ n, handle }); } };
   // 選択中ノーツの副ハンドルを優先
   for (const n of cands) if (S.sel.has(n.id)) {
-    if (n.type === 'Hold' && dist(m, n.move) <= HIT_R * 0.7) add(n, 'move');
-    else if (n.type === 'Sync' && dist(m, n.pair) <= HIT_R) add(n, 'pair');
+    if (n.type === 'Hold' && dist(m, n.move) <= radOf(n) * 0.7) add(n, 'move');
+    else if (n.type === 'Sync' && dist(m, n.pair) <= radOf(n)) add(n, 'pair');
   }
   for (const n of cands) { // 早いノーツほど手前に描いているので、その順で
-    if (dist(m, n.pos) <= HIT_R) add(n, 'pos');
-    else if (n.type === 'Sync' && dist(m, n.pair) <= HIT_R) add(n, 'pair');
-    else if (n.type === 'Hold' && dist(m, n.move) <= HIT_R * 0.7) add(n, 'move');
+    if (dist(m, n.pos) <= radOf(n)) add(n, 'pos');
+    else if (n.type === 'Sync' && dist(m, n.pair) <= radOf(n)) add(n, 'pair');
+    else if (n.type === 'Hold' && dist(m, n.move) <= radOf(n) * 0.7) add(n, 'move');
   }
   return out;
 }
@@ -1406,19 +1436,25 @@ function refreshInspector() {
         <label>種類</label><select data-k="type">${typeOpts(n.type)}</select>
         <label>判定時刻 (秒)</label>${inp('t', n.t, '0.001')}
         <label>拍</label>${inp('beat', n.t / bl, String(r3(1 / S.snap)))}
-        <label>出現時刻</label><output>${r3(Math.max(0.1, n.t - S.approach))} 秒</output>
+        <label title="出現してから判定までの秒数。空欄ならヘッダーの Approach を使う">出現まで (秒)</label><div class="xy"><input type="number" step="0.05" min="0.1" data-k="appr" value="${n.appr > 0 ? r3(n.appr) : ''}" placeholder="既定 ${S.approach}">${n.appr > 0 ? '<button data-act="apprReset" title="ヘッダーの Approach に戻す">既定</button>' : ''}</div>
+        <label>出現時刻</label><output>${r3(Math.max(0.1, n.t - apprOf(n)))} 秒${n.t - apprOf(n) < 0.1 ? '（曲の頭で短縮）' : ''}</output>
+        <label title="当たる半径の倍率（見た目の大きさも変わる）">大きさ (倍)</label><div class="xy">${inp('scale', scaleOf(n), '0.05')}<select data-k="scalePreset" title="よく使う大きさ"><option value="">—</option>${[0.5, 0.75, 1, 1.25, 1.5, 2].map(v => `<option value="${v}">${v} 倍</option>`).join('')}</select></div>
         <label>位置 X / Y</label><div class="xy">${inp('pos.x', n.pos.x)}${inp('pos.y', n.pos.y)}</div>
         ${n.type === 'Hold' ? `<label>終点 X / Y</label><div class="xy">${inp('move.x', n.move.x)}${inp('move.y', n.move.y)}</div>` : ''}
         ${n.type === 'Sync' ? `<label>相方 X / Y</label><div class="xy">${inp('pair.x', n.pair.x)}${inp('pair.y', n.pair.y)}</div>` : ''}
-        ${hasDur(n) ? `<label>長さ (拍)</label>${inp('holdBeats', n.hold / bl, String(r3(1 / S.snap)))}<label>長さ (秒)</label><output>${r3(n.hold)} 秒</output>` : ''}
-        ${n.type === 'Rush' ? `<label>必要ヒット数</label><output>${Math.max(1, Math.ceil(n.hold * RUSH_HPS))} 発 (${RUSH_HPS}発/秒)</output>` : ''}
+        ${hasDur(n) ? `<label>長さ (拍)</label>${inp('holdBeats', n.hold / bl, String(r3(1 / S.snap)))}<label>長さ (秒)</label>${inp('holdSec', n.hold, '0.05')}` : ''}
+        ${n.type === 'Rush' ? `<label title="必要な撃つ回数。空欄なら 長さ × ${RUSH_HPS} 発/秒">連射回数</label><div class="xy"><input type="number" step="1" min="1" data-k="count" value="${n.count > 0 ? n.count : ''}" placeholder="自動 ${autoRush(n)}">${n.count > 0 ? '<button data-act="countReset" title="長さから自動で決める">自動</button>' : ''}</div>
+        <label>連射の速さ</label><output>${(rushCountOf(n) / Math.max(0.01, n.hold)).toFixed(1)} 発/秒（${rushCountOf(n)} 発 ÷ ${r3(n.hold)} 秒）</output>` : ''}
       </div>
       <div class="btns"><button data-act="snapT">時刻スナップ</button><button data-act="mirX">左右反転</button><button data-act="mirY">上下反転</button><button data-act="del" class="danger">削除</button></div>`;
   } else if (sel.length > 1) {
     const span = sel[sel.length - 1].t - sel[0].t;
     el.innerHTML = `<h3>${sel.length} ノーツを選択中</h3>
       <div class="kv"><label>範囲</label><output>${fmtTime(sel[0].t)} 〜 ${fmtTime(sel[sel.length - 1].t)} (${r3(span / bl)} 拍)</output>
-      <label>種類を一括変更</label><select data-k="type"><option value="">—</option>${typeOpts('')}</select></div>
+      <label>種類を一括変更</label><select data-k="type"><option value="">—</option>${typeOpts('')}</select>
+      <label>大きさを一括 (倍)</label><input type="number" step="0.05" min="0.1" data-k="scale" placeholder="${[...new Set(sel.map(scaleOf))].length === 1 ? scaleOf(sel[0]) : 'いろいろ'}">
+      <label>出現までを一括 (秒)</label><div class="xy"><input type="number" step="0.05" min="0.1" data-k="appr" placeholder="${[...new Set(sel.map(apprOf))].length === 1 ? apprOf(sel[0]) : 'いろいろ'}"><button data-act="apprReset" title="すべてヘッダーの Approach に戻す">既定</button></div>
+      ${sel.some(n => n.type === 'Rush') ? `<label>連射回数を一括</label><div class="xy"><input type="number" step="1" min="1" data-k="count" placeholder="連射のみ"><button data-act="countReset" title="長さから自動で決める">自動</button></div>` : ''}</div>
       <div class="btns"><button data-act="snapT">時刻スナップ</button><button data-act="mirX">左右反転</button><button data-act="mirY">上下反転</button><button data-act="del" class="danger">削除</button></div>`;
   } else {
     const cnt = t => S.notes.filter(n => n.type === t).length, d = S.notes.length ? endT(S.notes[S.notes.length - 1]) : 0;
@@ -1434,11 +1470,20 @@ $('#insp').addEventListener('change', e => {
   const k = e.target.dataset.k; if (!k) return;
   const sel = selected(); if (!sel.length) return;
   if (k === 'type') { if (!e.target.value) return; sel.forEach(n => changeType(n, e.target.value)); e.target.blur(); commit(); return; }
+  // 大きさ・出現まで・連射回数は選択中のノーツすべてに（空欄の「出現まで」「連射回数」は既定に戻す）
+  if (k === 'scale' || k === 'scalePreset' || k === 'appr' || k === 'count') {
+    const raw = e.target.value.trim(), v = parseFloat(raw);
+    if (k === 'appr') { if (raw && !(v > 0)) return; sel.forEach(n => n.appr = raw ? r3(Math.max(0.1, v)) : 0); }
+    else if (k === 'count') { if (raw && !(v > 0)) return; sel.forEach(n => { if (n.type === 'Rush') n.count = raw ? Math.max(1, Math.round(v)) : 0; }); }
+    else { if (!(v > 0)) return; sel.forEach(n => n.scale = r3(clamp(v, 0.1, 5))); }
+    e.target.blur(); commit(); return;
+  }
   const v = parseFloat(e.target.value); if (!isFinite(v)) return;
   const n = sel[0], bl = beatLen();
   if (k === 't') n.t = r6(Math.max(0, v));
   else if (k === 'beat') n.t = r6(Math.max(0, v * bl));
   else if (k === 'holdBeats') n.hold = r6(Math.max(0.01, v * bl));
+  else if (k === 'holdSec') n.hold = r6(Math.max(0.01, v));
   else { const [a, b] = k.split('.'); n[a] = clampPos({ ...n[a], [b]: r3(v) }); }
   e.target.blur(); commit();
 });
@@ -1447,13 +1492,17 @@ function checks() {
   const W = [], ns = S.notes;
   ns.forEach((n, i) => {
     const push = (lv, m) => W.push({ n, i, lv, m });
-    if (n.t - S.approach < 0.1) push('warn', `出現時刻が0.1秒未満。アプローチが ${r3(Math.max(0, n.t - 0.1))} 秒に短縮されます`);
+    if (n.t - apprOf(n) < 0.1) push('warn', `出現時刻が0.1秒未満。アプローチが ${r3(Math.max(0, n.t - 0.1))} 秒に短縮されます`);
+    if (apprOf(n) < 0.4) push('warn', `出現から判定まで ${r3(apprOf(n))} 秒しかありません（見てから撃つのは難しい）`);
+    if (scaleOf(n) < 0.5) push('warn', `大きさが ${scaleOf(n)} 倍と小さく、当てにくいです`);
+    else if (scaleOf(n) > 3) push('info', `大きさが ${scaleOf(n)} 倍と大きく、ほかのノーツと重なりやすいです`);
+    if (n.type === 'Rush' && n.hold > 0) { const rate = rushCountOf(n) / n.hold; if (rate > 12) push('warn', `連射が速すぎます（${rate.toFixed(1)} 発/秒）`); }
     if (hasDur(n) && n.hold <= 0) push('err', '長さが0です');
     if (n.type === 'Hold') {
       if (dist(n.pos, n.move) < 0.01) push('info', '始点と終点が同じ位置です');
       else if (n.hold > 0 && dist(n.pos, n.move) / n.hold > 12) push('warn', `追従速度が速い (${(dist(n.pos, n.move) / n.hold).toFixed(1)} u/秒)`);
     }
-    if (n.type === 'Sync' && dist(n.pos, n.pair) < HIT_R * 2) push('warn', '2つの的が近く、1発で両方に当たる可能性があります');
+    if (n.type === 'Sync' && dist(n.pos, n.pair) < radOf(n) * 2) push('warn', '2つの的が近く、1発で両方に当たる可能性があります');
     if (Math.abs(n.t - snapT(n.t)) > 0.002) push('info', `1/${S.snap} スナップから外れた時刻です`);
     const outF = q => Math.abs(q.x) > HW + 1e-6 || Math.abs(q.y) > HH + 1e-6;
     if (outF(n.pos) || (n.type === 'Hold' && outF(n.move)) || (n.type === 'Sync' && outF(n.pair))) push('warn', `フィールド (${FIELD.w} × ${FIELD.h}) の外にはみ出しています`);
@@ -1685,6 +1734,8 @@ const ACTIONS = {
   zoomIn() { setZoom(S.zoom * 1.25); }, zoomOut() { setZoom(S.zoom / 1.25); },
   snapT: snapSelectedTimes, mirX() { mirror('x'); }, mirY() { mirror('y'); },
   del() { deleteNotes([...S.sel]); },
+  apprReset() { const sel = selected(); if (!sel.length) return; sel.forEach(n => n.appr = 0); commit('出現までを既定に戻しました'); },
+  countReset() { const sel = selected(); if (!sel.length) return; sel.forEach(n => n.count = 0); commit('連射回数を自動にしました'); },
 };
 document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && ACTIONS[b.dataset.act]) { ACTIONS[b.dataset.act](); b.blur(); } });
 $('#fileChart').addEventListener('change', async e => { const f = e.target.files[0]; if (f && importText(await f.text(), f.name)) rememberHandle(null); e.target.value = ''; });
