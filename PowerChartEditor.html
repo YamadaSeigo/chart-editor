@@ -105,38 +105,85 @@ main>#tools{grid-area:tools}main>#pfwrap{grid-area:pf}main>aside{grid-area:side}
 #recBadge.show{display:block}
 
 aside{position:relative;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);min-height:0}
-#insp{padding:12px;border-bottom:1px solid var(--line)}
-#insp h3{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
-.dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
-.kv{display:grid;grid-template-columns:96px 1fr;gap:6px 8px;align-items:center}
-.kv>label{justify-content:flex-start}
-.kv output{font-variant-numeric:tabular-nums}
-.kv input[type=number],.kv select{width:100%}
-.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.btns button{font-size:12px;padding:3px 8px}
-.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px}
-.stat{background:#15151d;border:1px solid var(--line);border-radius:7px;padding:6px 8px}
-.stat b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
-.stat span{color:var(--dim);font-size:11px}
-.muted{color:var(--dim);font-size:12px}
-.tabs{display:flex;border-bottom:1px solid var(--line);user-select:none}
-.tabs button{flex:1;border:0;border-radius:0;background:none;padding:7px;color:var(--dim)}
-.tabs button.on{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
-#badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#553a2a;color:#ffc9a3;font-size:11px}
+/* タブ */
+.ptabs{display:flex;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--line);background:#191922;user-select:none;flex:none}
+.ptabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px;border:1px solid transparent;border-bottom:0;border-radius:9px 9px 0 0;background:none;color:var(--dim);font-size:13px;font-weight:600;margin-bottom:-1px}
+.ptabs button:hover{color:var(--text);background:#22222d}
+.ptabs button.on{color:var(--text);background:var(--panel);border-color:var(--line);box-shadow:inset 0 2px 0 var(--accent)}
+.tcount{min-width:18px;padding:0 6px;border-radius:9px;background:#2e2e3e;color:#c8c8d8;font-size:11px;font-weight:600;line-height:18px}
+.tcount:empty{display:none}
+#badge{min-width:18px;padding:0 6px;border-radius:9px;background:#5a3a22;color:#ffc9a3;font-size:11px;line-height:18px}
 #badge:empty{display:none}
-#tabbody{flex:1;overflow:auto;min-height:0}
-table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
-td,th{padding:4px 8px;text-align:left;white-space:nowrap}
-th{position:sticky;top:0;background:var(--panel);color:var(--dim);font-weight:500;border-bottom:1px solid var(--line)}
+.pane{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-width:thin;scrollbar-color:#3a3a50 transparent}
+.pane::-webkit-scrollbar{width:7px}.pane::-webkit-scrollbar-thumb{background:#3a3a50;border-radius:4px}
+.pane[hidden]{display:none}
+/* 編集（インスペクタ） */
+#insp{padding:12px 12px 16px}
+.ihead{display:flex;align-items:center;gap:10px;padding:4px 4px 12px}
+.ihead .dot{width:14px;height:14px}
+.ihead b{font-size:16px}
+.ihead small{display:block;color:var(--dim);font-size:11.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
+.card{background:#16161f;border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;margin-bottom:10px}
+.card h4{margin:0 0 10px;font-size:12px;font-weight:700;color:#b4b4c8;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.card h4 .sub{margin-left:auto;font-weight:500;color:var(--dim);font-size:11px;letter-spacing:0}
+.fld{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.fld:last-child{margin-bottom:0}
+.fld>span{font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.fld>span em{font-style:normal;margin-left:auto;color:#c8c8d8;font-variant-numeric:tabular-nums}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.segs{display:flex;gap:4px;background:#101017;border:1px solid var(--line);border-radius:10px;padding:3px}
+.segs button{flex:1;min-height:34px;padding:4px 6px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px}
+.segs button:hover{background:#262633;color:var(--text)}
+.segs button.on{background:#3d2c22;color:#fff;box-shadow:inset 0 0 0 1px var(--accent)}
+.segs button .dot{width:9px;height:9px}
+.stepper{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#101017}
+.stepper input{flex:1;min-width:0;border:0;border-radius:0;background:none;text-align:center;font-size:14px;font-variant-numeric:tabular-nums;min-height:36px;padding:4px 6px}
+.stepper input:focus{outline:none;background:#191922}
+.stepper button{width:38px;border:0;border-radius:0;background:#20202b;color:#c8c8d8;font-size:16px;padding:0}
+.stepper button:hover{background:#2e2e3e;color:#fff}
+.stepper .unit{display:flex;align-items:center;padding:0 10px 0 2px;color:var(--dim);font-size:11.5px;background:#101017}
+.stepper:focus-within{border-color:var(--accent)}
+.slider{display:flex;align-items:center;gap:10px}
+.slider input[type=range]{flex:1;accent-color:var(--accent);height:28px}
+.presets{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+.presets button{flex:1;min-height:28px;padding:2px 6px;font-size:12px;border-radius:14px;background:none;color:#c8c8d8}
+.presets button.on{background:#3d2c22;border-color:var(--accent);color:#fff}
+.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.info b{color:#d8d8e6;font-weight:500;text-align:right}
+.mini{font-size:11px;padding:2px 8px;min-height:24px;border-radius:12px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.acts button{min-height:36px;font-size:12.5px;border-radius:9px}
+.acts button.danger{color:#ff8a96;border-color:#5a2a33}
+.acts button.danger:hover{background:#3a1f26;border-color:#ff5566}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.stat{background:#16161f;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.stat b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--dim);font-size:11px}
+.tips{background:#16161f;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;color:var(--dim);font-size:12px;line-height:1.7}
+.tips kbd{background:#101017;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-family:inherit;font-size:11px;color:#c8c8d8}
+.muted{color:var(--dim);font-size:12px}
+/* ノーツ一覧 */
+.lsearch{position:sticky;top:0;z-index:1;display:flex;gap:6px;padding:8px;background:var(--panel);border-bottom:1px solid var(--line)}
+.lsearch .segs{flex:1}
+.lsearch .segs button{min-height:28px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+td,th{padding:7px 8px;text-align:left;white-space:nowrap}
+th{position:sticky;top:45px;background:var(--panel);color:var(--dim);font-weight:500;font-size:11.5px;border-bottom:1px solid var(--line)}
 tbody tr{cursor:pointer;border-bottom:1px solid #22222d}
-tbody tr:hover{background:#262633}
+tbody tr:hover{background:#22222d}
 tbody tr.sel{background:#3d2c22}
-.chip{display:inline-flex;align-items:center;gap:5px}
-.warn{padding:7px 10px;border-bottom:1px solid #22222d;cursor:pointer;font-size:12px;display:flex;gap:8px}
-.warn:hover{background:#262633}
-.warn .lv{flex:none;width:44px;font-size:11px;text-align:center;border-radius:4px;height:18px;line-height:18px}
+tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:6px}
+.tag{font-size:10.5px;border-radius:8px;padding:0 6px;font-weight:700;color:#14141b}
+.tag.fast{background:#ffb04a}.tag.slow{background:#7fd6ff}.tag.cnt{background:#ff8fd6}
+/* チェック */
+.warn{display:flex;gap:10px;align-items:flex-start;margin:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#16161f;cursor:pointer;font-size:12.5px;line-height:1.55}
+.warn:hover{border-color:#55556e;background:#1c1c27}
+.warn .lv{flex:none;min-width:44px;font-size:11px;font-weight:700;text-align:center;border-radius:6px;padding:2px 6px}
 .lv.err{background:#5a1f2a;color:#ff9aa8}.lv.warn{background:#51401a;color:#ffd97a}.lv.info{background:#1f3550;color:#9fcaff}
-.ok{padding:14px;color:#8fd9a8}
+.warn .where{color:var(--dim);font-size:11.5px}
+.ok{margin:12px;padding:16px;border:1px solid #2d4a37;border-radius:10px;background:#18261e;color:#8fd9a8}
 
 footer{display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--panel);border-top:1px solid var(--line);user-select:none}
 #playBtn{width:40px;height:40px;border-radius:50%;font-size:16px;padding:0;background:var(--accent);border-color:var(--accent);color:#1f0e04}
@@ -239,9 +286,13 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
     </section>
     <aside>
       <div class="sizer sz-side" title="ドラッグで幅を変更（ダブルクリックで元に戻す）"></div>
-      <div id="insp"></div>
-      <div class="tabs"><button data-tab="list" class="on">ノーツ一覧</button><button data-tab="check">チェック <span id="badge"></span></button></div>
-      <div id="tabbody"></div>
+      <div class="ptabs" role="tablist">
+        <button data-tab="edit" role="tab" title="選択中のノーツを編集">編集 <span class="tcount" id="selCount"></span></button>
+        <button data-tab="list" role="tab">ノーツ一覧 <span class="tcount" id="listCount"></span></button>
+        <button data-tab="check" role="tab" title="譜面チェック">チェック <span id="badge"></span></button>
+      </div>
+      <div id="insp" class="pane" role="tabpanel"></div>
+      <div id="tabbody" class="pane" role="tabpanel" hidden></div>
     </aside>
   </main>
 
@@ -365,7 +416,7 @@ const S = {
   time: 0, playing: false, tool: 'select', hand: L, rec: false,
   sel: new Set(), zoom: 140, viewStart: 0, viewEnd: null, rate: 1, hitsound: true, metronome: false, volume: 0.7,
 };
-let nextId = 1, drag = null, pfMouse = null, clip = null, tab = 'list';
+let nextId = 1, drag = null, pfMouse = null, clip = null, tab = 'edit', listFilter = '', lastSelKey = '', keepTab = false;
 
 const $ = s => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -388,7 +439,12 @@ const selected = () => S.notes.filter(n => S.sel.has(n.id));
 const reqPunch = n => n.type === 'Upper' ? 'Upper' : isHook(n.type) ? 'Hook' : 'Jab';
 const noteCol = n => isRush(n) ? RUSH_COL : HAND_COL[n.hand];
 const typeJP = n => TYPE_JP[n.type];
-const rushHits = n => Math.max(1, Math.ceil(n.rush * beatLen() * RUSH_HPS));
+// ノーツごとの値（0 / 未指定なら既定）。ゲームの PowerNote.speed / rushCount に対応
+const speedOf = n => n.speed > 0 ? n.speed : 1;                                   // 流れてくる速さの倍率
+const apprB = n => S.approach / speedOf(n);                                       // 何拍前から見えるか（速いほど遅く出る）
+const autoRush = n => Math.max(1, Math.ceil(n.rush * beatLen() * RUSH_HPS));
+const rushHits = n => n.count > 0 ? n.count : autoRush(n);                        // 連打で必要な回数（1レーンあたり）
+const rushGap = n => Math.max(0.02, n.rush * beatLen() / rushHits(n));           // 連打1発の間隔（秒）
 function hexA(hex, a) {
   const v = parseInt(hex.slice(1), 16);
   return `rgba(${v >> 16 & 255},${v >> 8 & 255},${v & 255},${a})`;
@@ -401,14 +457,14 @@ function fmtTime(t) {
 const fmtBeat = b => { const bi = Math.floor(b + 1e-6); return `${Math.floor(bi / 4) + 1}:${bi % 4 + 1}` + (Math.abs(b - bi) > 1e-6 ? `+${r3(b - bi)}` : ''); };
 
 function makeNote(type, b, hand, rush = 0) {
-  const n = { id: nextId++, type, b, hand, rush };
+  const n = { id: nextId++, type, b, hand, rush, speed: 1, count: 0 };
   applyTypeDefaults(n);
   return n;
 }
 function applyTypeDefaults(n) {
   if (n.type === 'HookLeft') n.hand = L; // フックは種類で手（レーン）が決まる
   if (n.type === 'HookRight') n.hand = R;
-  if (isRush(n)) { if (n.rush <= 0) n.rush = 4; } else n.rush = 0;
+  if (isRush(n)) { if (n.rush <= 0) n.rush = 4; } else { n.rush = 0; n.count = 0; }
 }
 function setNoteHand(n, h) { n.hand = h; if (isHook(n.type)) n.type = hookFor(h); }
 function sortNotes() { S.notes.sort((a, b) => a.b - b.b || a.hand - b.hand || a.id - b.id); }
@@ -457,7 +513,7 @@ function resetHistory() { hist = [JSON.stringify(S.notes)]; hi = 0; }
 function toJSONObj() {
   return {
     format: 'ms2026-power-chart', version: 2, name: S.name, bpm: S.bpm, offset: S.offset, approachBeats: S.approach,
-    notes: S.notes.map(n => ({ beat: n.b, type: n.type, hand: HANDS[n.hand], rushBeats: n.rush })),
+    notes: S.notes.map(n => ({ beat: n.b, type: n.type, hand: HANDS[n.hand], rushBeats: n.rush, rushCount: isRush(n) ? (n.count || 0) : 0, speed: speedOf(n) })),
   };
 }
 function save() {
@@ -472,10 +528,12 @@ function loadChartObj(o) {
   if (o.bpm > 0) S.bpm = +o.bpm;
   if (o.offset != null) S.offset = +o.offset;
   if (o.approachBeats > 0) S.approach = +o.approachBeats;
-  const raw = (o.notes || []).map(n => ({ type: parseType(n.type), beat: Math.max(0, +n.beat || 0), hand: parseHand(n.hand ?? BOTH), rushBeats: Math.max(0, +n.rushBeats || 0) }));
+  const raw = (o.notes || []).map(n => ({ type: parseType(n.type), beat: Math.max(0, +n.beat || 0), hand: parseHand(n.hand ?? BOTH), rushBeats: Math.max(0, +n.rushBeats || 0),
+    rushCount: Math.max(0, Math.round(+n.rushCount || 0)), speed: +n.speed > 0 ? +n.speed : 1 }));
   const { notes, rep } = normalize(raw);
   nextId = 1;
-  S.notes = notes.map(n => ({ id: nextId++, type: n.type, b: n.beat, hand: n.hand, rush: n.type === 'Rush' ? n.rushBeats : 0 }));
+  S.notes = notes.map(n => ({ id: nextId++, type: n.type, b: n.beat, hand: n.hand, rush: n.type === 'Rush' ? n.rushBeats : 0,
+    count: n.type === 'Rush' ? n.rushCount || 0 : 0, speed: n.speed || 1 }));
   S.sel.clear(); sortNotes(); resetHistory(); syncHeader(); save(); refreshPanels();
   dirty = false; updateSaveUI();
   return rep;
@@ -496,7 +554,8 @@ function toAsset() {
   if (!S.notes.length) { out.push('  notes: []'); return out.join('\n') + '\n'; }
   out.push('  notes:');
   for (const n of S.notes) {
-    out.push(`  - beat: ${num(n.b)}`, `    type: ${TYPE_VAL[n.type]}`, `    hand: ${n.hand}`, `    rushBeats: ${num(isRush(n) ? n.rush : 0)}`);
+    out.push(`  - beat: ${num(n.b)}`, `    type: ${TYPE_VAL[n.type]}`, `    hand: ${n.hand}`, `    rushBeats: ${num(isRush(n) ? n.rush : 0)}`,
+      `    rushCount: ${isRush(n) ? (n.count || 0) : 0}`, `    speed: ${num(speedOf(n) === 1 ? 0 : speedOf(n))}`);
   }
   return out.join('\n') + '\n';
 }
@@ -505,8 +564,8 @@ function parseAsset(text) {
   if (/notesList:/.test(text) && !/^\s*notes:/m.test(text)) throw new Error('TECH 側の NotesRecord です。PowerChart の .asset を開いてください');
   for (const line of text.split(/\r?\n/)) {
     if ((m = line.match(/^\s*m_Name:\s*(.*)$/))) name = m[1].trim();
-    else if ((m = line.match(/^\s*-\s*beat:\s*(\S+)/))) { cur = { beat: +m[1], type: 0, hand: BOTH, rushBeats: 0 }; out.push(cur); }
-    else if (cur && (m = line.match(/^\s+(type|hand|rushBeats):\s*([-\d.eE+]+)\s*$/))) cur[m[1]] = +m[2];
+    else if ((m = line.match(/^\s*-\s*beat:\s*(\S+)/))) { cur = { beat: +m[1], type: 0, hand: BOTH, rushBeats: 0, rushCount: 0, speed: 0 }; out.push(cur); }
+    else if (cur && (m = line.match(/^\s+(type|hand|rushBeats|rushCount|speed):\s*([-\d.eE+]+)\s*$/))) cur[m[1]] = +m[2];
   }
   if (!out.length && !/^\s*notes:/m.test(text)) throw new Error('PowerChart の notes が見つかりません');
   return { name, notes: out };
@@ -622,8 +681,8 @@ function tickSounds(prev, now) {
     for (const n of hits) { blip(HIT_FREQ[n.type], 0.09, 0.3, 'triangle', PAN(n.hand)); blip(HIT_FREQ[n.type] * 3, 0.03, 0.08, 'square', PAN(n.hand)); }
     // 連打中は目標の速さ（1レーンあたり）で軽く鳴らす
     for (const n of S.notes) if (isRush(n) && now > tOf(n) && prev < endT(n) && now < endT(n)) {
-      const k = Math.floor((now - tOf(n)) * RUSH_HPS);
-      if (k > Math.floor((prev - tOf(n)) * RUSH_HPS)) blip(700, 0.03, 0.1, 'square', PAN(n.hand));
+      const k = Math.floor((now - tOf(n)) / rushGap(n));
+      if (k > Math.floor((prev - tOf(n)) / rushGap(n))) blip(700, 0.03, 0.1, 'square', PAN(n.hand));
     }
   }
   if (S.metronome) {
@@ -767,6 +826,12 @@ function drawTimeline() {
     const x = tX(tOf(n)), y = laneY(n.hand), sel = S.sel.has(n.id), rr = isRush(n) ? Rr * 1.2 : Rr;
     if (sel) { circle(c, x, y, rr + 4); c.strokeStyle = '#ff8a3d'; c.lineWidth = 2; c.stroke(); }
     drawGlyph(c, x, y, rr, n.type, n.hand, { sel, label: true });
+    if (speedOf(n) !== 1) { // 速さのバッジ
+      const tx = `×${speedOf(n)}`; c.font = 'bold 9px "Segoe UI",sans-serif';
+      const bw = c.measureText(tx).width + 8, bx = x + rr * 0.4, by = y - rr - 9;
+      c.fillStyle = speedOf(n) > 1 ? '#ffb04a' : '#7fd6ff'; c.beginPath(); c.roundRect(bx, by, bw, 12, 6); c.fill();
+      c.fillStyle = '#14141b'; c.textAlign = 'center'; c.fillText(tx, bx + bw / 2, by + 9);
+    }
     if (S.zoom >= 90 && lh >= 40) {
       c.fillStyle = '#8f8fa8'; c.font = '9px "Segoe UI",sans-serif'; c.textAlign = 'left';
       c.fillText(String(idx.get(n.id)), x + rr + 3, y - rr + 6);
@@ -840,8 +905,9 @@ const toPx = (x, y) => [OX + x * PS, OY - y * PS];
 const toWorld = (px, py) => ({ x: (px - OX) / PS, y: -(py - OY) / PS });
 const laneX = h => h === L ? -LANE_X : LANE_X;
 // 判定まであと何拍かを、レーンの上の高さにする（0拍で的、approachBeats拍で出てくる位置）。laneMoveFraction = 1（止まらずに流れる）
-const laneYw = beatsLeft => TARGET_Y + beatsLeft / S.approach * (SPAWN_Y - TARGET_Y);
-const noteFade = beatsLeft => clamp((S.approach - beatsLeft) * 2, 0, 1) * clamp(1 + beatsLeft * 2, 0, 1);
+// A = そのノーツが何拍前から見えるか（ノーツごとの速さで変わる。拍の線は既定の Approach）
+const laneYw = (beatsLeft, A = S.approach) => TARGET_Y + beatsLeft / A * (SPAWN_Y - TARGET_Y);
+const noteFade = (beatsLeft, A = S.approach) => clamp((A - beatsLeft) * 2, 0, 1) * clamp(1 + beatsLeft * 2, 0, 1);
 const FLASH = 0.25;
 function rectW(c, cx, cy, w, h, style) { const [x, y] = toPx(cx - w / 2, cy + h / 2); c.fillStyle = style; c.fillRect(x, y, w * PS, h * PS); }
 function drawField() {
@@ -855,7 +921,7 @@ function drawField() {
   for (const hd of [L, R]) {
     const x = laneX(hd), col = HAND_COL[hd];
     // そのレーンのノーツが的に着いた瞬間に少し明るくする（パンチした想定）
-    const lastHit = S.notes.filter(n => n.hand === hd && tOf(n) <= T).map(n => isRush(n) && T < endT(n) ? T - ((T - tOf(n)) % (1 / RUSH_HPS)) : tOf(n));
+    const lastHit = S.notes.filter(n => n.hand === hd && tOf(n) <= T).map(n => isRush(n) && T < endT(n) ? T - ((T - tOf(n)) % rushGap(n)) : tOf(n));
     const flash = lastHit.length ? clamp(1 - (T - Math.max(...lastHit)) / 0.15, 0, 1) : 0;
     rectW(c, x, cy, LANE_W, top - bottom, hexA(col, 0.12 + 0.15 * flash));
     rectW(c, x - LANE_W / 2, cy, 0.04, top - bottom, hexA(col, 0.5));
@@ -880,17 +946,17 @@ function drawField() {
   pfVisible = [];
   let shown = 0;
   for (let i = S.notes.length - 1; i >= 0; i--) {
-    const n = S.notes[i], left = n.b - beat, x = laneX(n.hand), sel = S.sel.has(n.id);
-    if (left > S.approach) continue;
+    const n = S.notes[i], left = n.b - beat, x = laneX(n.hand), sel = S.sel.has(n.id), A = apprB(n);
+    if (left > A) continue;
     if (isRush(n)) {
       const tailLeft = left + n.rush; if (tailLeft <= 0) continue;
       shown++;
-      const fade = clamp((S.approach - left) * 2, 0, 1);
-      const headY = Math.max(TARGET_Y, laneYw(left)), tailY = Math.min(SPAWN_Y, Math.max(TARGET_Y, laneYw(tailLeft)));
+      const fade = clamp((A - left) * 2, 0, 1);
+      const headY = Math.max(TARGET_Y, laneYw(left, A)), tailY = Math.min(SPAWN_Y, Math.max(TARGET_Y, laneYw(tailLeft, A)));
       if (tailY > headY) rectW(c, x, (headY + tailY) / 2, NOTE_R * 1.4, tailY - headY, hexA(RUSH_COL, 0.55 * fade));
       const [px, py] = toPx(x, headY);
       let rr = r * 1.2;
-      if (T >= tOf(n)) rr *= 1 + 0.2 * clamp(1 - ((T - tOf(n)) % (1 / RUSH_HPS)) / 0.08, 0, 1); // 叩くたびに膨らむ想定
+      if (T >= tOf(n)) rr *= 1 + 0.2 * clamp(1 - ((T - tOf(n)) % rushGap(n)) / 0.08, 0, 1); // 叩くたびに膨らむ想定
       c.save(); c.globalAlpha = fade;
       drawGlyph(c, px, py, rr, n.type, n.hand, { sel });
       if (T >= tOf(n)) { // 連打の進み具合（目標どおり叩けた想定）
@@ -908,14 +974,14 @@ function drawField() {
       circle(c, tx, ty, r * (1 + k * 1.5)); c.strokeStyle = hexA(HAND_COL[n.hand], 1 - k); c.lineWidth = r * 0.12; c.stroke();
       circle(c, tx, ty, r * 1.15); c.fillStyle = `rgba(255,255,255,${0.35 * (1 - k)})`; c.fill();
     }
-    const fade = noteFade(left); if (fade <= 0) continue;
+    const fade = noteFade(left, A); if (fade <= 0) continue;
     shown++;
-    const [px, py] = toPx(x, laneYw(left));
+    const [px, py] = toPx(x, laneYw(left, A));
     c.save(); c.globalAlpha = fade;
     drawGlyph(c, px, py, r, n.type, n.hand, { sel });
     if (sel) { circle(c, px, py, r + 5); c.strokeStyle = '#ff8a3d'; c.lineWidth = 2; c.stroke(); }
     c.globalAlpha = fade * 0.8; c.fillStyle = '#c8c8d8'; c.font = `${Math.max(9, Math.round(r * 0.4))}px "Segoe UI",sans-serif`; c.textAlign = n.hand === L ? 'right' : 'left';
-    c.fillText('#' + idx.get(n.id), px + (n.hand === L ? -r * 1.15 : r * 1.15), py + 4);
+    c.fillText('#' + idx.get(n.id) + (speedOf(n) !== 1 ? `  ×${speedOf(n)}` : ''), px + (n.hand === L ? -r * 1.15 : r * 1.15), py + 4);
     c.restore();
     pfVisible.push({ n, x: px, y: py, r });
   }
@@ -993,7 +1059,7 @@ function renderMascotSprite(nowMs) {
   if (dance) for (const n of S.notes) {
     if (tOf(n) > S.time) break;
     if (S.time - tOf(n) < 0.18) punch[n.hand] = n;
-    else if (isRush(n) && S.time < endT(n) && Math.floor((S.time - tOf(n)) * RUSH_HPS * 2) % 2 === 0) punch[n.hand] = n;
+    else if (isRush(n) && S.time < endT(n) && Math.floor((S.time - tOf(n)) / rushGap(n) * 2) % 2 === 0) punch[n.hand] = n;
   }
   let bodyY = 0, bodyX = 0, knee = 0, lookX = 0, lookY = 0, eyeMode = 'open';
   if (dance) {
@@ -1361,38 +1427,69 @@ function recordNote(tool, hands) {
 }
 function setRec(on) { S.rec = on; $('#rec').checked = on; $('#recBadge').classList.toggle('show', on); }
 
-// ====== パネル ======
-function refreshPanels() { refreshInspector(); renderTab(); syncRangeInputs(); }
+// ====== パネル（編集 / ノーツ一覧 / チェック のタブ） ======
+function refreshPanels() {
+  // ノーツを選んだら「編集」タブへ（一覧・チェックから選んだときはそのまま）
+  const key = [...S.sel].sort().join(',');
+  if (key !== lastSelKey) { if (key && !keepTab) tab = 'edit'; lastSelKey = key; }
+  keepTab = false;
+  refreshInspector(); renderTab(); syncRangeInputs();
+}
 const TOOL_OPTS = ['Jab', 'Upper', 'Hook', 'Rush'];
-const typeOpts = cur => TOOL_OPTS.map(t => `<option value="${t}"${t === cur ? ' selected' : ''}>${TYPE_JP[t]}</option>`).join('');
 const toolOf = type => isHook(type) ? 'Hook' : type;
-const handOpts = cur => [L, R].map(i => `<option value="${i}"${i === cur ? ' selected' : ''}>${HAND_JP[i]}手 (${HANDS[i]})</option>`).join('');
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const same = (arr, f) => { const v = [...new Set(arr.map(f))]; return v.length === 1 ? v[0] : null; };
+const typeSegs = cur => `<div class="segs">${TOOL_OPTS.map(t => `<button data-set="type" data-v="${t}" class="${t === cur ? 'on' : ''}">${t === 'Rush' ? `<span class="dot" style="background:${RUSH_COL}"></span>` : ''}${TYPE_JP[t]}</button>`).join('')}</div>`;
+const handSegs = cur => `<div class="segs">${[L, R].map(h => `<button data-set="hand" data-v="${h}" class="${h === cur ? 'on' : ''}"><span class="dot" style="background:${HAND_COL[h]}"></span>${HAND_JP[h]}手</button>`).join('')}</div>`;
+const stepper = (k, v, st, unit, ph = '') => `<div class="stepper"><button data-step="${k}" data-d="${-st}" title="−${st}">−</button><input type="number" step="${st}" data-k="${k}" value="${v === '' ? '' : r3(v)}" placeholder="${ph}"><span class="unit">${unit}</span><button data-step="${k}" data-d="${st}" title="＋${st}">＋</button></div>`;
+function speedCard(sp, sel) {
+  const bl = beatLen(), a = sp == null ? null : S.approach / sp;
+  return `<div class="card"><h4>流れる速さ<span class="sub">${sp == null ? 'ノーツごとに違う' : `${r3(a)} 拍前（${r3(a * bl)} 秒前）に出現`}</span></h4>
+    <div class="fld"><span>倍率 <em>${sp == null ? '—' : sp + ' 倍'}</em></span>
+      <div class="slider"><input type="range" min="0.25" max="3" step="0.05" data-k="speed" value="${sp ?? 1}" aria-label="流れる速さ"></div>
+      <div class="presets">${SPEEDS.map(v => `<button data-set="speed" data-v="${v}" class="${v === sp ? 'on' : ''}">${v}×</button>`).join('')}</div>
+    </div></div>`;
+}
+function rushCard(list) {
+  const bl = beatLen(), one = list.length === 1 ? list[0] : null, cnt = same(list, n => n.count || 0);
+  const auto = one ? autoRush(one) : null, hits = one ? rushHits(one) : null;
+  return `<div class="card"><h4><span class="dot" style="background:${RUSH_COL}"></span>連打<span class="sub">片手 ${RUSH_HPS} 発/秒なら自動</span></h4>
+    ${one ? `<div class="row2"><label class="fld"><span>長さ（拍）</span>${stepper('rush', one.rush, r3(1 / S.snap), '拍')}</label>
+      <label class="fld"><span>長さ（秒）</span>${stepper('rushSec', one.rush * bl, 0.1, '秒')}</label></div>` : ''}
+    <label class="fld"><span>必要な回数（1レーンあたり）${(cnt ?? 1) > 0 && cnt !== 0 ? '<button class="mini" data-act="countReset" title="長さから自動で決める">自動に戻す</button>' : ''}</span>
+      ${stepper('count', cnt > 0 ? cnt : '', 1, '回', one ? `自動 ${auto}` : (cnt === 0 ? '自動' : 'いろいろ'))}</label>
+    ${one ? `<div class="info"><span>速さ</span><b>片手 ${(hits / Math.max(0.01, one.rush * bl)).toFixed(1)} 発/秒（${hits} 回 ÷ ${r3(one.rush * bl)} 秒）</b></div>` : ''}
+  </div>`;
+}
 function refreshInspector() {
   const el = $('#insp'), sel = selected(), bl = beatLen();
-  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && drag == null) return;
+  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type !== 'range' && drag == null) return;
+  const acts = `<div class="acts"><button data-act="snapSel">拍スナップ</button><button data-act="mirX">左右反転</button><button data-act="dupOpp">反対に複製</button><button data-act="del" class="danger">削除</button></div>`;
   if (sel.length === 1) {
-    const n = sel[0], i = S.notes.indexOf(n) + 1, inp = (k, v, st) => `<input type="number" step="${st}" data-k="${k}" value="${r3(v)}">`;
-    const bst = String(r3(1 / S.snap));
-    el.innerHTML = `<h3><span class="dot" style="background:${noteCol(n)}"></span>#${i} ${typeJP(n)}（${HAND_JP[n.hand]}手）</h3>
-      <div class="kv">
-        <label>種類</label><select data-k="type">${typeOpts(toolOf(n.type))}</select>
-        <label>手（レーン）</label><select data-k="hand">${handOpts(n.hand)}</select>
-        <label>拍 (beat)</label>${inp('b', n.b, bst)}
-        <label>小節 : 拍</label><output>${fmtBeat(n.b)}</output>
-        <label>判定時刻</label><output>${fmtTime(tOf(n))}</output>
-        <label>出現</label><output>${fmtTime(Math.max(0, tOf(n) - S.approach * bl))}（${S.approach} 拍前）</output>
-        ${isRush(n) ? `<label>長さ (拍)</label>${inp('rush', n.rush, bst)}<label>長さ (秒)</label><output>${r3(n.rush * bl)} 秒</output>
-        <label>必要ヒット数</label><output>${rushHits(n)} 発 (${RUSH_HPS}発/秒・片手)</output>` : ''}
-        <label>動き</label><output>${isRush(n) ? '連打（どのパンチも1発）' : reqPunch(n) === 'Hook' ? 'フック（ジャブでもゆるく可）' : reqPunch(n) === 'Jab' ? 'ジャブ（フックでもゆるく可）' : 'アッパー'}</output>
+    const n = sel[0], i = S.notes.indexOf(n) + 1;
+    el.innerHTML = `<div class="ihead"><span class="dot" style="background:${noteCol(n)}"></span><div><b>#${i} ${typeJP(n)}</b><small>${HAND_JP[n.hand]}手　小節 ${fmtBeat(n.b)}　${fmtTime(tOf(n))}</small></div></div>
+      <div class="card"><h4>種類と手</h4>
+        <div class="fld"><span>種類</span>${typeSegs(toolOf(n.type))}</div>
+        <div class="fld"><span>手（レーン）${isHook(n.type) ? '<em>フックは手で左右が決まる</em>' : ''}</span>${handSegs(n.hand)}</div>
+        <div class="info"><span>動き</span><b>${isRush(n) ? '連打（どのパンチも1発）' : reqPunch(n) === 'Hook' ? 'フック（ジャブでもゆるく可）' : reqPunch(n) === 'Jab' ? 'ジャブ（フックでもゆるく可）' : 'アッパー'}</b></div>
       </div>
-      <div class="btns"><button data-act="snapSel">拍スナップ</button><button data-act="mirX">左右反転</button><button data-act="dupOpp">反対に複製</button><button data-act="del" class="danger">削除</button></div>`;
+      <div class="card"><h4>タイミング<button class="mini" data-act="toNow" style="margin-left:auto" title="今の再生位置（スナップ）に動かす">今の位置へ</button></h4>
+        <label class="fld"><span>判定の拍 <em>${fmtTime(tOf(n))}</em></span>${stepper('b', n.b, r3(1 / S.snap), '拍')}</label>
+        <div class="info"><span>小節 : 拍</span><b>${fmtBeat(n.b)}</b><span>出現</span><b>${fmtTime(Math.max(0, tOf(n) - apprB(n) * bl))}（${r3(apprB(n))} 拍前）</b></div>
+      </div>
+      ${speedCard(speedOf(n))}
+      ${isRush(n) ? rushCard([n]) : ''}
+      ${acts}`;
   } else if (sel.length > 1) {
-    const span = sel[sel.length - 1].b - sel[0].b;
-    el.innerHTML = `<h3>${sel.length} ノーツを選択中</h3>
-      <div class="kv"><label>範囲</label><output>${fmtBeat(sel[0].b)} 〜 ${fmtBeat(sel[sel.length - 1].b)} (${r3(span)} 拍)</output>
-      <label>種類を一括変更</label><select data-k="type"><option value="">—</option>${typeOpts('')}</select>
-      <label>手を一括変更</label><select data-k="hand"><option value="">—</option>${handOpts(-1)}</select></div>
-      <div class="btns"><button data-act="snapSel">拍スナップ</button><button data-act="mirX">左右反転</button><button data-act="dupOpp">反対に複製</button><button data-act="del" class="danger">削除</button></div>`;
+    const span = sel[sel.length - 1].b - sel[0].b, rushes = sel.filter(isRush);
+    el.innerHTML = `<div class="ihead"><span class="dot" style="background:var(--accent)"></span><div><b>${sel.length} ノーツを選択中</b><small>${fmtBeat(sel[0].b)} 〜 ${fmtBeat(sel[sel.length - 1].b)}（${r3(span)} 拍）</small></div></div>
+      <div class="card"><h4>まとめて変更</h4>
+        <div class="fld"><span>種類</span>${typeSegs(same(sel, n => toolOf(n.type)))}</div>
+        <div class="fld"><span>手（レーン）</span>${handSegs(same(sel, n => n.hand))}</div>
+      </div>
+      ${speedCard(same(sel, speedOf))}
+      ${rushes.length ? rushCard(rushes) : ''}
+      ${acts}`;
   } else {
     const cnt = f => S.notes.filter(f).length, last = S.notes.length ? Math.max(...S.notes.map(endT)) : 0;
     el.innerHTML = `<div class="stats">
@@ -1400,24 +1497,53 @@ function refreshInspector() {
         <div class="stat"><b>${fmtTime(last).slice(0, 5)}</b><span>譜面の長さ（${r3(last / bl)} 拍）</span></div>
         <div class="stat"><b style="color:${HAND_COL[L]}">${cnt(n => n.hand === L)}</b><span>左手レーン</span></div>
         <div class="stat"><b style="color:${HAND_COL[R]}">${cnt(n => n.hand === R)}</b><span>右手レーン</span></div>
-        <div class="stat"><b>${cnt(n => n.type === 'Jab')}</b><span>ジャブ Jab</span></div>
-        <div class="stat"><b>${cnt(n => n.type === 'Upper')}</b><span>アッパー Upper</span></div>
-        <div class="stat"><b>${cnt(n => isHook(n.type))}</b><span>フック Hook（左 ${cnt(n => n.type === 'HookLeft')} / 右 ${cnt(n => n.type === 'HookRight')}）</span></div>
-        <div class="stat"><b style="color:${RUSH_COL}">${cnt(isRush)}</b><span>連打 Rush</span></div>
+        <div class="stat"><b>${cnt(n => n.type === 'Jab')}</b><span>ジャブ</span></div>
+        <div class="stat"><b>${cnt(n => n.type === 'Upper')}</b><span>アッパー</span></div>
+        <div class="stat"><b>${cnt(n => isHook(n.type))}</b><span>フック（左 ${cnt(n => n.type === 'HookLeft')} / 右 ${cnt(n => n.type === 'HookRight')}）</span></div>
+        <div class="stat"><b style="color:${RUSH_COL}">${cnt(isRush)}</b><span>連打</span></div>
       </div>
-      <div class="muted">ノーツをクリックで選択。2〜5 キーでツールを選んで左右どちらかのレーンをクリックすると、その手で配置します。<br>? ボタンで操作一覧。</div>`;
+      <div class="tips">ノーツをクリックすると、ここで種類・手・拍・<b>流れる速さ</b>・<b>連打の回数</b>を変えられます。<br>
+        <kbd>2</kbd>〜<kbd>5</kbd> でツールを選んでレーンをクリックすると配置。複数選択（ドラッグ / <kbd>Shift</kbd>+クリック）でまとめて変更。<br>? ボタンで操作一覧。</div>`;
   }
+}
+// 値の反映（選択中のノーツ）。b / rush / rushSec は1つ選んだときだけ
+function applyField(k, raw) {
+  const sel = selected(); if (!sel.length) return;
+  const v = parseFloat(raw), bl = beatLen();
+  if (k === 'speed') { if (!(v > 0)) return; sel.forEach(n => n.speed = r3(clamp(v, 0.1, 5))); }
+  else if (k === 'count') { if (raw !== '' && !(v > 0)) return; sel.forEach(n => { if (isRush(n)) n.count = raw === '' ? 0 : Math.max(1, Math.round(v)); }); }
+  else {
+    if (!isFinite(v) || sel.length !== 1) return;
+    const n = sel[0];
+    if (k === 'b') n.b = r6(Math.max(0, v));
+    else if (k === 'rush') n.rush = r6(Math.max(0.01, v));
+    else if (k === 'rushSec') n.rush = r6(Math.max(0.01, v / bl));
+    else return;
+  }
+  commit();
 }
 $('#insp').addEventListener('change', e => {
   const k = e.target.dataset.k; if (!k) return;
+  applyField(k, e.target.value.trim()); e.target.blur();
+});
+// スライダーを動かしている間は数字だけ更新（離したら反映）
+$('#insp').addEventListener('input', e => {
+  if (e.target.dataset.k === 'speed') { const em = e.target.closest('.fld').querySelector('em'); if (em) em.textContent = (+e.target.value) + ' 倍'; }
+});
+$('#insp').addEventListener('click', e => {
+  const st = e.target.closest('[data-step]');
+  if (st) {
+    const inp = st.parentElement.querySelector('input'), d = +st.dataset.d, k = st.dataset.step;
+    const cur = inp.value === '' ? parseFloat(inp.placeholder.replace(/[^\d.]/g, '')) || 0 : +inp.value;
+    applyField(k, String(k === 'count' ? Math.max(1, Math.round(cur + d)) : r6(Math.max(0, cur + d)))); return;
+  }
+  const b = e.target.closest('[data-set]'); if (!b) return;
   const sel = selected(); if (!sel.length) return;
-  if (k === 'type') { if (!e.target.value) return; sel.forEach(n => changeType(n, e.target.value)); e.target.blur(); commit(); return; }
-  if (k === 'hand') { if (e.target.value === '') return; sel.forEach(n => setNoteHand(n, +e.target.value)); e.target.blur(); commit(); return; }
-  const v = parseFloat(e.target.value); if (!isFinite(v)) return;
-  const n = sel[0];
-  if (k === 'b') n.b = r6(Math.max(0, v));
-  else if (k === 'rush') n.rush = r6(Math.max(0.01, v));
-  e.target.blur(); commit();
+  const k = b.dataset.set, v = b.dataset.v;
+  if (k === 'type') sel.forEach(n => changeType(n, v));
+  else if (k === 'hand') sel.forEach(n => setNoteHand(n, +v));
+  else if (k === 'speed') sel.forEach(n => n.speed = +v);
+  commit();
 });
 
 function checks() {
@@ -1427,7 +1553,10 @@ function checks() {
     const push = (lv, m) => W.push({ n, i, lv, m });
     if (isRush(n) && n.rush <= 0) push('err', '連打の長さが0です');
     if (Math.abs(n.b - snapB(n.b)) > 1e-4) push('info', `1/${S.snap} スナップから外れた拍です`);
-    if (tOf(n) < S.approach * bl) push('info', `曲の頭に近く、レーンの途中から出現します（${S.approach} 拍に満たない）`);
+    if (tOf(n) < apprB(n) * bl) push('info', `曲の頭に近く、レーンの途中から出現します（${r3(apprB(n))} 拍に満たない）`);
+    if (speedOf(n) > 2.5) push('warn', `流れる速さが ${speedOf(n)} 倍で、出現から判定まで ${r3(apprB(n) * bl)} 秒しかありません`);
+    else if (speedOf(n) < 0.5) push('info', `流れる速さが ${speedOf(n)} 倍と遅く、ほかのノーツを追い越されることがあります`);
+    if (isRush(n) && n.rush > 0) { const rate = rushHits(n) / (n.rush * bl); if (rate > 12) push('warn', `連打が速すぎます（片手 ${rate.toFixed(1)} 発/秒）`); }
     // 同じレーン（同じ手）の次のノーツ
     const j = ns.findIndex((o, k) => k > i && o.hand === n.hand);
     if (j >= 0) {
@@ -1447,23 +1576,37 @@ function checks() {
   return W;
 }
 function renderTab() {
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('.ptabs button').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  $('#insp').hidden = tab !== 'edit'; $('#tabbody').hidden = tab === 'edit';
   const W = checks(), body = $('#tabbody');
   $('#badge').textContent = W.filter(w => w.lv !== 'info').length || '';
+  $('#selCount').textContent = S.sel.size || '';
+  $('#listCount').textContent = S.notes.length || '';
   if (tab === 'list') {
-    body.innerHTML = `<table><thead><tr><th>#</th><th>拍</th><th>小節:拍</th><th>時刻</th><th>手</th><th>種類</th></tr></thead><tbody>${S.notes.map((n, i) => `<tr data-id="${n.id}"${S.sel.has(n.id) ? ' class="sel"' : ''}><td>${i + 1}</td><td>${r3(n.b)}</td><td>${fmtBeat(n.b)}</td><td>${fmtTime(tOf(n))}</td><td style="color:${HAND_COL[n.hand]}">${HAND_JP[n.hand]}</td><td><span class="chip"><span class="dot" style="background:${noteCol(n)}"></span>${typeJP(n)}${isRush(n) ? ` ${r3(n.rush)}拍` : ''}</span></td></tr>`).join('')}</tbody></table>`;
+    const keepScroll = body.scrollTop;
+    const shown = S.notes.filter(n => !listFilter || (listFilter === 'L' ? n.hand === L : listFilter === 'R' ? n.hand === R : listFilter === 'Rush' ? isRush(n) : speedOf(n) !== 1));
+    const f = (v, t) => `<button data-lf="${v}" class="${listFilter === v ? 'on' : ''}">${t}</button>`;
+    body.innerHTML = `<div class="lsearch"><div class="segs">${f('', 'すべて')}${f('L', '左手')}${f('R', '右手')}${f('Rush', '連打')}${f('speed', '速さ変更')}</div></div>
+      <table><thead><tr><th>#</th><th>小節:拍</th><th>時刻</th><th>手</th><th>種類</th></tr></thead><tbody>${shown.map(n => {
+        const i = S.notes.indexOf(n), sp = speedOf(n);
+        return `<tr data-id="${n.id}"${S.sel.has(n.id) ? ' class="sel"' : ''}><td>${i + 1}</td><td>${fmtBeat(n.b)}</td><td>${fmtTime(tOf(n))}</td><td style="color:${HAND_COL[n.hand]}">${HAND_JP[n.hand]}</td>
+          <td><span class="chip"><span class="dot" style="background:${noteCol(n)}"></span>${typeJP(n)}${isRush(n) ? ` ${r3(n.rush)}拍${n.count > 0 ? ` <span class="tag cnt">${n.count}回</span>` : ''}` : ''}${sp !== 1 ? ` <span class="tag ${sp > 1 ? 'fast' : 'slow'}">×${sp}</span>` : ''}</span></td></tr>`;
+      }).join('')}</tbody></table>${shown.length ? '' : '<div class="ok" style="color:var(--dim);border-color:var(--line);background:none">該当するノーツはありません</div>'}`;
+    body.scrollTop = keepScroll;
     body.querySelector('tr.sel')?.scrollIntoView({ block: 'nearest' });
-  } else {
-    body.innerHTML = W.length ? W.map(w => `<div class="warn" data-id="${w.n.id}"><span class="lv ${w.lv}">${{ err: 'エラー', warn: '注意', info: '情報' }[w.lv]}</span><span><b>#${w.i + 1}</b> ${fmtBeat(w.n.b)}　${typeJP(w.n)}（${HAND_JP[w.n.hand]}）<br>${w.m}</span></div>`).join('')
+  } else if (tab === 'check') {
+    body.innerHTML = W.length ? W.map(w => `<div class="warn" data-id="${w.n.id}"><span class="lv ${w.lv}">${{ err: 'エラー', warn: '注意', info: '情報' }[w.lv]}</span><span><b>#${w.i + 1} ${typeJP(w.n)}</b> <span class="where">${HAND_JP[w.n.hand]}手・${fmtBeat(w.n.b)}</span><br>${w.m}</span></div>`).join('')
       : '<div class="ok">✓ 問題は見つかりませんでした</div>';
   }
 }
 $('#tabbody').addEventListener('click', e => {
+  const lf = e.target.closest('[data-lf]'); if (lf) { listFilter = lf.dataset.lf; renderTab(); return; }
   const row = e.target.closest('[data-id]'); if (!row) return;
   const n = byId(+row.dataset.id); if (!n) return;
+  keepTab = true; // 一覧・チェックから選んだときはタブを切り替えない
   S.sel = new Set([n.id]); seek(tOf(n) - 1e-4); refreshPanels();
 });
-document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; renderTab(); } });
+document.querySelector('.ptabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; renderTab(); if (tab === 'edit') refreshInspector(); } });
 
 // ====== ヘッダー / フッター ======
 function syncHeader() {
@@ -1570,9 +1713,9 @@ async function openChart() {
 
 // ====== レイアウト（配置・大きさのカスタマイズ） ======
 const LAYOUT_KEY = 'ms2026.powerChartEditor.layout';
-const LAYOUT_DEFAULT = { tlH: 190, sideW: 310, tlPos: 'top', sidePos: 'right', tools: true, side: true, mascot: true };
+const LAYOUT_DEFAULT = { tlH: 190, sideW: 360, tlPos: 'top', sidePos: 'right', tools: true, side: true, mascot: true };
 const LAYOUT_PRESETS = {
-  default: { tlH: 190, sideW: 310 },
+  default: { tlH: 190, sideW: 360 },
   timeline: { tlH: 320, sideW: 280 },
   field: { tlH: 140, sideW: 260 },
 };
@@ -1655,6 +1798,8 @@ const ACTIONS = {
   play: togglePlay,
   zoomIn() { setZoom(S.zoom * 1.25); }, zoomOut() { setZoom(S.zoom / 1.25); },
   snapSel: snapSelected, mirX: mirror, dupOpp: duplicateOpposite,
+  toNow() { const sel = selected(); if (sel.length !== 1) return; sel[0].b = snapB(S.time / beatLen()); commit('今の位置へ動かしました'); },
+  countReset() { const sel = selected().filter(isRush); if (!sel.length) return; sel.forEach(n => n.count = 0); commit('連打の回数を自動にしました'); },
   del() { deleteNotes([...S.sel]); },
 };
 document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && ACTIONS[b.dataset.act]) { ACTIONS[b.dataset.act](); b.blur(); } });
