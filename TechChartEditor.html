@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TECH Chart Editor</title>
+<style>
+:root{
+  --bg:#14141b;--panel:#1d1d27;--panel2:#262633;--line:#363648;--text:#e8e8f0;--dim:#9696ad;
+  --accent:#ff66aa;--shot:#ff7333;--hold:#4dccff;--sync:#ffd933;--rush:#ff4db3;--danger:#ff5566;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-rows:auto 150px 1fr 76px;height:100vh}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:#55556e;background:#2e2e3e}
+button.primary{background:var(--accent);border-color:var(--accent);color:#1a0a12;font-weight:600}
+button.primary:hover{filter:brightness(1.1)}
+button.danger{color:var(--danger)}
+input[type=number],input[type=text],select{background:#12121a;border:1px solid var(--line);border-radius:5px;padding:3px 6px;min-width:0}
+input[type=number]{width:72px}
+input:focus,select:focus{outline:1px solid var(--accent);border-color:var(--accent)}
+label{display:inline-flex;align-items:center;gap:5px;color:var(--dim)}
+
+header{display:flex;align-items:center;gap:14px;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;user-select:none}
+.brand{font-size:15px;letter-spacing:.02em;white-space:nowrap}
+.brand b{color:var(--accent)}
+.brand small{color:var(--dim);margin-left:6px;font-size:11px}
+.grp{display:flex;align-items:center;gap:6px;padding-left:14px;border-left:1px solid var(--line)}
+.spacer{flex:1}
+input.short{width:58px}
+.savetarget{display:inline-flex;align-items:center;gap:5px;color:var(--dim);font-size:11px;white-space:nowrap;max-width:240px}
+.savetarget b{color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.savetarget .dirty{color:var(--accent);font-size:13px}
+.savetarget button{padding:0 6px;font-size:11px;line-height:16px}
+
+#tlwrap{position:relative;background:#191922;border-bottom:1px solid var(--line)}
+#tl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:default}
+.tlzoom{position:absolute;right:8px;top:2px;display:flex;gap:4px}
+.tlzoom button{padding:0 8px;font-size:12px;line-height:18px}
+
+main{display:grid;grid-template-columns:60px 1fr 310px;min-height:0}
+#tools{display:flex;flex-direction:column;gap:6px;padding:10px 8px;background:var(--panel);border-right:1px solid var(--line);user-select:none}
+#tools button{position:relative;width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:9px}
+#tools button svg{width:24px;height:24px}
+#tools button.on{background:#3a2a36;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+#tools button kbd{position:absolute;right:3px;bottom:1px;font-size:9px;color:var(--dim);font-family:inherit}
+#tools hr{width:100%;border:0;border-top:1px solid var(--line);margin:4px 0}
+#pfwrap{position:relative;min-width:0;min-height:0}
+#pf{position:absolute;inset:0;width:100%;height:100%;display:block}
+#pfinfo{position:absolute;left:10px;top:8px;color:var(--dim);font-size:12px;pointer-events:none;font-variant-numeric:tabular-nums}
+#pfhint{position:absolute;right:10px;bottom:8px;color:#6a6a82;font-size:11px;pointer-events:none}
+
+aside{display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);min-height:0}
+#insp{padding:12px;border-bottom:1px solid var(--line)}
+#insp h3{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:6px 8px;align-items:center}
+.kv>label{justify-content:flex-start}
+.kv output{font-variant-numeric:tabular-nums}
+.xy{display:flex;gap:6px}.xy input{width:100%}
+.kv input[type=number],.kv select{width:100%}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.btns button{font-size:12px;padding:3px 8px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px}
+.stat{background:#15151d;border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+.stat b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--dim);font-size:11px}
+.muted{color:var(--dim);font-size:12px}
+.tabs{display:flex;border-bottom:1px solid var(--line);user-select:none}
+.tabs button{flex:1;border:0;border-radius:0;background:none;padding:7px;color:var(--dim)}
+.tabs button.on{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+#badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#553344;color:#ffb3c8;font-size:11px}
+#badge:empty{display:none}
+#tabbody{flex:1;overflow:auto;min-height:0}
+table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+td,th{padding:4px 8px;text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel);color:var(--dim);font-weight:500;border-bottom:1px solid var(--line)}
+tbody tr{cursor:pointer;border-bottom:1px solid #22222d}
+tbody tr:hover{background:#262633}
+tbody tr.sel{background:#3a2a36}
+.chip{display:inline-flex;align-items:center;gap:5px}
+.warn{padding:7px 10px;border-bottom:1px solid #22222d;cursor:pointer;font-size:12px;display:flex;gap:8px}
+.warn:hover{background:#262633}
+.warn .lv{flex:none;width:44px;font-size:11px;text-align:center;border-radius:4px;height:18px;line-height:18px}
+.lv.err{background:#5a1f2a;color:#ff9aa8}.lv.warn{background:#51401a;color:#ffd97a}.lv.info{background:#1f3550;color:#9fcaff}
+.ok{padding:14px;color:#8fd9a8}
+
+footer{display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--panel);border-top:1px solid var(--line);user-select:none}
+#playBtn{width:40px;height:40px;border-radius:50%;font-size:16px;padding:0;background:var(--accent);border-color:var(--accent);color:#1a0a12}
+#clock{min-width:110px;font-variant-numeric:tabular-nums}
+#tclock{font-size:18px;font-weight:600;letter-spacing:.02em}
+#bclock{color:var(--dim);font-size:11px}
+.seekarea{flex:1;min-width:160px;display:flex;flex-direction:column;gap:4px}
+.ovwrap{position:relative;height:30px}
+#ov{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:pointer;border-radius:4px}
+.rangerow{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
+.rangerow input{width:52px;padding:1px 4px;font-size:11px}
+.rangerow button{padding:0 7px;font-size:11px;line-height:17px}
+.rswrap{position:relative;flex:1;height:16px;min-width:60px}
+#rs{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;border-radius:3px}
+.audiobox{display:inline-flex;align-items:center;gap:4px}
+.audiobox button{padding:0 6px;font-size:11px;line-height:16px}
+#audioName{color:var(--dim);font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#vol{width:70px;accent-color:var(--accent)}
+input[type=checkbox]{accent-color:var(--accent)}
+
+#toast{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);background:#2b2b3a;border:1px solid var(--line);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10}
+#toast.show{opacity:1}
+#drop{position:fixed;inset:0;background:rgba(255,102,170,.12);border:3px dashed var(--accent);display:none;place-items:center;font-size:20px;z-index:20;pointer-events:none}
+#drop.show{display:grid}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:640px;padding:20px 24px}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog h2{margin:0 0 10px;font-size:17px}
+dialog h4{margin:14px 0 6px;color:var(--accent)}
+dialog table td{padding:2px 10px 2px 0;white-space:normal}
+dialog kbd{background:#12121a;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-family:inherit;font-size:12px}
+dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">TECH <b>Chart Editor</b><small>MS2026</small></div>
+    <div class="grp">
+      <button data-act="new">新規</button>
+      <button data-act="open" title=".asset / .json を開く">開く</button>
+      <button data-act="sample" title="TechTestChart.asset を読み込む">サンプル</button>
+      <button data-act="audio" title="楽曲ファイルを読み込む">♪ 音源</button>
+    </div>
+    <div class="grp">
+      <label>名前 <input id="name" type="text" size="13" spellcheck="false"></label>
+      <button class="primary" data-act="saveFile" title="保存先に上書き保存 (Ctrl+S)">保存</button>
+      <button data-act="saveAs" title="保存先を選んで新しく保存 (Ctrl+Shift+S)">名前を付けて保存</button>
+      <button data-act="copyYaml">YAMLコピー</button>
+      <span id="saveTarget" class="savetarget"></span>
+    </div>
+    <div class="grp">
+      <label title="BGMManager.bpm">BPM <input id="bpm" type="number" step="0.01" min="1"></label>
+      <label title="BGMManager.offset (秒)">Offset <input id="offset" type="number" step="0.001"></label>
+      <label title="出現してから判定までの秒数">Approach <input id="approach" type="number" step="0.05" min="0.1"></label>
+    </div>
+    <div class="grp">
+      <label>Beat Snap
+        <select id="snap"><option value="1">1/1</option><option value="2">1/2</option><option value="3">1/3</option><option value="4">1/4</option><option value="6">1/6</option><option value="8">1/8</option><option value="16">1/16</option></select>
+      </label>
+      <label title="G"><input type="checkbox" id="gridSnap"> Grid</label>
+      <select id="grid"><option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1">1.0</option></select>
+    </div>
+    <div class="grp">
+      <label title="プレイフィールドの大きさ（TechNotesManager の fieldSize）">フィールド
+        <select id="fieldPreset">
+          <option value="17x9.5">17 × 9.5（既定）</option><option value="16x9">16 × 9</option><option value="16x10">16 × 10</option>
+          <option value="12x9">12 × 9（4:3）</option><option value="10x10">10 × 10（1:1）</option><option value="custom">カスタム</option>
+        </select></label>
+      <input id="fieldW" class="short" type="number" step="0.5" min="1" title="幅"><span class="muted">×</span><input id="fieldH" class="short" type="number" step="0.5" min="1" title="高さ">
+    </div>
+    <div class="spacer"></div>
+    <button data-act="undo" title="Ctrl+Z">↶</button>
+    <button data-act="redo" title="Ctrl+Y">↷</button>
+    <button data-act="help" title="ヘルプ">?</button>
+    <input type="file" id="fileChart" accept=".asset,.json,.yaml,.yml,.txt" hidden>
+    <input type="file" id="fileAudio" accept="audio/*,.ogg,.wav,.mp3" hidden>
+  </header>
+
+  <section id="tlwrap">
+    <canvas id="tl"></canvas>
+    <div class="tlzoom"><button data-act="zoomOut" title="Ctrl+ホイール">−</button><button data-act="zoomIn" title="Ctrl+ホイール">＋</button></div>
+  </section>
+
+  <main>
+    <nav id="tools">
+      <button data-tool="select" title="選択 (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 3l14 8-6 1.5L10 19z"/></svg><kbd>1</kbd></button>
+      <hr>
+      <button data-tool="Shot" title="単発撃ち Shot (2)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="#ff7333" stroke="#fff" stroke-width="2"/></svg><kbd>2</kbd></button>
+      <button data-tool="Hold" title="長撃ち Hold (3)"><svg viewBox="0 0 24 24" fill="none"><path d="M6 17L18 7" stroke="#4dccff" stroke-width="9" stroke-linecap="round" opacity=".35"/><circle cx="18" cy="7" r="3.5" stroke="#4dccff" stroke-width="1.8"/><circle cx="6" cy="17" r="4" fill="#4dccff" stroke="#fff" stroke-width="1.6"/></svg><kbd>3</kbd></button>
+      <button data-tool="Sync" title="同時撃ち Sync (4)"><svg viewBox="0 0 24 24"><path d="M7 12h10" stroke="#ffd933" stroke-width="1.6" stroke-dasharray="2 2"/><circle cx="5.5" cy="12" r="4" fill="#ffd933" stroke="#fff" stroke-width="1.6"/><circle cx="18.5" cy="12" r="4" fill="#ffd933" stroke="#fff" stroke-width="1.6"/></svg><kbd>4</kbd></button>
+      <button data-tool="Rush" title="連射 Rush (5)"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="6" fill="#ff4db3" stroke="#fff" stroke-width="1.8"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12h2.5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#ff4db3" stroke-width="1.6" stroke-linecap="round"/></svg><kbd>5</kbd></button>
+    </nav>
+    <section id="pfwrap">
+      <canvas id="pf"></canvas>
+      <div id="pfinfo"></div>
+      <div id="pfhint">ホイール: シーク ／ 右クリック: 削除 ／ Alt+ドラッグ: 始点だけ移動</div>
+    </section>
+    <aside>
+      <div id="insp"></div>
+      <div class="tabs"><button data-tab="list" class="on">ノーツ一覧</button><button data-tab="check">チェック <span id="badge"></span></button></div>
+      <div id="tabbody"></div>
+    </aside>
+  </main>
+
+  <footer>
+    <button id="playBtn" data-act="play" title="Space">▶</button>
+    <div id="clock"><div id="tclock">00:00.000</div><div id="bclock">1 : 1</div></div>
+    <div class="seekarea">
+      <div class="ovwrap"><canvas id="ov" title="クリック/ドラッグ: シーク　ホイール: 表示範囲の拡大縮小　Shift+ホイール: 表示範囲の移動"></canvas></div>
+      <div class="rangerow">
+        <input id="viewStart" type="number" step="1" min="1" title="表示開始（小節）">
+        <div class="rswrap"><canvas id="rs" title="バーの両端をドラッグ: 範囲の伸縮　中央をドラッグ: 移動　ダブルクリック: 全体表示"></canvas></div>
+        <input id="viewEnd" type="number" step="1" min="1" title="表示終了（小節）">
+        <span id="viewTotal"></span>
+        <button data-act="rangeOut" title="表示範囲を広げる ( ] )">−</button>
+        <button data-act="rangeIn" title="表示範囲を狭める ( [ )">＋</button>
+        <button data-act="rangeAll" title="全体を表示 (A)">全体</button>
+      </div>
+    </div>
+    <label>速度 <select id="rate"><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option></select></label>
+    <label><input type="checkbox" id="hs" checked> ヒット音</label>
+    <label><input type="checkbox" id="metro"> メトロノーム</label>
+    <input type="range" id="vol" min="0" max="1" step="0.05" value="0.7" title="音量">
+    <span class="audiobox"><span id="audioName">音源なし</span><button id="audioClear" data-act="unloadAudio" title="音源を外す" hidden>×</button></span>
+  </footer>
+</div>
+<div id="toast"></div>
+<div id="drop">ここにドロップ（音源 or .asset / .json）</div>
+
+<dialog id="helpDlg">
+  <h2>TECH Chart Editor — 使い方</h2>
+  <p>osu! の Compose 画面風の譜面エディタです。上のタイムラインで時間、中央のプレイフィールドで位置を編集します。座標系・判定値は <code>TechNotesManager</code>（フィールド既定 17×9.5 ※ヘッダーで変更可、当たり半径 1.0）に合わせています。</p>
+  <h4>配置</h4>
+  <ul>
+    <li>ツール 2〜5 を選んでプレイフィールドをクリック → 現在時刻（スナップ済み）に配置</li>
+    <li>Hold / Sync はクリックしたままドラッグで 終点 / 相方の位置 を決定</li>
+    <li>タイムラインの空き部分をクリックしても配置できます（位置は直前のノーツ）</li>
+    <li>タイムラインで Hold / Rush の末尾をドラッグ → 長さを変更</li>
+    <li>ノーツが重なっているときは下のノーツが一回り大きく表示されます。選択中のノーツをもう一度クリックすると下のノーツが選択されます（繰り返すと順番に切り替わります）</li>
+  </ul>
+  <h4>ショートカット</h4>
+  <table>
+    <tr><td><kbd>Space</kbd></td><td>再生 / 停止</td><td><kbd>1</kbd>〜<kbd>5</kbd></td><td>ツール切替</td></tr>
+    <tr><td><kbd>←</kbd><kbd>→</kbd> / ホイール</td><td>スナップ単位でシーク</td><td><kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd></td><td>1拍単位</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+ホイール</td><td>タイムライン拡大縮小</td><td><kbd>G</kbd></td><td>グリッドスナップ</td></tr>
+    <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>シークバーの表示範囲を 狭める / 広げる</td><td><kbd>Shift</kbd>+<kbd>[</kbd> <kbd>]</kbd></td><td>表示範囲を前 / 後ろへ移動</td></tr>
+    <tr><td><kbd>F</kbd></td><td>選択ノーツに表示範囲を合わせる</td><td><kbd>A</kbd> / <kbd>\</kbd></td><td>全体を表示</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>元に戻す / やり直し</td><td><kbd>Del</kbd></td><td>選択を削除</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd></td><td>コピー / 現在時刻に貼り付け</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>全選択</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>J</kbd></td><td>左右 / 上下 反転</td><td><kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>上書き保存 / 名前を付けて保存</td></tr>
+  </table>
+  <h4>Unity への取り込み</h4>
+  <ul>
+    <li>「名前を付けて保存」で保存先フォルダとファイル名を選ぶと <code>NotesRecord</code> 形式の .asset（または .json）を保存します。<code>Assets/WorkSpace/ScriptableObjects/</code> に保存すれば <code>TechNotesManager.record</code> に割り当てられます。</li>
+    <li>保存先は記憶され、次からは「保存」（Ctrl+S）で同じファイルに上書きされます。アプリを再起動しても保存先は残ります（初回だけ書き込みの許可を求められます）。</li>
+    <li>「開く」で読み込んだ .asset / .json もそのまま保存先になるので、Unity 側のアセットを直接編集→上書きできます。</li>
+    <li>.asset の <code>m_Name</code> は保存したファイル名に合わせます。既存アセットを上書きしても .meta の GUID は変わらないので参照は切れません。</li>
+    <li>フィールドの大きさは譜面データ（.asset）には含まれません。ゲーム側の <code>TechNotesManager</code> の「プレイフィールドの大きさ」と合わせてください。</li>
+    <li>spawnTime / hitTime は <code>TechTestChartGenerator</code> と同じ式で計算します：spawnTime = max(0.1, 判定時刻 − Approach)、hitTime = min(Approach, 判定時刻 − 0.1)。</li>
+    <li>時刻は「楽曲の Offset を引いたゲーム内時刻」です。BPM を変えてもノーツの秒数は変わりません。</li>
+  </ul>
+  <div style="text-align:right;margin-top:12px"><button onclick="this.closest('dialog').close()">閉じる</button></div>
+</dialog>
+
+<script>
+'use strict';
+// ====== ゲーム側の定数（TechNotesManager / TechNotesDrawer に合わせる） ======
+const FIELD = { w: 17, h: 9.5 };
+let HW = FIELD.w / 2, HH = FIELD.h / 2;
+function setField(w, h) { FIELD.w = w; FIELD.h = h; HW = w / 2; HH = h / 2; }
+const HIT_R = 1.0, HOLD_SCALE = 1.6, APPROACH_SCALE = 3.5, RUSH_HPS = 6;
+const TYPES = ['Shot', 'Hold', 'Rush', 'Sync']; // NotesType の enum 順
+const COLORS = { Shot: '#ff7333', Hold: '#4dccff', Sync: '#ffd933', Rush: '#ff4db3' };
+const TYPE_JP = { Shot: '単発', Hold: '長撃ち', Sync: '同時撃ち', Rush: '連射' };
+const NOTES_RECORD_GUID = '4bb95a0f4c8fa914e87961f2c01975f3';
+const TICK = { 1: '#ffffff', 2: '#e74c4c', 3: '#b76be8', 4: '#4c8df0', 6: '#d66fd0', 8: '#e8c547', 12: '#8a8a8a', 16: '#8a8a8a' };
+const FADE_OUT = 0.3, PEAK_RATE = 200, RULER = 22;
+const LS_KEY = 'ms2026.techChartEditor.v1';
+
+// Assets/WorkSpace/ScriptableObjects/TechTestChart.asset（[type, 判定時刻, pos, movePos, pairPos, holdTime]）
+const SAMPLE = [["Shot",4,[0,0],[0,0],[0,0],0],["Shot",6,[-4,2],[0,0],[0,0],0],["Shot",8,[4,2],[0,0],[0,0],0],["Shot",10,[-4,-2],[0,0],[0,0],0],["Shot",12,[4,-2],[0,0],[0,0],0],["Sync",16,[-4,-2.5],[0,0],[4,2.5],0],["Sync",18,[-4,0],[0,0],[4,0],0],["Sync",20,[-4,2.5],[0,0],[4,-2.5],0],["Sync",22,[-4,-2.5],[0,0],[4,2.5],0],["Sync",24,[-4,0],[0,0],[4,0],0],["Hold",28,[-5,0],[5,0],[0,0],2],["Hold",32,[5,3],[-5,3],[0,0],2],["Hold",36,[0,-3.5],[0,3.5],[0,0],2],["Hold",40,[-5,-3],[5,3],[0,0],2],["Hold",44,[5,-3],[-2,1],[0,0],2],["Rush",50,[0,0],[0,0],[0,0],4],["Shot",58,[-3.401,-1.299],[0,0],[0,0],0],["Shot",59,[0.776,1.662],[0,0],[0,0],0],["Shot",60,[4.938,-0.883],[0,0],[0,0],0],["Sync",61,[-8,1.246],[0,0],[8,1.246],0],["Shot",63,[6.5,0.426],[0,0],[0,0],0],["Shot",64,[6.5,-1.405],[0,0],[0,0],0],["Hold",65,[5.585,-1.365],[-5.585,-1.365],[0,0],2],["Shot",68,[1.837,-2.507],[0,0],[0,0],0],["Shot",69,[1.935,-3.5],[0,0],[0,0],0],["Shot",70,[2.153,-1.75],[0,0],[0,0],0],["Shot",71,[-2.721,0.651],[0,0],[0,0],0],["Sync",72,[-5.26,2.496],[0,0],[5.26,2.496],0],["Shot",74,[-6.165,3.186],[0,0],[0,0],0],["Shot",75,[-2.987,0.266],[0,0],[0,0],0],["Hold",76,[-6.443,1.704],[6.443,1.704],[0,0],2],["Shot",79,[-6.5,-0.603],[0,0],[0,0],0],["Shot",80,[-6.5,1.087],[0,0],[0,0],0],["Shot",81,[-6.5,1.482],[0,0],[0,0],0],["Shot",82,[-6.5,-0.933],[0,0],[0,0],0],["Sync",83,[-8,-1.974],[0,0],[8,-1.974],0],["Shot",85,[-2.929,-1.451],[0,0],[0,0],0],["Shot",86,[-5.047,-1.189],[0,0],[0,0],0],["Hold",87,[-6.5,1.639],[6.5,1.639],[0,0],2],["Shot",90,[-5.244,-0.184],[0,0],[0,0],0],["Rush",91,[0,0],[0,0],[0,0],4]];
+
+// ====== 状態 ======
+const S = {
+  notes: [], name: 'TechChart', bpm: 60, offset: 0, approach: 1.2, snap: 4,
+  gridSnap: true, grid: 0.5, time: 0, playing: false, tool: 'select',
+  sel: new Set(), zoom: 140, viewStart: 0, viewEnd: null, rate: 1, hitsound: true, metronome: false, volume: 0.7,
+};
+let nextId = 1, drag = null, pfMouse = null, clip = null, tab = 'list';
+
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const r3 = v => Math.round(v * 1000) / 1000;
+const r6 = v => Math.round(v * 1e6) / 1e6;
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const beatLen = () => 60 / S.bpm;
+const step = () => beatLen() / S.snap;
+const snapT = t => Math.max(0, r6(Math.round(t / step()) * step()));
+const hasDur = n => n.type === 'Hold' || n.type === 'Rush';
+const endT = n => n.t + (hasDur(n) ? n.hold : 0);
+const endPos = n => n.type === 'Hold' ? n.move : n.pos;
+const byId = id => S.notes.find(n => n.id === id);
+const selected = () => S.notes.filter(n => S.sel.has(n.id));
+const clampPos = p => ({ x: clamp(p.x, -HW, HW), y: clamp(p.y, -HH, HH) });
+function snapPos(p) {
+  let { x, y } = p;
+  if (S.gridSnap) { x = Math.round(x / S.grid) * S.grid; y = Math.round(y / S.grid) * S.grid; }
+  return clampPos({ x: r3(x), y: r3(y) });
+}
+function hexA(hex, a) {
+  const v = parseInt(hex.slice(1), 16);
+  return `rgba(${v >> 16 & 255},${v >> 8 & 255},${v & 255},${a})`;
+}
+function fmtTime(t) {
+  const neg = t < 0; t = Math.abs(t);
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return (neg ? '-' : '') + String(m).padStart(2, '0') + ':' + s.toFixed(3).padStart(6, '0');
+}
+
+function makeNote(type, t, pos, o = {}) {
+  const n = {
+    id: nextId++, type, t, pos: { ...pos },
+    move: o.move ? { ...o.move } : { x: 0, y: 0 },
+    pair: o.pair ? { ...o.pair } : { x: 0, y: 0 },
+    hold: o.hold || 0,
+  };
+  applyTypeDefaults(n);
+  return n;
+}
+function applyTypeDefaults(n) {
+  if (n.type === 'Hold') {
+    if (n.hold <= 0) n.hold = r6(beatLen() * 2);
+    if (dist(n.move, n.pos) < 1e-6) n.move = clampPos({ x: n.pos.x + (n.pos.x > 0 ? -4 : 4), y: n.pos.y });
+  } else if (n.type === 'Rush') {
+    if (n.hold <= 0) n.hold = r6(beatLen() * 4);
+  } else if (n.type === 'Sync') {
+    if (dist(n.pair, { x: 0, y: 0 }) < 1e-6 || dist(n.pair, n.pos) < 1e-6)
+      n.pair = clampPos({ x: Math.abs(n.pos.x) < 0.5 ? n.pos.x + 4 : -n.pos.x, y: n.pos.y });
+  }
+}
+function sortNotes() { S.notes.sort((a, b) => a.t - b.t || a.id - b.id); }
+
+// ====== Undo / 保存 ======
+let hist = [], hi = -1;
+function commit(msg) {
+  sortNotes();
+  const snap = JSON.stringify(S.notes);
+  if (hist[hi] !== snap) {
+    hist = hist.slice(0, hi + 1); hist.push(snap);
+    if (hist.length > 300) hist.shift();
+    hi = hist.length - 1;
+  }
+  save(); markDirty(); refreshPanels();
+  if (msg) toast(msg);
+}
+function restore(snap) {
+  S.notes = JSON.parse(snap);
+  nextId = S.notes.reduce((m, n) => Math.max(m, n.id), 0) + 1;
+  S.sel = new Set([...S.sel].filter(id => byId(id)));
+  save(); markDirty(); refreshPanels();
+}
+function undo() { if (hi > 0) { restore(hist[--hi]); toast('元に戻す'); } }
+function redo() { if (hi < hist.length - 1) { restore(hist[++hi]); toast('やり直し'); } }
+function resetHistory() { hist = [JSON.stringify(S.notes)]; hi = 0; }
+
+function toJSONObj() {
+  return {
+    format: 'ms2026-tech-chart', version: 1, name: S.name, bpm: S.bpm, offset: S.offset, approach: S.approach, field: [FIELD.w, FIELD.h],
+    notes: S.notes.map(n => ({ type: n.type, time: n.t, pos: [n.pos.x, n.pos.y], movePos: [n.move.x, n.move.y], pairPos: [n.pair.x, n.pair.y], holdTime: n.hold })),
+  };
+}
+function save() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ chart: toJSONObj(), ui: { snap: S.snap, grid: S.grid, gridSnap: S.gridSnap, zoom: S.zoom, hitsound: S.hitsound, metronome: S.metronome, volume: S.volume, time: S.time, viewStart: S.viewStart, viewEnd: S.viewEnd } }));
+  } catch (e) { /* ストレージが使えない環境では何もしない */ }
+}
+function loadChartObj(o) {
+  S.name = o.name || S.name;
+  if (o.bpm > 0) S.bpm = +o.bpm;
+  if (o.offset != null) S.offset = +o.offset;
+  if (o.approach > 0) S.approach = +o.approach;
+  if (Array.isArray(o.field) && o.field[0] > 0 && o.field[1] > 0) setField(+o.field[0], +o.field[1]);
+  nextId = 1;
+  S.notes = (o.notes || []).map(n => ({
+    id: nextId++, type: TYPES.includes(n.type) ? n.type : 'Shot', t: +n.time,
+    pos: { x: +n.pos[0], y: +n.pos[1] }, move: { x: +(n.movePos || [0, 0])[0], y: +(n.movePos || [0, 0])[1] },
+    pair: { x: +(n.pairPos || [0, 0])[0], y: +(n.pairPos || [0, 0])[1] }, hold: +n.holdTime || 0,
+  }));
+  S.sel.clear(); sortNotes(); resetHistory(); syncHeader(); save(); refreshPanels();
+  dirty = false; updateSaveUI();
+}
+function loadSample() {
+  loadChartObj({
+    name: 'TechTestChart', bpm: 60, offset: 0, approach: 1.2,
+    notes: SAMPLE.map(([type, time, pos, movePos, pairPos, holdTime]) => ({ type, time, pos, movePos, pairPos, holdTime })),
+  });
+  seek(0);
+}
+
+// ====== Unity .asset 入出力 ======
+function num(v) { v = r6(v); return String(Object.is(v, -0) ? 0 : v); }
+function toAsset() {
+  const L = ['%YAML 1.1', '%TAG !u! tag:unity3d.com,2011:', '--- !u!114 &11400000', 'MonoBehaviour:',
+    '  m_ObjectHideFlags: 0', '  m_CorrespondingSourceObject: {fileID: 0}', '  m_PrefabInstance: {fileID: 0}',
+    '  m_PrefabAsset: {fileID: 0}', '  m_GameObject: {fileID: 0}', '  m_Enabled: 1', '  m_EditorHideFlags: 0',
+    `  m_Script: {fileID: 11500000, guid: ${NOTES_RECORD_GUID}, type: 3}`, `  m_Name: ${S.name}`,
+    '  m_EditorClassIdentifier: Assembly-CSharp::App.NotesRecord'];
+  if (!S.notes.length) { L.push('  notesList: []'); return L.join('\n') + '\n'; }
+  L.push('  notesList:');
+  const v2 = p => `{x: ${num(p.x)}, y: ${num(p.y)}}`, zero = { x: 0, y: 0 };
+  for (const n of S.notes) {
+    L.push(`  - spawnTime: ${num(Math.max(0.1, n.t - S.approach))}`,
+      `    hitTime: ${num(Math.min(S.approach, n.t - 0.1))}`,
+      `    pos: ${v2(n.pos)}`,
+      `    type: ${TYPES.indexOf(n.type)}`,
+      `    movePos: ${v2(n.type === 'Hold' ? n.move : zero)}`,
+      `    holdTime: ${num(hasDur(n) ? n.hold : 0)}`,
+      `    pairPos: ${v2(n.type === 'Sync' ? n.pair : zero)}`,
+      `    pairTime: 0`);
+  }
+  return L.join('\n') + '\n';
+}
+function parseAsset(text) {
+  const out = []; let cur = null, name = null, m;
+  for (const line of text.split(/\r?\n/)) {
+    if ((m = line.match(/^\s*m_Name:\s*(.*)$/))) name = m[1].trim();
+    else if ((m = line.match(/^\s*-\s*spawnTime:\s*(\S+)/))) { cur = { spawnTime: +m[1] }; out.push(cur); }
+    else if (cur && (m = line.match(/^\s+(\w+):\s*\{x:\s*([^,]+),\s*y:\s*([^}]+)\}/))) cur[m[1]] = [+m[2], +m[3]];
+    else if (cur && (m = line.match(/^\s+(\w+):\s*([-\d.eE+]+)\s*$/))) cur[m[1]] = +m[2];
+  }
+  if (!out.length && !/notesList/.test(text)) throw new Error('NotesRecord の notesList が見つかりません');
+  // Approach は一番多い hitTime を採用
+  const freq = {}; out.forEach(n => { const k = r3(n.hitTime || 0); freq[k] = (freq[k] || 0) + 1; });
+  const approach = +Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || S.approach;
+  return {
+    name, approach,
+    notes: out.map(n => ({
+      type: TYPES[n.type | 0] || 'Shot', time: r6(n.spawnTime + (n.hitTime || 0)),
+      pos: n.pos || [0, 0], movePos: n.movePos, pairPos: n.pairPos, holdTime: n.holdTime || 0,
+    })),
+  };
+}
+function importText(text, fileName) {
+  try {
+    const trimmed = text.trim();
+    let obj;
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      obj = JSON.parse(trimmed);
+      if (Array.isArray(obj)) obj = { notes: obj };
+    } else obj = parseAsset(text);
+    if (!obj.name && fileName) obj.name = fileName.replace(/\.[^.]+$/, '');
+    loadChartObj(obj); seek(0);
+    toast(`${S.notes.length} ノーツを読み込みました`);
+    return true;
+  } catch (e) { toast('読み込み失敗: ' + e.message); return false; }
+}
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.append(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
+}
+
+// ====== オーディオ ======
+let actx = null, master = null, buffer = null, peaks = null, src = null, startCtx = 0, startT = 0;
+function ac() {
+  if (!actx) { actx = new AudioContext(); master = actx.createGain(); master.connect(actx.destination); }
+  master.gain.value = S.volume;
+  return actx;
+}
+function duration() {
+  const last = S.notes.reduce((m, n) => Math.max(m, endT(n)), 0);
+  return buffer ? Math.max(1, buffer.duration - S.offset) : Math.max(60, last + 8);
+}
+function curTime() { return S.playing ? startT + Math.max(0, actx.currentTime - startCtx) * S.rate : S.time; }
+function startPlayback() {
+  const c = ac(); c.resume();
+  startCtx = c.currentTime + 0.03; startT = S.time;
+  if (buffer) {
+    src = c.createBufferSource(); src.buffer = buffer; src.playbackRate.value = S.rate; src.connect(master);
+    const at = S.time + S.offset;
+    if (at >= 0) src.start(startCtx, at); else src.start(startCtx - at / S.rate, 0);
+  }
+  S.playing = true;
+}
+function stopSource() { if (src) { try { src.stop(); } catch (e) { } src.disconnect(); src = null; } }
+function play() { if (S.time >= duration() - 0.01) S.time = 0; startPlayback(); updatePlayBtn(); }
+function pause() { if (!S.playing) return; S.time = curTime(); stopSource(); S.playing = false; updatePlayBtn(); }
+function togglePlay() { S.playing ? pause() : play(); }
+function seek(t) {
+  t = clamp(t, 0, duration());
+  if (S.playing) { stopSource(); S.time = t; startPlayback(); } else S.time = t;
+}
+function seekStep(dir, beats) {
+  const st = beats ? beatLen() : step();
+  const base = Math.round(S.time / st) * st;
+  seek(r6(base + dir * st));
+}
+function updatePlayBtn() { $('#playBtn').textContent = S.playing ? '❚❚' : '▶'; }
+function unloadAudio() {
+  if (!buffer) return;
+  const playing = S.playing;
+  if (playing) pause();
+  buffer = null; peaks = null;
+  $('#audioName').textContent = '音源なし'; $('#audioName').title = ''; $('#audioClear').hidden = true;
+  S.time = Math.min(S.time, duration());
+  syncRangeInputs();
+  toast('音源を外しました');
+}
+async function loadAudio(file) {
+  try {
+    const c = ac();
+    buffer = await c.decodeAudioData(await file.arrayBuffer());
+    const ch = buffer.getChannelData(0), per = buffer.sampleRate / PEAK_RATE;
+    peaks = new Float32Array(Math.ceil(buffer.duration * PEAK_RATE));
+    for (let i = 0; i < peaks.length; i++) {
+      let m = 0; const a = Math.floor(i * per), b = Math.min(ch.length, Math.floor((i + 1) * per));
+      for (let j = a; j < b; j += 4) { const v = Math.abs(ch[j]); if (v > m) m = v; }
+      peaks[i] = m;
+    }
+    let max = 0; for (const p of peaks) if (p > max) max = p;
+    if (max > 0) for (let i = 0; i < peaks.length; i++) peaks[i] /= max;
+    $('#audioName').textContent = file.name; $('#audioName').title = file.name; $('#audioClear').hidden = false; syncRangeInputs();
+    if (S.playing) { pause(); }
+    toast(`音源を読み込みました (${fmtTime(buffer.duration)})`);
+  } catch (e) { toast('音源の読み込みに失敗しました'); }
+}
+function blip(freq, dur, vol, type) {
+  const c = actx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+const HIT_FREQ = { Shot: 1250, Sync: 1600, Hold: 950, Rush: 760 };
+function tickSounds(prev, now) {
+  if (now <= prev) return;
+  if (S.notes.some(n => n.t > prev && n.t <= now)) mascotPop = performance.now();
+  if (S.hitsound) for (const n of S.notes) if (n.t > prev && n.t <= now) blip(HIT_FREQ[n.type], 0.06, 0.22, 'square');
+  if (S.metronome) {
+    const bl = beatLen(), b = Math.floor(now / bl);
+    if (b > Math.floor(prev / bl) && b >= 0) blip(b % 4 === 0 ? 1500 : 1000, 0.04, 0.18, 'sine');
+  }
+}
+
+// ====== キャンバス ======
+const tl = $('#tl'), tlx = tl.getContext('2d');
+const pf = $('#pf'), pfx = pf.getContext('2d');
+const ov = $('#ov'), ovx = ov.getContext('2d');
+const rs = $('#rs'), rsx = rs.getContext('2d');
+let tlW = 0, tlH = 0, pfW = 0, pfH = 0, ovW = 0, ovH = 0, rsW = 0, rsH = 0;
+function fit(cv) {
+  const r = cv.parentElement.getBoundingClientRect(), d = devicePixelRatio || 1;
+  cv.width = Math.max(1, Math.round(r.width * d)); cv.height = Math.max(1, Math.round(r.height * d));
+  cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+  return [r.width, r.height];
+}
+function resize() { [tlW, tlH] = fit(tl); [pfW, pfH] = fit(pf); [ovW, ovH] = fit(ov); [rsW, rsH] = fit(rs); }
+new ResizeObserver(resize).observe(document.body);
+const local = (e, cv) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+function circle(c, x, y, r) { c.beginPath(); c.arc(x, y, Math.max(0, r), 0, Math.PI * 2); }
+function line(c, a, b) { c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+
+// ---------- タイムライン ----------
+const tX = t => tlW / 2 + (t - S.time) * S.zoom;
+const xT = x => S.time + (x - tlW / 2) / S.zoom;
+const tlMid = () => RULER + (tlH - RULER) / 2;
+const tlR = () => Math.min(15, (tlH - RULER) * 0.26);
+function drawTimeline() {
+  const c = tlx, w = tlW, h = tlH, laneH = h - RULER, mid = tlMid(), R = tlR();
+  c.fillStyle = '#191922'; c.fillRect(0, 0, w, h);
+  c.fillStyle = '#20202b'; c.fillRect(0, 0, w, RULER);
+  const x0 = tX(0), xd = tX(duration());
+  c.fillStyle = 'rgba(0,0,0,.4)';
+  if (x0 > 0) c.fillRect(0, RULER, x0, laneH);
+  if (xd < w) c.fillRect(xd, RULER, w - xd, laneH);
+
+  if (peaks) {
+    c.fillStyle = 'rgba(120,140,210,.25)';
+    for (let x = 0; x < w; x += 2) {
+      const i0 = Math.floor((xT(x) + S.offset) * PEAK_RATE), i1 = Math.max(i0 + 1, Math.floor((xT(x + 2) + S.offset) * PEAK_RATE));
+      let m = 0;
+      for (let i = Math.max(0, i0); i < Math.min(peaks.length, i1); i++) if (peaks[i] > m) m = peaks[i];
+      if (m > 0) { const hh = m * (laneH / 2 - 4); c.fillRect(x, mid - hh, 2, hh * 2); }
+    }
+  }
+
+  // 拍線（osu! と同じ色分け）
+  const bl = beatLen();
+  if (bl * S.zoom >= 3) {
+    const sub = step() * S.zoom >= 5 ? S.snap : 1, st = bl / sub;
+    const labelEvery = Math.max(1, Math.ceil(40 / (bl * 4 * S.zoom)));
+    c.font = '11px "Segoe UI",sans-serif'; c.textAlign = 'left';
+    for (let k = Math.ceil(Math.max(0, xT(0)) / st); k * st <= xT(w); k++) {
+      const t = k * st, x = Math.round(tX(t)) + 0.5, frac = k % sub;
+      const d = frac === 0 ? 1 : sub / gcd(frac, sub);
+      const beat = Math.round(t / bl), measure = frac === 0 && beat % 4 === 0;
+      c.strokeStyle = TICK[d] || '#888';
+      if (measure) {
+        c.globalAlpha = 0.9; c.lineWidth = 2; line(c, [x, RULER], [x, h]);
+        if ((beat / 4) % labelEvery === 0) { c.fillStyle = '#c8c8d8'; c.fillText(String(beat / 4 + 1), x + 4, 15); }
+      } else {
+        const th = (d === 1 ? 0.55 : d === 2 ? 0.42 : 0.3) * laneH / 2;
+        c.globalAlpha = d === 1 ? 0.7 : 0.8; c.lineWidth = 1;
+        line(c, [x, RULER], [x, RULER + th]); line(c, [x, h], [x, h - th]);
+      }
+    }
+    c.globalAlpha = 1;
+  }
+
+  // ノーツ：帯（ホールド/連射）→ 円 の順に描く。円が重なる場合、下にあるものほど一回り大きく描く
+  layoutTimeline();
+  const vis = S.notes.map((n, i) => ({ n, i, x: tX(n.t), xe: tX(endT(n)), d: tlDepth.get(n.id) || 0 }))
+    .filter(o => o.xe >= -R * 3 && o.x <= w + R * 3);
+  for (let k = vis.length - 1; k >= 0; k--) {
+    const { n, x, xe } = vis[k]; if (!hasDur(n)) continue;
+    const col = COLORS[n.type], sel = S.sel.has(n.id);
+    c.fillStyle = hexA(col, 0.3); c.strokeStyle = sel ? '#fff' : hexA(col, 0.9); c.lineWidth = sel ? 2 : 1.5;
+    c.beginPath(); c.roundRect(x, mid - R, Math.max(0, xe - x), R * 2, R); c.fill(); c.stroke();
+    circle(c, xe, mid, R * 0.62); c.fillStyle = '#191922'; c.fill(); c.strokeStyle = sel ? '#fff' : col; c.lineWidth = 2.5; c.stroke();
+  }
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  vis.sort((a, b) => b.d - a.d || b.i - a.i); // 深い（下の）ものから描く
+  for (const { n, i, x, d } of vis) {
+    const r = headR(R, d), col = COLORS[n.type], sel = S.sel.has(n.id);
+    if (d > 0) { circle(c, x, mid, r + 2.5); c.fillStyle = '#191922'; c.fill(); } // 下のノーツとの境目
+    circle(c, x, mid, r); c.fillStyle = col; c.fill();
+    c.lineWidth = sel ? 3 : 2; c.strokeStyle = sel ? '#fff' : 'rgba(0,0,0,.45)'; c.stroke();
+    if (n.type === 'Sync') { circle(c, x, mid, r * 0.62); c.strokeStyle = 'rgba(20,20,28,.8)'; c.lineWidth = 2; c.stroke(); }
+    if (d > 0) { // 下にあるノーツの番号は円の上端に小さく
+      c.fillStyle = '#15151c'; c.font = 'bold 9px "Segoe UI",sans-serif';
+      c.fillText(String(i + 1), x, mid - r + 6);
+    } else {
+      c.fillStyle = '#15151c'; c.font = `bold ${Math.round(R * 0.75)}px "Segoe UI",sans-serif`;
+      c.fillText(String(i + 1), x, mid + 1);
+    }
+    if (d === 0 && R >= 12 && S.zoom >= 60) {
+      const under = tlUnder.get(n.id) || 0;
+      c.fillStyle = hexA(col, 0.85); c.font = '10px "Segoe UI",sans-serif';
+      c.fillText(TYPE_JP[n.type] + (under ? `  +${under}` : ''), x, mid + headR(R, under) + 10);
+    }
+  }
+  // 同時刻バッジ
+  c.font = 'bold 10px "Segoe UI",sans-serif';
+  for (const grp of sameTimeGroups()) {
+    const x = tX(grp[0].t); if (x < -40 || x > w + 40) continue;
+    const label = `同時 ×${grp.length}`, bw = c.measureText(label).width + 10;
+    const bx = x + R * 0.5, by = Math.max(RULER + 1, mid - headR(R, grp.length - 1) - 12);
+    c.fillStyle = '#ff66aa'; c.beginPath(); c.roundRect(bx, by, bw, 14, 7); c.fill();
+    c.fillStyle = '#1a0a12'; c.fillText(label, bx + bw / 2, by + 7.5);
+  }
+  c.textBaseline = 'alphabetic';
+
+  if (drag && drag.kind === 'tl-box') {
+    const a = Math.min(drag.x0, drag.x1), b = Math.max(drag.x0, drag.x1);
+    c.fillStyle = 'rgba(255,102,170,.12)'; c.fillRect(a, RULER, b - a, laneH);
+    c.strokeStyle = 'rgba(255,102,170,.7)'; c.lineWidth = 1; c.strokeRect(a + .5, RULER + .5, b - a, laneH - 1);
+  }
+  // 再生位置（常に中央）
+  const cx = Math.round(w / 2) + 0.5;
+  c.strokeStyle = '#ff66aa'; c.lineWidth = 2; line(c, [cx, 0], [cx, h]);
+  c.fillStyle = '#ff66aa'; c.beginPath(); c.moveTo(cx - 6, 0); c.lineTo(cx + 6, 0); c.lineTo(cx, 8); c.fill();
+}
+// 円の重なり：直前の円と重なっていたら1段深くする（深いほど大きく描く）
+const TL_MAX_DEPTH = 3;
+let tlDepth = new Map(), tlUnder = new Map();
+const headR = (R, d) => R * (1 + 0.3 * Math.min(d, TL_MAX_DEPTH));
+function layoutTimeline() {
+  const R = tlR(), depth = new Map(), under = new Map();
+  let prev = null, top = null;
+  for (const n of S.notes) {
+    const x = tX(n.t);
+    if (prev && x - prev.x < R * 1.2) {
+      const d = prev.d + 1; depth.set(n.id, d); prev = { x, d };
+      under.set(top, (under.get(top) || 0) + 1);
+    } else { depth.set(n.id, 0); prev = { x, d: 0 }; top = n.id; }
+  }
+  tlDepth = depth; tlUnder = under;
+}
+function sameTimeGroups() {
+  const out = [];
+  for (let i = 0; i < S.notes.length;) {
+    let j = i + 1;
+    while (j < S.notes.length && Math.abs(S.notes[j].t - S.notes[i].t) < 1e-6) j++;
+    if (j - i > 1) out.push(S.notes.slice(i, j));
+    i = j;
+  }
+  return out;
+}
+// クリック位置にあるノーツを「上に見えている順」で返す（円 → 末尾 → 帯）
+function tlHits(x, y) {
+  const R = tlR(), mid = tlMid(), out = [], seen = new Set();
+  const add = (n, part) => { if (!seen.has(n.id)) { seen.add(n.id); out.push({ n, part }); } };
+  S.notes.map((n, i) => ({ n, i, d: tlDepth.get(n.id) || 0 }))
+    .filter(o => Math.hypot(x - tX(o.n.t), y - mid) <= headR(R, o.d))
+    .sort((a, b) => a.d - b.d || a.i - b.i)
+    .forEach(o => add(o.n, 'head'));
+  if (Math.abs(y - mid) <= R + 2) {
+    for (const n of S.notes) if (hasDur(n) && Math.abs(x - tX(endT(n))) <= R * 0.75) add(n, 'tail');
+    for (const n of S.notes) if (hasDur(n) && x >= tX(n.t) && x <= tX(endT(n))) add(n, 'head');
+  }
+  return out;
+}
+function tlHit(x, y) { return tlHits(x, y)[0] || null; }
+// 選択中のノーツをもう一度クリックしたら、その下にあるノーツへ選択を移す
+function pickWithCycle(hits, e) {
+  if (!hits.length) return { hit: null, cycleTo: null };
+  if (hits.length > 1 && S.sel.size === 1 && !e.shiftKey && !e.ctrlKey) {
+    const i = hits.findIndex(h => S.sel.has(h.n.id));
+    if (i >= 0) return { hit: hits[i], cycleTo: hits[(i + 1) % hits.length].n };
+  }
+  return { hit: hits[0], cycleTo: null };
+}
+function cycleSelect(n) {
+  S.sel = new Set([n.id]); refreshPanels();
+  toast(`下のノーツ #${S.notes.indexOf(n) + 1} ${TYPE_JP[n.type]} を選択`);
+}
+
+// ---------- プレイフィールド ----------
+let PS = 1, OX = 0, OY = 0, GUTTER = 0;
+const MASCOT_ROOM = 64; // 左側にマスコット用の余白を確保する
+function computeView() {
+  const m = 34;
+  PS = Math.max(1, Math.min((pfW - m * 2 - MASCOT_ROOM) / FIELD.w, (pfH - m * 2) / FIELD.h));
+  const W = FIELD.w * PS;
+  GUTTER = Math.max(m + MASCOT_ROOM, (pfW - W) / 2);
+  OX = GUTTER + W / 2; OY = pfH / 2;
+}
+const toPx = p => [OX + p.x * PS, OY - p.y * PS];
+const toField = (x, y) => ({ x: (x - OX) / PS, y: -(y - OY) / PS });
+function visibleAt(n, T) { return T >= n.t - S.approach && T <= endT(n) + FADE_OUT; }
+function noteAlpha(n, T) {
+  const fin = clamp((T - (n.t - S.approach)) / (S.approach / 3), 0, 1);
+  const fout = T > endT(n) ? 1 - (T - endT(n)) / FADE_OUT : 1;
+  return clamp(Math.min(fin, fout), 0, 1);
+}
+function drawDisc(c, P, r, col, label) {
+  circle(c, P[0], P[1], r); c.fillStyle = hexA(col, 0.85); c.fill();
+  c.lineWidth = 3; c.strokeStyle = '#fff'; c.stroke();
+  if (label != null) {
+    c.font = `bold ${Math.round(r * 0.8)}px "Segoe UI",sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.45)'; c.strokeText(label, P[0], P[1] + 1);
+    c.fillStyle = '#fff'; c.fillText(label, P[0], P[1] + 1);
+    c.textBaseline = 'alphabetic';
+  }
+}
+function drawHandle(c, P) {
+  c.fillStyle = '#fff'; c.strokeStyle = '#ff66aa'; c.lineWidth = 2;
+  c.fillRect(P[0] - 4, P[1] - 4, 8, 8); c.strokeRect(P[0] - 4, P[1] - 4, 8, 8);
+}
+function drawNote(c, n, T, alpha, sel, num) {
+  const r = HIT_R * PS, col = COLORS[n.type], P = toPx(n.pos);
+  c.save(); c.globalAlpha = alpha; c.lineCap = 'round';
+  let Q = null;
+  if (n.type === 'Hold') {
+    Q = toPx(n.move);
+    c.strokeStyle = '#fff'; c.lineWidth = r * 2; line(c, P, Q);
+    c.strokeStyle = '#161620'; c.lineWidth = r * 2 - 6; line(c, P, Q);
+    c.strokeStyle = hexA(col, 0.28); line(c, P, Q);
+    circle(c, Q[0], Q[1], r - 3); c.strokeStyle = hexA(col, 0.9); c.lineWidth = 2; c.stroke();
+    // 向きの矢印
+    const ang = Math.atan2(Q[1] - P[1], Q[0] - P[0]), mx = (P[0] + Q[0]) / 2, my = (P[1] + Q[1]) / 2, a = r * 0.45;
+    if (dist({ x: P[0], y: P[1] }, { x: Q[0], y: Q[1] }) > r * 2.2) {
+      c.fillStyle = hexA(col, 0.9); c.beginPath();
+      c.moveTo(mx + Math.cos(ang) * a, my + Math.sin(ang) * a);
+      c.lineTo(mx + Math.cos(ang + 2.5) * a, my + Math.sin(ang + 2.5) * a);
+      c.lineTo(mx + Math.cos(ang - 2.5) * a, my + Math.sin(ang - 2.5) * a); c.fill();
+    }
+  }
+  if (n.type === 'Sync') {
+    Q = toPx(n.pair);
+    c.setLineDash([7, 7]); c.strokeStyle = hexA(col, 0.75); c.lineWidth = 3; line(c, P, Q); c.setLineDash([]);
+    drawDisc(c, Q, r, col, 'B');
+  }
+  drawDisc(c, P, r, col, n.type === 'Sync' ? 'A' : String(num));
+  if (n.type === 'Sync') {
+    c.font = `bold ${Math.round(r * 0.5)}px "Segoe UI",sans-serif`; c.textAlign = 'center'; c.fillStyle = col;
+    c.fillText('#' + num, (P[0] + Q[0]) / 2, (P[1] + Q[1]) / 2 - 8);
+  }
+  if (n.type === 'Rush') {
+    c.font = `bold ${Math.round(r * 0.42)}px "Segoe UI",sans-serif`; c.textAlign = 'center'; c.fillStyle = col;
+    c.fillText(`連射 ${Math.max(1, Math.ceil(n.hold * RUSH_HPS))}発`, P[0], P[1] + r + r * 0.55);
+  }
+  // アプローチリング
+  if (T < n.t) {
+    const k = clamp((T - (n.t - S.approach)) / S.approach, 0, 1), rr = r * (1 + (APPROACH_SCALE - 1) * (1 - k));
+    c.lineWidth = 3; c.strokeStyle = n.type === 'Shot' || n.type === 'Hold' ? '#fff' : hexA(col, 1);
+    circle(c, P[0], P[1], rr); c.stroke();
+    if (Q && n.type === 'Sync') { circle(c, Q[0], Q[1], rr); c.stroke(); }
+  }
+  // ホールド・連射の進行
+  if (hasDur(n) && T >= n.t && T <= endT(n)) {
+    const p = clamp((T - n.t) / Math.max(0.01, n.hold), 0, 1);
+    if (n.type === 'Hold') {
+      const B = [P[0] + (Q[0] - P[0]) * p, P[1] + (Q[1] - P[1]) * p];
+      circle(c, B[0], B[1], r * 0.75); c.fillStyle = '#fff'; c.fill();
+      c.setLineDash([5, 5]); circle(c, B[0], B[1], r * HOLD_SCALE); c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 2; c.stroke(); c.setLineDash([]);
+    } else {
+      c.beginPath(); c.arc(P[0], P[1], r * 1.3, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+      c.strokeStyle = col; c.lineWidth = 5; c.stroke();
+    }
+  }
+  if (sel) {
+    c.globalAlpha = Math.max(alpha, 0.6);
+    circle(c, P[0], P[1], r + 4); c.strokeStyle = '#ff66aa'; c.lineWidth = 2; c.stroke();
+    drawHandle(c, P); if (Q) drawHandle(c, Q);
+  }
+  c.restore();
+}
+// ---------- マスコット（ドット絵の棺桶くん） ----------
+// 低解像度のスプライトに毎フレーム1ドットずつ描いてから、ぼかさずに拡大して表示する。
+// 編集中はアイドル（ゆらゆら・まばたき・カーソルを目で追う）、再生中は BPM に合わせて踊る
+const PX = {
+  out: '#241d33', body: '#d9d3e8', inner: '#a79dc2', eye: '#ffffff', glove: '#ffffff',
+  boot: '#5b4c7a', cheek: '#e58aa8', shadow: 'rgba(0,0,0,.35)',
+};
+const SPR_W = 40, SPR_H = 46;
+const spr = document.createElement('canvas'); spr.width = SPR_W; spr.height = SPR_H;
+const sg = spr.getContext('2d');
+let mascotPop = -1e9;
+
+function pR(x, y, w, h, col) { sg.fillStyle = col; sg.fillRect(Math.round(x), Math.round(y), w, h); }
+function pL(x0, y0, x1, y1, col, th = 1) { // ブレゼンハムで太さ付きの線
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, o = th >> 1;
+  let err = dx + dy;
+  for (;;) {
+    pR(x0 - o, y0 - o, th, th, col);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+function limb(pts, core) { // 輪郭つきの手足
+  for (let i = 0; i + 1 < pts.length; i++) pL(...pts[i], ...pts[i + 1], PX.out, 3);
+  for (let i = 0; i + 1 < pts.length; i++) pL(...pts[i], ...pts[i + 1], core, 1);
+}
+function vHand(hx, hy) { // ピースサイン
+  const f = 1;
+  pL(hx - 1, hy - 1, hx - 2 * f - 1, hy - 5, PX.out, 3); pL(hx + 1, hy - 1, hx + 2 * f + 1, hy - 5, PX.out, 3);
+  pR(hx - 2, hy - 2, 5, 4, PX.out);
+  pL(hx - 1, hy - 1, hx - 2 * f - 1, hy - 5, PX.glove); pL(hx + 1, hy - 1, hx + 2 * f + 1, hy - 5, PX.glove);
+  pR(hx - 1, hy - 1, 3, 2, PX.glove);
+}
+function pNote(x, y, col) { // ♪
+  pR(x + 3, y, 1, 5, col); pR(x + 4, y + 1, 1, 1, col); pR(x + 5, y + 2, 1, 1, col); pR(x, y + 4, 3, 2, col); pR(x + 1, y + 3, 2, 1, col);
+}
+
+function coffinHalf(r) { // 行ごとの棺桶の半幅（上がすぼまり肩で最大、下へ細くなる）
+  return r <= 6 ? 3 + Math.round(r * 5 / 6) : 8 - Math.round((r - 6) * 4 / 21);
+}
+
+function renderMascotSprite(nowMs) {
+  const t = nowMs / 1000, dance = S.playing;
+  sg.clearRect(0, 0, SPR_W, SPR_H);
+  const pop = nowMs - mascotPop < 120 ? 1 : 0;
+
+  let bodyY = 0, bodyX = 0, knee = 0, handL = 0, handR = 0, lookX = 0, lookY = 0, eyeMode = 'open', p = 0;
+  if (dance) {
+    p = S.time / beatLen();
+    const beat = Math.floor(p), f = p - beat;
+    bodyY = f < 0.5 ? -2 : 1;            // 拍の頭で跳ねて、後半でしゃがむ
+    knee = f < 0.5 ? 0 : 1;
+    bodyX = beat % 2 ? 1 : -1;           // 拍ごとに左右へ
+    handL = beat % 2 ? -3 : 3;           // 腕を交互に突き上げる
+    handR = -handL;
+    eyeMode = 'happy';
+  } else {
+    bodyY = Math.floor(t * 1.5) % 2;     // ゆらゆら（2コマ）
+    handL = Math.floor(t * 2) % 2; handR = 1 - handL;
+    if ((t % 3.7) < 0.14 || ((t + 1.1) % 11) < 0.1) eyeMode = 'blink';
+    if (pfMouse) {
+      const mpx = toPx(pfMouse), dx = mpx[0] - mascotAt.x, dy = mpx[1] - (mascotAt.y - 50);
+      lookX = Math.abs(dx) > 30 ? Math.sign(dx) : 0; lookY = dy > 40 ? 1 : 0;
+    } else lookX = Math.round(Math.sin(t * 0.5));
+  }
+  bodyY -= pop;
+
+  const cx = 20 + bodyX, top = 9 + bodyY, rows = 28;
+  const shoulder = r => [cx - coffinHalf(r), cx + coffinHalf(r) - 1];
+
+  // 影
+  pR(10, 45, 20, 1, PX.shadow);
+  // 脚（がに股）
+  for (const s of [-1, 1]) {
+    const hip = [cx + s * 3, top + rows - 3], kn = [20 + s * (9 + knee), top + rows + 2], ank = [20 + s * (9 + knee), 42];
+    limb([hip, kn, ank], PX.body);
+    const bx = s < 0 ? ank[0] - 3 : ank[0] - 1;
+    pR(bx - 1, 41, 6, 4, PX.out); pR(bx, 42, 4, 2, PX.boot);
+  }
+  // 腕
+  for (const s of [-1, 1]) {
+    const [l, r] = shoulder(11), sx = s < 0 ? l : r;
+    const hy = top + 3 + (s < 0 ? handL : handR);
+    const elbow = [sx + s * 5, top + 12], hand = [sx + s * 7, hy];
+    limb([[sx, top + 11], elbow, hand], PX.body);
+  }
+  // 棺桶ボディ
+  for (let r = 0; r < rows; r++) {
+    const hw = coffinHalf(r), y = top + r;
+    pR(cx - hw, y, hw * 2, 1, PX.out);
+    if (r > 0 && r < rows - 1) pR(cx - hw + 1, y, hw * 2 - 2, 1, PX.body);
+  }
+  for (let r = 2; r < rows - 2; r++) { // 内側のフチ
+    const hw = coffinHalf(r) - 2, y = top + r;
+    pR(cx - hw, y, hw * 2, 1, PX.inner);
+    if (r > 2 && r < rows - 3) pR(cx - hw + 1, y, hw * 2 - 2, 1, PX.body);
+  }
+  // 手（ボディより手前）
+  for (const s of [-1, 1]) {
+    const [l, r] = shoulder(11), sx = s < 0 ? l : r;
+    vHand(sx + s * 7, top + 3 + (s < 0 ? handL : handR));
+  }
+  // 一つ目
+  const ex = cx, ey = top + 7;
+  if (eyeMode === 'open') {
+    pR(ex - 3, ey - 2, 6, 5, PX.out); pR(ex - 2, ey - 3, 4, 7, PX.out);
+    pR(ex - 2, ey - 1, 4, 3, PX.eye); pR(ex - 1, ey - 2, 2, 5, PX.eye);
+    pR(ex - 1 + lookX, ey - 1 + lookY, 2, 2, PX.out);
+  } else if (eyeMode === 'blink') {
+    pR(ex - 3, ey, 6, 1, PX.out);
+  } else {
+    pR(ex - 3, ey + 1, 1, 1, PX.out); pR(ex - 2, ey, 1, 1, PX.out); pR(ex - 1, ey - 1, 2, 1, PX.out);
+    pR(ex + 1, ey, 1, 1, PX.out); pR(ex + 2, ey + 1, 1, 1, PX.out);
+  }
+  // 小さな丸（ほっぺ）
+  for (const s of [-1, 1]) {
+    const x = cx + s * 4 - (s < 0 ? 1 : 0), y = top + 11;
+    pR(x - 1, y, 3, 2, PX.out); pR(x, y, 1, 1, PX.cheek);
+  }
+  // 踊っているときは音符が舞う
+  if (dance) {
+    const k0 = Math.floor(p);
+    for (let k = k0 - 2; k <= k0; k++) {
+      const age = p - k; if (age < 0 || age >= 3) continue;
+      const side = ((k % 2) + 2) % 2 ? 1 : -1;
+      sg.globalAlpha = age < 1 ? 1 : age < 2 ? 0.6 : 0.3;
+      pNote(side > 0 ? 32 : 2, 8 - Math.floor(age * 3), side > 0 ? '#ff66aa' : '#ffd933');
+    }
+    sg.globalAlpha = 1;
+  }
+}
+
+let mascotAt = { x: 0, y: 0 };
+function drawMascot(c, x, y, nowMs) {
+  mascotAt = { x, y };
+  renderMascotSprite(nowMs);
+  const d = devicePixelRatio || 1, k = Math.max(1, Math.round(2 * d)) / d; // 1ドット = 整数デバイスピクセル
+  const w = SPR_W * k, h = SPR_H * k;
+  const px = Math.round((x - w / 2) * d) / d, py = Math.round((y - h) * d) / d;
+  c.save(); c.imageSmoothingEnabled = false;
+  c.drawImage(spr, px, py, w, h);
+  c.restore();
+}
+
+function drawField() {
+  computeView();
+  const c = pfx, w = pfW, h = pfH, T = S.time;
+  const [L, Tp] = toPx({ x: -HW, y: HH }), W = FIELD.w * PS, H = FIELD.h * PS;
+  c.fillStyle = '#101017'; c.fillRect(0, 0, w, h);
+  c.fillStyle = '#17171f'; c.fillRect(L, Tp, W, H);
+  c.lineWidth = 1;
+  const gridLines = (g, style) => {
+    c.strokeStyle = style;
+    for (let x = Math.ceil(-HW / g) * g; x <= HW + 1e-6; x += g) { const px = Math.round(OX + x * PS) + .5; line(c, [px, Tp], [px, Tp + H]); }
+    for (let y = Math.ceil(-HH / g) * g; y <= HH + 1e-6; y += g) { const py = Math.round(OY - y * PS) + .5; line(c, [L, py], [L + W, py]); }
+  };
+  if (S.gridSnap && S.grid < 1 && S.grid * PS >= 8) gridLines(S.grid, 'rgba(255,255,255,.035)');
+  gridLines(1, 'rgba(255,255,255,.07)');
+  c.strokeStyle = 'rgba(255,255,255,.18)'; line(c, [OX, Tp], [OX, Tp + H]); line(c, [L, OY], [L + W, OY]);
+  c.strokeStyle = 'rgba(255,210,74,.55)'; c.lineWidth = 1.5; c.strokeRect(L, Tp, W, H);
+  c.fillStyle = 'rgba(255,210,74,.5)'; c.font = '11px "Segoe UI",sans-serif'; c.textAlign = 'right';
+  c.fillText(`${FIELD.w} × ${FIELD.h}`, L + W - 4, Tp + H + 14);
+
+  const idx = new Map(S.notes.map((n, i) => [n.id, i + 1]));
+  const vis = S.notes.filter(n => visibleAt(n, T));
+  // フォローポイント
+  c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 2; c.setLineDash([3, 9]);
+  for (let i = 0; i + 1 < vis.length; i++) {
+    const a = toPx(endPos(vis[i])), b = toPx(vis[i + 1].pos);
+    if (Math.hypot(a[0] - b[0], a[1] - b[1]) > HIT_R * PS * 2.2) line(c, a, b);
+  }
+  c.setLineDash([]);
+  // 同時刻のノーツをピンクの点線でつなぐ
+  for (const grp of sameTimeGroups()) {
+    if (!visibleAt(grp[0], T)) continue;
+    const pts = grp.map(n => toPx(n.pos)), a = noteAlpha(grp[0], T);
+    c.save(); c.globalAlpha = a; c.strokeStyle = '#ff66aa'; c.lineWidth = 2.5; c.setLineDash([8, 6]);
+    c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); c.setLineDash([]);
+    const mx = pts.reduce((s, p) => s + p[0], 0) / pts.length, my = Math.min(...pts.map(p => p[1])) - HIT_R * PS - 10;
+    c.font = 'bold 12px "Segoe UI",sans-serif'; c.textAlign = 'center';
+    const label = `同時 ×${grp.length}`, bw = c.measureText(label).width + 12;
+    c.fillStyle = '#ff66aa'; c.beginPath(); c.roundRect(mx - bw / 2, my - 9, bw, 18, 9); c.fill();
+    c.fillStyle = '#1a0a12'; c.fillText(label, mx, my + 4);
+    c.restore();
+  }
+  // 表示範囲外の選択ノーツは薄く
+  for (const n of S.notes) if (S.sel.has(n.id) && !visibleAt(n, T)) drawNote(c, n, T + 1e9, 0.22, true, idx.get(n.id));
+  for (let i = vis.length - 1; i >= 0; i--) drawNote(c, vis[i], T, noteAlpha(vis[i], T), S.sel.has(vis[i].id), idx.get(vis[i].id));
+
+  if (drag && drag.kind === 'pf-box') {
+    const a = toPx(drag.start), b = toPx(drag.cur);
+    c.fillStyle = 'rgba(255,102,170,.1)'; c.fillRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]));
+    c.strokeStyle = 'rgba(255,102,170,.7)'; c.lineWidth = 1; c.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]));
+  }
+  // 配置プレビュー
+  if (pfMouse && S.tool !== 'select' && !drag) {
+    const p = snapPos(pfMouse), P = toPx(p), col = COLORS[S.tool];
+    c.globalAlpha = 0.55; circle(c, P[0], P[1], HIT_R * PS); c.fillStyle = hexA(col, 0.25); c.fill();
+    c.strokeStyle = col; c.lineWidth = 2; c.stroke(); c.globalAlpha = 1;
+    c.fillStyle = col; c.font = '12px "Segoe UI",sans-serif'; c.textAlign = 'left';
+    c.fillText(`${TYPE_JP[S.tool]}  (${p.x}, ${p.y})  @ ${fmtTime(snapT(S.time))}`, P[0] + HIT_R * PS + 6, P[1] - 6);
+  }
+  // マスコット（左の余白、フィールド下端に立たせる）
+  drawMascot(c, GUTTER / 2, Tp + H + 2, performance.now());
+
+  const mp = pfMouse ? snapPos(pfMouse) : null;
+  $('#pfinfo').textContent = `表示中 ${vis.length} ノーツ` + (mp ? `　カーソル (${mp.x}, ${mp.y})` : '');
+}
+function pfHits(m) {
+  const T = S.time, out = [], seen = new Set();
+  const cands = S.notes.filter(n => visibleAt(n, T) || S.sel.has(n.id));
+  const add = (n, handle) => { if (!seen.has(n.id)) { seen.add(n.id); out.push({ n, handle }); } };
+  // 選択中ノーツの副ハンドルを優先
+  for (const n of cands) if (S.sel.has(n.id)) {
+    if (n.type === 'Hold' && dist(m, n.move) <= HIT_R * 0.7) add(n, 'move');
+    else if (n.type === 'Sync' && dist(m, n.pair) <= HIT_R) add(n, 'pair');
+  }
+  for (const n of cands) { // 早いノーツほど手前に描いているので、その順で
+    if (dist(m, n.pos) <= HIT_R) add(n, 'pos');
+    else if (n.type === 'Sync' && dist(m, n.pair) <= HIT_R) add(n, 'pair');
+    else if (n.type === 'Hold' && dist(m, n.move) <= HIT_R * 0.7) add(n, 'move');
+  }
+  return out;
+}
+function pfHit(m) { return pfHits(m)[0] || null; }
+
+// ---------- 全体バー ----------
+// Maya のタイムスライダー＋レンジスライダー風：上段は表示範囲だけを拡大表示、下段で範囲を指定する
+const measLen = () => beatLen() * 4;
+const minView = () => Math.min(duration(), beatLen());
+function viewRange() {
+  const d = duration();
+  let e = S.viewEnd == null ? d : Math.min(S.viewEnd, d), st = clamp(S.viewStart, 0, d);
+  if (e - st < minView()) { st = Math.max(0, e - minView()); e = st + minView(); }
+  return [st, e];
+}
+function setView(st, e) {
+  const d = duration(), len = clamp(e - st, minView(), d);
+  st = clamp(st, 0, d - len); e = st + len;
+  if (st <= 1e-6 && e >= d - 1e-6) { S.viewStart = 0; S.viewEnd = null; }
+  else { S.viewStart = r6(st); S.viewEnd = r6(e); }
+  syncRangeInputs(); save();
+}
+function zoomView(factor, center = S.time) {
+  const [st, e] = viewRange(), len = e - st, k = clamp((center - st) / len, 0, 1), nl = len * factor;
+  setView(center - k * nl, center - k * nl + nl);
+}
+function panView(frac) { const [st, e] = viewRange(), len = e - st; setView(st + len * frac, e + len * frac); }
+function frameSelection() {
+  const sel = selected();
+  if (!sel.length) { setView(0, duration()); return; }
+  const a = sel[0].t, b = Math.max(...sel.map(endT)), pad = Math.max(beatLen(), (b - a) * 0.1);
+  setView(a - pad, b + pad);
+}
+function syncRangeInputs() {
+  const [st, e] = viewRange(), ml = measLen(), r2 = v => Math.round(v * 100) / 100;
+  if (document.activeElement !== $('#viewStart')) $('#viewStart').value = r2(st / ml + 1);
+  if (document.activeElement !== $('#viewEnd')) $('#viewEnd').value = r2(e / ml);
+  $('#viewTotal').textContent = `/ ${Math.ceil(duration() / ml - 1e-6)} 小節`;
+}
+function drawOverview() {
+  const c = ovx, w = ovW, h = ovH, [vs, ve] = viewRange(), span = ve - vs;
+  const X = t => (t - vs) / span * w;
+  c.fillStyle = '#12121a'; c.fillRect(0, 0, w, h);
+  // 小節・拍の目盛り（間隔が詰まったら間引く）
+  const ml = measLen(), bl = beatLen(), pxPerMeas = ml / span * w;
+  const every = [1, 2, 4, 8, 16, 32, 64, 128].find(n => pxPerMeas * n >= 36) || 256;
+  c.font = '10px "Segoe UI",sans-serif'; c.textAlign = 'left';
+  if (bl / span * w >= 6) {
+    c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 1;
+    for (let k = Math.ceil(vs / bl); k * bl <= ve; k++) { const x = Math.round(X(k * bl)) + .5; line(c, [x, h - 7], [x, h]); }
+  }
+  for (let m = Math.ceil(vs / ml / every) * every; m * ml <= ve; m += every) {
+    const x = Math.round(X(m * ml)) + .5;
+    c.strokeStyle = 'rgba(255,255,255,.28)'; line(c, [x, 0], [x, h]);
+    c.fillStyle = '#8c8ca6'; c.fillText(String(m + 1), x + 3, 10);
+  }
+  for (const n of S.notes) {
+    if (endT(n) < vs || n.t > ve) continue;
+    const x = Math.round(X(n.t)) + .5, col = S.sel.has(n.id) ? '#fff' : COLORS[n.type];
+    if (hasDur(n)) { c.fillStyle = hexA(col, 0.25); c.fillRect(x, 14, Math.max(1, X(endT(n)) - x), h - 18); }
+    c.strokeStyle = hexA(col, S.sel.has(n.id) ? 1 : 0.85); c.lineWidth = span / w < 0.05 ? 2 : 1;
+    line(c, [x, 13], [x, h - 3]);
+  }
+  if (S.time >= vs && S.time <= ve) {
+    const px = X(S.time);
+    c.fillStyle = 'rgba(255,102,170,.1)'; c.fillRect(0, 0, px, h);
+    c.fillStyle = '#ff66aa'; c.fillRect(px - 1, 0, 2, h);
+  } else { // 範囲外にいるときは端に矢印
+    c.fillStyle = '#ff66aa'; c.beginPath();
+    if (S.time < vs) { c.moveTo(2, h / 2); c.lineTo(9, h / 2 - 6); c.lineTo(9, h / 2 + 6); }
+    else { c.moveTo(w - 2, h / 2); c.lineTo(w - 9, h / 2 - 6); c.lineTo(w - 9, h / 2 + 6); }
+    c.fill();
+  }
+}
+const RS_HANDLE = 7;
+function drawRangeSlider() {
+  const c = rsx, w = rsW, h = rsH, d = duration(), [vs, ve] = viewRange();
+  const X = t => t / d * w;
+  c.fillStyle = '#12121a'; c.fillRect(0, 0, w, h);
+  for (const n of S.notes) { const x = Math.round(X(n.t)) + .5; c.strokeStyle = hexA(COLORS[n.type], 0.35); c.lineWidth = 1; line(c, [x, 4], [x, h - 4]); }
+  const a = X(vs), b = Math.max(a + RS_HANDLE * 2, X(ve));
+  c.fillStyle = 'rgba(160,160,200,.28)'; c.beginPath(); c.roundRect(a, 1, b - a, h - 2, 3); c.fill();
+  c.strokeStyle = 'rgba(200,200,230,.55)'; c.lineWidth = 1; c.stroke();
+  c.fillStyle = '#c8c8e0';
+  c.fillRect(a + 1, 3, RS_HANDLE - 3, h - 6); c.fillRect(b - RS_HANDLE + 2, 3, RS_HANDLE - 3, h - 6);
+  c.fillStyle = '#ff66aa'; c.fillRect(X(S.time) - 1, 0, 2, h);
+}
+function rsHit(x) {
+  const d = duration(), [vs, ve] = viewRange(), a = vs / d * rsW, b = Math.max(a + RS_HANDLE * 2, ve / d * rsW);
+  if (Math.abs(x - a) <= RS_HANDLE) return 'start';
+  if (Math.abs(x - b) <= RS_HANDLE) return 'end';
+  if (x > a && x < b) return 'move';
+  return null;
+}
+
+// ====== 入力: タイムライン ======
+tl.addEventListener('contextmenu', e => e.preventDefault());
+tl.addEventListener('mousedown', e => {
+  const { x, y } = local(e, tl), t = xT(x);
+  if (y < RULER || e.button === 1) { e.preventDefault(); drag = { kind: 'tl-pan', x0: x, t0: S.time, moved: false, ruler: y < RULER }; if (S.playing) pause(); return; }
+  const { hit, cycleTo } = pickWithCycle(tlHits(x, y), e);
+  if (e.button === 2) { if (hit) deleteNotes([hit.n.id]); return; }
+  if (hit) {
+    const n = hit.n;
+    if (hit.part === 'tail') {
+      if (!S.sel.has(n.id)) S.sel = new Set([n.id]);
+      drag = { kind: 'tl-tail', id: n.id, moved: false, cycleTo };
+    } else {
+      if (e.shiftKey || e.ctrlKey) {
+        if (S.sel.has(n.id)) { S.sel.delete(n.id); refreshPanels(); return; }
+        S.sel.add(n.id);
+      } else if (!S.sel.has(n.id)) S.sel = new Set([n.id]);
+      drag = { kind: 'tl-move', id: n.id, downT: t, orig: new Map(selected().map(s => [s.id, s.t])), moved: false, cycleTo };
+    }
+    refreshPanels(); return;
+  }
+  if (S.tool !== 'select') { placeAtTime(snapT(t)); return; }
+  if (!e.shiftKey) S.sel.clear();
+  drag = { kind: 'tl-box', x0: x, x1: x, base: new Set(S.sel) };
+  refreshPanels();
+});
+tl.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey) setZoom(S.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+  else seekStep(e.deltaY > 0 ? 1 : -1, e.shiftKey);
+}, { passive: false });
+tl.addEventListener('mousemove', e => {
+  if (drag) return;
+  const { x, y } = local(e, tl), hit = tlHit(x, y);
+  tl.style.cursor = y < RULER ? 'ew-resize' : hit ? (hit.part === 'tail' ? 'col-resize' : 'grab') : (S.tool !== 'select' ? 'copy' : 'default');
+});
+function setZoom(z) { S.zoom = clamp(z, 20, 1200); save(); }
+function lastPosBefore(t) {
+  let p = { x: 0, y: 0 };
+  for (const n of S.notes) { if (n.t > t) break; p = endPos(n); }
+  return { ...p };
+}
+function placeAtTime(t) {
+  const n = makeNote(S.tool, t, lastPosBefore(t));
+  S.notes.push(n); S.sel = new Set([n.id]);
+  commit(`${TYPE_JP[n.type]} を ${fmtTime(t)} に配置`);
+}
+
+// ====== 入力: プレイフィールド ======
+pf.addEventListener('contextmenu', e => e.preventDefault());
+pf.addEventListener('mousedown', e => {
+  const p = local(e, pf), m = toField(p.x, p.y);
+  if (e.button === 2) { const h = pfHit(m); if (h) deleteNotes([h.n.id]); return; }
+  if (e.button !== 0) return;
+  if (S.tool === 'select') {
+    const { hit: h, cycleTo } = pickWithCycle(pfHits(m), e);
+    if (h) {
+      if (e.shiftKey || e.ctrlKey) {
+        if (S.sel.has(h.n.id)) { S.sel.delete(h.n.id); refreshPanels(); return; }
+        S.sel.add(h.n.id);
+      } else if (!S.sel.has(h.n.id)) S.sel = new Set([h.n.id]);
+      drag = {
+        kind: 'pf-move', id: h.n.id, handle: h.handle, alt: e.altKey, start: m, moved: false, cycleTo,
+        orig: new Map(selected().map(n => [n.id, JSON.parse(JSON.stringify(n))])),
+      };
+    } else {
+      if (!e.shiftKey) S.sel.clear();
+      drag = { kind: 'pf-box', start: m, cur: m, base: new Set(S.sel) };
+    }
+    refreshPanels(); return;
+  }
+  const t = snapT(S.time), n = makeNote(S.tool, t, snapPos(m));
+  S.notes.push(n); S.sel = new Set([n.id]);
+  if (n.type === 'Hold' || n.type === 'Sync') drag = { kind: 'pf-place2', id: n.id, start: m };
+  else commit(`${TYPE_JP[n.type]} を配置`);
+  refreshPanels();
+});
+pf.addEventListener('mousemove', e => { const p = local(e, pf); pfMouse = toField(p.x, p.y); if (!drag) pf.style.cursor = S.tool !== 'select' ? 'crosshair' : pfHit(pfMouse) ? 'move' : 'default'; });
+pf.addEventListener('mouseleave', () => { pfMouse = null; });
+pf.addEventListener('wheel', e => { e.preventDefault(); seekStep(e.deltaY > 0 ? 1 : -1, e.shiftKey); }, { passive: false });
+
+// ====== 入力: 全体バー ======
+const ovTime = e => { const [vs, ve] = viewRange(); return vs + clamp(local(e, ov).x / ovW, 0, 1) * (ve - vs); };
+ov.addEventListener('mousedown', e => { drag = { kind: 'ov' }; const t = ovTime(e); seek(e.shiftKey ? snapT(t) : t); });
+ov.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.shiftKey) panView((e.deltaY || e.deltaX) > 0 ? 0.2 : -0.2);
+  else zoomView(e.deltaY > 0 ? 1.25 : 0.8, ovTime(e));
+}, { passive: false });
+rs.addEventListener('mousedown', e => {
+  const x = local(e, rs).x, d = duration(), part = rsHit(x), [vs, ve] = viewRange();
+  if (!part) { const t = x / rsW * d, len = ve - vs; setView(t - len / 2, t + len / 2); drag = { kind: 'rs', part: 'move', x0: x, vs: viewRange()[0], ve: viewRange()[1] }; return; }
+  drag = { kind: 'rs', part, x0: x, vs, ve };
+});
+rs.addEventListener('dblclick', () => setView(0, duration()));
+rs.addEventListener('mousemove', e => { if (!drag) { const p = rsHit(local(e, rs).x); rs.style.cursor = p === 'move' ? 'grab' : p ? 'ew-resize' : 'pointer'; } });
+rs.addEventListener('wheel', e => { e.preventDefault(); if (e.shiftKey) panView((e.deltaY || e.deltaX) > 0 ? 0.2 : -0.2); else zoomView(e.deltaY > 0 ? 1.25 : 0.8); }, { passive: false });
+$('#viewStart').addEventListener('change', e => { const [, ve] = viewRange(); setView((Math.max(1, +e.target.value || 1) - 1) * measLen(), ve); e.target.blur(); });
+$('#viewEnd').addEventListener('change', e => { const [vs] = viewRange(); setView(vs, Math.max(0, +e.target.value || 0) * measLen()); e.target.blur(); });
+
+// ====== ドラッグ共通 ======
+window.addEventListener('mousemove', e => {
+  if (!drag) return;
+  if (drag.kind === 'ov') { const t = ovTime(e); seek(e.shiftKey ? snapT(t) : t); return; }
+  if (drag.kind === 'rs') {
+    const dt = (local(e, rs).x - drag.x0) / rsW * duration();
+    if (drag.part === 'move') setView(drag.vs + dt, drag.ve + dt);
+    else if (drag.part === 'start') setView(Math.min(drag.vs + dt, drag.ve - minView()), drag.ve);
+    else setView(drag.vs, Math.max(drag.ve + dt, drag.vs + minView()));
+    return;
+  }
+  if (drag.kind.startsWith('tl')) {
+    const { x } = local(e, tl);
+    if (drag.kind === 'tl-pan') {
+      if (Math.abs(x - drag.x0) > 2) drag.moved = true;
+      if (drag.moved) S.time = clamp(drag.t0 - (x - drag.x0) / S.zoom, 0, duration());
+    } else if (drag.kind === 'tl-move') {
+      const t0 = drag.orig.get(drag.id), nt = snapT(Math.max(0, t0 + xT(x) - drag.downT)), d = nt - t0;
+      for (const [id, ot] of drag.orig) { const n = byId(id); if (n) n.t = r6(Math.max(0, ot + d)); }
+      if (Math.abs(d) > 1e-9) drag.moved = true;
+      refreshInspector();
+    } else if (drag.kind === 'tl-tail') {
+      const n = byId(drag.id);
+      n.hold = r6(Math.max(step(), snapT(xT(x)) - n.t)); drag.moved = true; refreshInspector();
+    } else if (drag.kind === 'tl-box') {
+      drag.x1 = x;
+      const a = xT(Math.min(drag.x0, x)), b = xT(Math.max(drag.x0, x));
+      S.sel = new Set(drag.base);
+      for (const n of S.notes) if (n.t >= a && n.t <= b) S.sel.add(n.id);
+    }
+    return;
+  }
+  const p = local(e, pf), m = toField(p.x, p.y);
+  if (drag.kind === 'pf-move') {
+    const d = { x: m.x - drag.start.x, y: m.y - drag.start.y };
+    const go = drag.orig.get(drag.id);
+    if (Math.hypot(d.x, d.y) * PS > 2) drag.moved = true;
+    if (!drag.moved) return;
+    if (drag.handle === 'pos') {
+      const np = snapPos({ x: go.pos.x + d.x, y: go.pos.y + d.y }), dd = { x: np.x - go.pos.x, y: np.y - go.pos.y };
+      for (const [id, o] of drag.orig) {
+        const n = byId(id); if (!n) continue;
+        const add = q => clampPos({ x: r3(q.x + dd.x), y: r3(q.y + dd.y) });
+        n.pos = add(o.pos);
+        if (!drag.alt) { n.move = add(o.move); n.pair = add(o.pair); }
+      }
+    } else {
+      const n = byId(drag.id);
+      n[drag.handle] = snapPos({ x: go[drag.handle].x + d.x, y: go[drag.handle].y + d.y });
+    }
+    refreshInspector();
+  } else if (drag.kind === 'pf-place2') {
+    const n = byId(drag.id);
+    n[n.type === 'Hold' ? 'move' : 'pair'] = snapPos(m);
+  } else if (drag.kind === 'pf-box') {
+    drag.cur = m;
+    const x0 = Math.min(drag.start.x, m.x), x1 = Math.max(drag.start.x, m.x), y0 = Math.min(drag.start.y, m.y), y1 = Math.max(drag.start.y, m.y);
+    const inBox = q => q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1;
+    S.sel = new Set(drag.base);
+    for (const n of S.notes) if (visibleAt(n, S.time) && (inBox(n.pos) || (n.type === 'Sync' && inBox(n.pair)))) S.sel.add(n.id);
+  }
+});
+window.addEventListener('mouseup', e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.cycleTo && !d.moved) { cycleSelect(d.cycleTo); return; }
+  if (d.kind === 'tl-pan') {
+    if (!d.moved && d.ruler) seek(snapT(xT(local(e, tl).x)));
+    save();
+  } else if ((d.kind === 'tl-move' || d.kind === 'tl-tail' || d.kind === 'pf-move') && d.moved) commit();
+  else if (d.kind === 'pf-place2') {
+    const n = byId(d.id), key = n.type === 'Hold' ? 'move' : 'pair';
+    const lp = local(e, pf), m = toField(lp.x, lp.y);
+    if (dist(m, d.start) < 0.4 || dist(n[key], n.pos) < 1e-6) { n[key] = { x: 0, y: 0 }; applyTypeDefaults(n); }
+    commit(`${TYPE_JP[n.type]} を配置`);
+  } else refreshPanels();
+});
+
+// ====== 編集操作 ======
+function deleteNotes(ids) {
+  if (!ids.length) return;
+  const set = new Set(ids);
+  S.notes = S.notes.filter(n => !set.has(n.id));
+  ids.forEach(id => S.sel.delete(id));
+  commit(`${ids.length} ノーツを削除`);
+}
+function mirror(axis) {
+  const sel = selected(); if (!sel.length) return;
+  for (const n of sel) for (const k of ['pos', 'move', 'pair']) n[k][axis] = r3(-n[k][axis]) || 0;
+  commit(axis === 'x' ? '左右反転' : '上下反転');
+}
+function snapSelectedTimes() { const sel = selected(); sel.forEach(n => n.t = snapT(n.t)); if (sel.length) commit('時刻をスナップ'); }
+function changeType(n, type) {
+  if (n.type === type) return;
+  n.type = type; if (!hasDur(n)) n.hold = 0;
+  applyTypeDefaults(n);
+}
+function copySel() {
+  const sel = selected(); if (!sel.length) return false;
+  const t0 = sel[0].t; clip = sel.map(n => ({ ...JSON.parse(JSON.stringify(n)), t: n.t - t0 }));
+  toast(`${sel.length} ノーツをコピー`); return true;
+}
+function paste() {
+  if (!clip) return;
+  const t0 = snapT(S.time);
+  const added = clip.map(c => ({ ...JSON.parse(JSON.stringify(c)), id: nextId++, t: r6(t0 + c.t) }));
+  S.notes.push(...added); S.sel = new Set(added.map(n => n.id));
+  commit(`${added.length} ノーツを貼り付け`);
+}
+function setTool(t) {
+  S.tool = t;
+  document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+}
+
+// ====== パネル ======
+function refreshPanels() { refreshInspector(); renderTab(); syncRangeInputs(); }
+function refreshInspector() {
+  const el = $('#insp'), sel = selected(), bl = beatLen();
+  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && drag == null) return;
+  const typeOpts = cur => TYPES.map(t => `<option value="${t}"${t === cur ? ' selected' : ''}>${TYPE_JP[t]} (${t})</option>`).join('');
+  if (sel.length === 1) {
+    const n = sel[0], i = S.notes.indexOf(n) + 1, inp = (k, v, st = '0.1') => `<input type="number" step="${st}" data-k="${k}" value="${r3(v)}">`;
+    el.innerHTML = `<h3><span class="dot" style="background:${COLORS[n.type]}"></span>#${i} ${TYPE_JP[n.type]}</h3>
+      <div class="kv">
+        <label>種類</label><select data-k="type">${typeOpts(n.type)}</select>
+        <label>判定時刻 (秒)</label>${inp('t', n.t, '0.001')}
+        <label>拍</label>${inp('beat', n.t / bl, String(r3(1 / S.snap)))}
+        <label>出現時刻</label><output>${r3(Math.max(0.1, n.t - S.approach))} 秒</output>
+        <label>位置 X / Y</label><div class="xy">${inp('pos.x', n.pos.x)}${inp('pos.y', n.pos.y)}</div>
+        ${n.type === 'Hold' ? `<label>終点 X / Y</label><div class="xy">${inp('move.x', n.move.x)}${inp('move.y', n.move.y)}</div>` : ''}
+        ${n.type === 'Sync' ? `<label>相方 X / Y</label><div class="xy">${inp('pair.x', n.pair.x)}${inp('pair.y', n.pair.y)}</div>` : ''}
+        ${hasDur(n) ? `<label>長さ (拍)</label>${inp('holdBeats', n.hold / bl, String(r3(1 / S.snap)))}<label>長さ (秒)</label><output>${r3(n.hold)} 秒</output>` : ''}
+        ${n.type === 'Rush' ? `<label>必要ヒット数</label><output>${Math.max(1, Math.ceil(n.hold * RUSH_HPS))} 発 (${RUSH_HPS}発/秒)</output>` : ''}
+      </div>
+      <div class="btns"><button data-act="snapT">時刻スナップ</button><button data-act="mirX">左右反転</button><button data-act="mirY">上下反転</button><button data-act="del" class="danger">削除</button></div>`;
+  } else if (sel.length > 1) {
+    const span = sel[sel.length - 1].t - sel[0].t;
+    el.innerHTML = `<h3>${sel.length} ノーツを選択中</h3>
+      <div class="kv"><label>範囲</label><output>${fmtTime(sel[0].t)} 〜 ${fmtTime(sel[sel.length - 1].t)} (${r3(span / bl)} 拍)</output>
+      <label>種類を一括変更</label><select data-k="type"><option value="">—</option>${typeOpts('')}</select></div>
+      <div class="btns"><button data-act="snapT">時刻スナップ</button><button data-act="mirX">左右反転</button><button data-act="mirY">上下反転</button><button data-act="del" class="danger">削除</button></div>`;
+  } else {
+    const cnt = t => S.notes.filter(n => n.type === t).length, d = S.notes.length ? endT(S.notes[S.notes.length - 1]) : 0;
+    el.innerHTML = `<div class="stats">
+        <div class="stat"><b>${S.notes.length}</b><span>ノーツ</span></div>
+        <div class="stat"><b>${fmtTime(d).slice(0, 5)}</b><span>譜面の長さ</span></div>
+        ${TYPES.map(t => `<div class="stat"><b style="color:${COLORS[t]}">${cnt(t)}</b><span>${TYPE_JP[t]} ${t}</span></div>`).join('')}
+      </div>
+      <div class="muted">ノーツをクリックで選択。2〜5 キーでツールを選んでフィールドをクリックすると現在時刻に配置します。<br>? ボタンで操作一覧。</div>`;
+  }
+}
+$('#insp').addEventListener('change', e => {
+  const k = e.target.dataset.k; if (!k) return;
+  const sel = selected(); if (!sel.length) return;
+  if (k === 'type') { if (!e.target.value) return; sel.forEach(n => changeType(n, e.target.value)); e.target.blur(); commit(); return; }
+  const v = parseFloat(e.target.value); if (!isFinite(v)) return;
+  const n = sel[0], bl = beatLen();
+  if (k === 't') n.t = r6(Math.max(0, v));
+  else if (k === 'beat') n.t = r6(Math.max(0, v * bl));
+  else if (k === 'holdBeats') n.hold = r6(Math.max(0.01, v * bl));
+  else { const [a, b] = k.split('.'); n[a] = clampPos({ ...n[a], [b]: r3(v) }); }
+  e.target.blur(); commit();
+});
+
+function checks() {
+  const W = [], ns = S.notes;
+  ns.forEach((n, i) => {
+    const push = (lv, m) => W.push({ n, i, lv, m });
+    if (n.t - S.approach < 0.1) push('warn', `出現時刻が0.1秒未満。アプローチが ${r3(Math.max(0, n.t - 0.1))} 秒に短縮されます`);
+    if (hasDur(n) && n.hold <= 0) push('err', '長さが0です');
+    if (n.type === 'Hold') {
+      if (dist(n.pos, n.move) < 0.01) push('info', '始点と終点が同じ位置です');
+      else if (n.hold > 0 && dist(n.pos, n.move) / n.hold > 12) push('warn', `追従速度が速い (${(dist(n.pos, n.move) / n.hold).toFixed(1)} u/秒)`);
+    }
+    if (n.type === 'Sync' && dist(n.pos, n.pair) < HIT_R * 2) push('warn', '2つの的が近く、1発で両方に当たる可能性があります');
+    if (Math.abs(n.t - snapT(n.t)) > 0.002) push('info', `1/${S.snap} スナップから外れた時刻です`);
+    const outF = q => Math.abs(q.x) > HW + 1e-6 || Math.abs(q.y) > HH + 1e-6;
+    if (outF(n.pos) || (n.type === 'Hold' && outF(n.move)) || (n.type === 'Sync' && outF(n.pair))) push('warn', `フィールド (${FIELD.w} × ${FIELD.h}) の外にはみ出しています`);
+    const nx = ns[i + 1];
+    if (nx) {
+      const gap = nx.t - endT(n);
+      if (Math.abs(nx.t - n.t) < 1e-6) push('info', `#${i + 2} と同時刻です（2か所同時なら Sync を推奨）`);
+      else if (gap < -1e-6) push('warn', `${TYPE_JP[n.type]}の途中に #${i + 2} が始まります`);
+      else if (gap > 0) { const sp = dist(endPos(n), nx.pos) / gap; if (sp > 25) push('warn', `#${i + 2} への照準移動が速い (${sp.toFixed(1)} u/秒)`); }
+    }
+  });
+  return W;
+}
+function renderTab() {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  const W = checks(), body = $('#tabbody');
+  $('#badge').textContent = W.filter(w => w.lv !== 'info').length || '';
+  if (tab === 'list') {
+    const bl = beatLen();
+    body.innerHTML = `<table><thead><tr><th>#</th><th>時刻</th><th>拍</th><th>種類</th><th>位置</th></tr></thead><tbody>${S.notes.map((n, i) => `<tr data-id="${n.id}"${S.sel.has(n.id) ? ' class="sel"' : ''}><td>${i + 1}</td><td>${fmtTime(n.t)}</td><td>${r3(n.t / bl)}</td><td><span class="chip"><span class="dot" style="background:${COLORS[n.type]}"></span>${TYPE_JP[n.type]}</span></td><td>${n.pos.x}, ${n.pos.y}</td></tr>`).join('')}</tbody></table>`;
+    body.querySelector('tr.sel')?.scrollIntoView({ block: 'nearest' });
+  } else {
+    body.innerHTML = W.length ? W.map(w => `<div class="warn" data-id="${w.n.id}"><span class="lv ${w.lv}">${{ err: 'エラー', warn: '注意', info: '情報' }[w.lv]}</span><span><b>#${w.i + 1}</b> ${fmtTime(w.n.t)}<br>${w.m}</span></div>`).join('')
+      : '<div class="ok">✓ 問題は見つかりませんでした</div>';
+  }
+}
+$('#tabbody').addEventListener('click', e => {
+  const row = e.target.closest('[data-id]'); if (!row) return;
+  const n = byId(+row.dataset.id); if (!n) return;
+  S.sel = new Set([n.id]); seek(n.t); refreshPanels();
+});
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; renderTab(); } });
+
+// ====== ヘッダー / フッター ======
+function syncHeader() {
+  $('#name').value = S.name; $('#bpm').value = S.bpm; $('#offset').value = S.offset; $('#approach').value = S.approach;
+  $('#snap').value = S.snap; $('#grid').value = S.grid; $('#gridSnap').checked = S.gridSnap;
+  $('#hs').checked = S.hitsound; $('#metro').checked = S.metronome; $('#vol').value = S.volume;
+  $('#fieldW').value = FIELD.w; $('#fieldH').value = FIELD.h;
+  const pk = `${FIELD.w}x${FIELD.h}`;
+  $('#fieldPreset').value = [...$('#fieldPreset').options].some(o => o.value === pk) ? pk : 'custom';
+}
+const CHART_INPUTS = ['#name', '#bpm', '#offset', '#approach', '#fieldPreset', '#fieldW', '#fieldH'];
+const onVal = (sel, fn) => $(sel).addEventListener('change', e => { fn(e.target); if (CHART_INPUTS.includes(sel)) markDirty(); save(); refreshPanels(); });
+onVal('#fieldPreset', el => { if (el.value !== 'custom') { const [w, h] = el.value.split('x').map(Number); setField(w, h); } syncHeader(); });
+const onFieldSize = () => { const w = +$('#fieldW').value, h = +$('#fieldH').value; if (w >= 1 && h >= 1) setField(r3(w), r3(h)); syncHeader(); };
+onVal('#fieldW', onFieldSize); onVal('#fieldH', onFieldSize);
+onVal('#name', el => S.name = el.value.trim().replace(/[\\/:*?"<>|]/g, '') || 'TechChart');
+onVal('#bpm', el => { const v = +el.value; if (v > 0) S.bpm = v; else el.value = S.bpm; });
+onVal('#offset', el => { S.offset = +el.value || 0; if (S.playing) seek(curTime()); });
+onVal('#approach', el => { const v = +el.value; if (v >= 0.1) S.approach = v; else el.value = S.approach; });
+onVal('#snap', el => S.snap = +el.value);
+onVal('#grid', el => S.grid = +el.value);
+onVal('#gridSnap', el => S.gridSnap = el.checked);
+onVal('#hs', el => S.hitsound = el.checked);
+onVal('#metro', el => S.metronome = el.checked);
+$('#vol').addEventListener('input', e => { S.volume = +e.target.value; if (master) master.gain.value = S.volume; save(); });
+$('#rate').addEventListener('change', e => { const t = curTime(); S.rate = +e.target.value; if (S.playing) { stopSource(); S.time = t; startPlayback(); } });
+$('#tools').addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (b) setTool(b.dataset.tool); });
+
+// ====== ファイル保存（保存先を記憶して上書き保存） ======
+const FS_OK = 'showSaveFilePicker' in window;
+let saveHandle = null, dirty = false;
+function idb(mode, fn) { // 保存先の FileSystemFileHandle は IndexedDB に残す（再起動後も上書きできる）
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open('ms2026-tech-chart-editor', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+    rq.onerror = () => rej(rq.error);
+    rq.onsuccess = () => {
+      const tx = rq.result.transaction('kv', mode), r = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error);
+    };
+  });
+}
+async function rememberHandle(h) {
+  saveHandle = h;
+  try { await idb('readwrite', st => h ? st.put(h, 'saveHandle') : st.delete('saveHandle')); } catch (e) { }
+  updateSaveUI();
+}
+async function restoreHandle() {
+  try { saveHandle = (await idb('readonly', st => st.get('saveHandle'))) || null; } catch (e) { saveHandle = null; }
+  updateSaveUI();
+}
+// 未保存の変更があるまま閉じようとしたら確認する
+window.addEventListener("beforeunload", e => {
+  if (!dirty) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+function markDirty() { if (!dirty) { dirty = true; updateSaveUI(); } }
+function updateSaveUI() {
+  const el = $('#saveTarget'), mark = dirty ? '<span class="dirty" title="未保存の変更があります">●</span>' : '';
+  el.innerHTML = saveHandle
+    ? `保存先 <b title="${saveHandle.name}">${saveHandle.name}</b>${mark}<button data-act="forgetTarget" title="保存先を解除">×</button>`
+    : `保存先なし${mark}`;
+  document.title = `${dirty ? '● ' : ''}${saveHandle ? saveHandle.name + ' - ' : ''}TECH Chart Editor`;
+}
+const PICK_TYPES = [
+  { description: 'Unity NotesRecord (.asset)', accept: { 'text/plain': ['.asset'] } },
+  { description: 'JSON (.json)', accept: { 'application/json': ['.json'] } },
+];
+async function writeChart(h) {
+  const isJson = /\.json$/i.test(h.name);
+  if (!isJson) { S.name = h.name.replace(/\.[^.]+$/, ''); syncHeader(); } // Unity は m_Name とファイル名の一致が必要
+  const w = await h.createWritable();
+  await w.write(isJson ? JSON.stringify(toJSONObj(), null, 2) : toAsset());
+  await w.close();
+  dirty = false; save(); updateSaveUI();
+  toast(`${h.name} に保存しました`);
+}
+async function saveAs() {
+  if (!FS_OK) { // ファイル API が無い環境ではダウンロードで代用
+    download(`${S.name}.asset`, toAsset(), 'text/plain'); dirty = false; updateSaveUI();
+    toast(`${S.name}.asset をダウンロードしました`); return;
+  }
+  try {
+    const h = await showSaveFilePicker({ id: 'tech-chart', suggestedName: `${S.name}.asset`, types: PICK_TYPES, ...(saveHandle ? { startIn: saveHandle } : {}) });
+    await writeChart(h); await rememberHandle(h);
+  } catch (e) { if (e.name !== 'AbortError') toast('保存に失敗しました: ' + e.message); }
+}
+async function saveFile() {
+  if (!saveHandle) return saveAs();
+  try {
+    const opt = { mode: 'readwrite' };
+    if ((await saveHandle.queryPermission(opt)) !== 'granted' && (await saveHandle.requestPermission(opt)) !== 'granted') {
+      toast('書き込みが許可されませんでした'); return;
+    }
+    await writeChart(saveHandle);
+  } catch (e) {
+    if (e.name === 'NotFoundError') { toast('保存先が見つかりません。保存先を選び直してください'); return saveAs(); }
+    toast('保存に失敗しました: ' + e.message);
+  }
+}
+async function openChart() {
+  if (!('showOpenFilePicker' in window)) { $('#fileChart').click(); return; }
+  try {
+    const [h] = await showOpenFilePicker({ id: 'tech-chart', types: [{ description: '譜面 (.asset / .json)', accept: { 'text/plain': ['.asset', '.json', '.yaml', '.yml', '.txt'] } }] });
+    const file = await h.getFile();
+    if (importText(await file.text(), file.name)) await rememberHandle(/\.(asset|json)$/i.test(h.name) ? h : null);
+  } catch (e) { if (e.name !== 'AbortError') toast('開けませんでした: ' + e.message); }
+}
+
+const ACTIONS = {
+  new() { if (S.notes.length && !confirm('現在の譜面を破棄して新規作成しますか？')) return; loadChartObj({ name: 'TechChart', notes: [] }); rememberHandle(null); seek(0); },
+  open: openChart,
+  sample() { if (S.notes.length && !confirm('TechTestChart を読み込みます。現在の譜面は破棄されます。')) return; loadSample(); rememberHandle(null); toast('TechTestChart を読み込みました'); },
+  audio() { $('#fileAudio').click(); },
+  saveFile, saveAs, unloadAudio,
+  rangeIn() { zoomView(0.5); }, rangeOut() { zoomView(2); }, rangeAll() { setView(0, duration()); },
+  forgetTarget() { rememberHandle(null); toast('保存先を解除しました'); },
+  async copyYaml() { await copyText(toAsset()); toast('YAML をクリップボードにコピーしました'); },
+  undo, redo,
+  help() { $('#helpDlg').showModal(); },
+  play: togglePlay,
+  zoomIn() { setZoom(S.zoom * 1.25); }, zoomOut() { setZoom(S.zoom / 1.25); },
+  snapT: snapSelectedTimes, mirX() { mirror('x'); }, mirY() { mirror('y'); },
+  del() { deleteNotes([...S.sel]); },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && ACTIONS[b.dataset.act]) { ACTIONS[b.dataset.act](); b.blur(); } });
+$('#fileChart').addEventListener('change', async e => { const f = e.target.files[0]; if (f && importText(await f.text(), f.name)) rememberHandle(null); e.target.value = ''; });
+$('#fileAudio').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadAudio(f); e.target.value = ''; });
+
+// ドラッグ＆ドロップ
+let dropDepth = 0;
+window.addEventListener('dragenter', e => { e.preventDefault(); dropDepth++; $('#drop').classList.add('show'); });
+window.addEventListener('dragleave', () => { if (--dropDepth <= 0) { dropDepth = 0; $('#drop').classList.remove('show'); } });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', async e => {
+  e.preventDefault(); dropDepth = 0; $('#drop').classList.remove('show');
+  for (const f of e.dataTransfer.files) {
+    if (f.type.startsWith('audio/') || /\.(ogg|wav|mp3|m4a|flac)$/i.test(f.name)) loadAudio(f);
+    else if (importText(await f.text(), f.name)) rememberHandle(null);
+  }
+});
+
+// キーボード
+window.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { // 入力欄にいても保存できるように先に処理
+    e.preventDefault(); if (document.activeElement) document.activeElement.blur();
+    e.shiftKey ? saveAs() : saveFile(); return;
+  }
+  if (e.target.closest?.('input,select,textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
+  if ($('#helpDlg').open) return;
+  const k = e.key, lk = k.toLowerCase(), ctrl = e.ctrlKey || e.metaKey;
+  const handled = () => e.preventDefault();
+  if (k === ' ') { handled(); togglePlay(); }
+  else if (ctrl && lk === 'z') { handled(); e.shiftKey ? redo() : undo(); }
+  else if (ctrl && lk === 'y') { handled(); redo(); }
+  else if (ctrl && lk === 'a') { handled(); S.sel = new Set(S.notes.map(n => n.id)); refreshPanels(); }
+  else if (ctrl && lk === 'c') { handled(); copySel(); }
+  else if (ctrl && lk === 'x') { handled(); if (copySel()) deleteNotes([...S.sel]); }
+  else if (ctrl && lk === 'v') { handled(); paste(); }
+  else if (ctrl && lk === 'h') { handled(); mirror('x'); }
+  else if (ctrl && lk === 'j') { handled(); mirror('y'); }
+  else if (k === 'Delete' || k === 'Backspace') { handled(); deleteNotes([...S.sel]); }
+  else if (!ctrl && k >= '1' && k <= '5') setTool(['select', 'Shot', 'Hold', 'Sync', 'Rush'][+k - 1]);
+  else if (k === 'ArrowLeft' || k === 'ArrowRight') { handled(); seekStep(k === 'ArrowRight' ? 1 : -1, e.shiftKey); }
+  else if (!ctrl && lk === 'g') { S.gridSnap = !S.gridSnap; syncHeader(); save(); toast(`グリッドスナップ ${S.gridSnap ? 'ON' : 'OFF'}`); }
+  else if (!ctrl && (k === '[' || k === '「')) { handled(); zoomView(0.5); }
+  else if (!ctrl && (k === ']' || k === '」')) { handled(); zoomView(2); }
+  else if (!ctrl && (k === '{' || k === '『')) { handled(); panView(-0.5); }
+  else if (!ctrl && (k === '}' || k === '』')) { handled(); panView(0.5); }
+  else if (!ctrl && lk === 'f') { handled(); frameSelection(); }
+  else if (!ctrl && (lk === 'a' || k === '\\')) { handled(); setView(0, duration()); }
+  else if (k === 'Home') seek(0);
+  else if (k === 'End') seek(duration());
+  else if (k === 'Escape') { S.sel.clear(); refreshPanels(); }
+});
+
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+
+// ====== ループ ======
+let lastClock = '';
+function frame() {
+  if (S.playing) {
+    const t = curTime(); tickSounds(S.time, t); S.time = t;
+    if (t >= duration()) { pause(); S.time = duration(); }
+  }
+  if (S.playing) {
+    const [vs, ve] = viewRange();
+    if (S.time > ve || S.time < vs) setView(S.time, S.time + (ve - vs));
+  }
+  drawTimeline(); drawField(); drawOverview(); drawRangeSlider();
+  const bl = beatLen(), bi = Math.floor(S.time / bl + 1e-6);
+  const clk = fmtTime(S.time) + '|' + bi;
+  if (clk !== lastClock) {
+    lastClock = clk;
+    $('#tclock').textContent = fmtTime(S.time);
+    $('#bclock').textContent = `小節 ${Math.floor(bi / 4) + 1} : 拍 ${bi % 4 + 1}　(${r3(S.time / bl)} 拍)`;
+  }
+  requestAnimationFrame(frame);
+}
+
+// ====== 起動 ======
+(function init() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) { }
+  if (saved && saved.chart) {
+    Object.assign(S, saved.ui || {});
+    loadChartObj(saved.chart);
+    S.time = clamp(saved.ui?.time || 0, 0, duration());
+  } else loadSample();
+  syncHeader(); setTool('select'); resize(); refreshPanels(); syncRangeInputs();
+  restoreHandle();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
