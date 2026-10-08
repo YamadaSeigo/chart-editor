@@ -11,7 +11,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif;overflow:hidden}
-#app{--tl-h:190px;--side-w:310px;--tools-w:60px;display:grid;grid-template-rows:auto var(--tl-h) 1fr 76px;grid-template-areas:"hd" "tl" "mn" "ft";height:100vh}
+#app{--tl-h:190px;--side-w:310px;--tools-w:76px;display:grid;grid-template-rows:auto var(--tl-h) 1fr 76px;grid-template-areas:"hd" "tl" "mn" "ft";height:100vh}
 #app>header{grid-area:hd}#app>#tlwrap{grid-area:tl}#app>main{grid-area:mn}#app>footer{grid-area:ft}
 #app.tl-bottom{grid-template-rows:auto 1fr var(--tl-h) 76px;grid-template-areas:"hd" "mn" "tl" "ft"}
 #app.tl-bottom #tlwrap{border-bottom:0;border-top:1px solid var(--line)}
@@ -72,16 +72,31 @@ main{display:grid;grid-template-columns:var(--tools-w) 1fr var(--side-w);grid-te
 main>#tools{grid-area:tools}main>#pfwrap{grid-area:pf}main>aside{grid-area:side}
 #app.side-left main{grid-template-columns:var(--tools-w) var(--side-w) 1fr;grid-template-areas:"tools side pf"}
 #app.side-left aside{border-left:0;border-right:1px solid var(--line)}
-#tools{display:flex;flex-direction:column;gap:6px;padding:10px 8px;background:var(--panel);border-right:1px solid var(--line);user-select:none;overflow-y:auto}
-#tools button{position:relative;width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:9px;flex:none}
-#tools button svg{width:26px;height:26px}
-#tools button.on{background:#3d2c22;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-#tools button kbd{position:absolute;right:3px;bottom:1px;font-size:9px;color:var(--dim);font-family:inherit}
-#tools hr{width:100%;border:0;border-top:1px solid var(--line);margin:4px 0}
-#tools .hands{display:flex;flex-direction:column;gap:4px}
-#tools .hands button{height:28px;font-weight:700;font-size:12px}
-#tools .hands button[data-hand="0"]{color:var(--left)}#tools .hands button[data-hand="1"]{color:var(--right)}#tools .hands button[data-hand="2"]{color:var(--text);font-size:11px}
-#tools .cap{font-size:9px;color:var(--dim);text-align:center}
+#tools{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 0 12px;background:var(--panel);border-right:1px solid var(--line);user-select:none;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#3a3a50 transparent}
+#tools::-webkit-scrollbar{width:6px;height:0}
+#tools::-webkit-scrollbar-track{background:transparent}
+#tools::-webkit-scrollbar-thumb{background:#3a3a50;border-radius:3px}
+#tools::-webkit-scrollbar-thumb:hover{background:#55556e}
+#tools .sec{width:100%;padding:4px 0 2px;font-size:10px;font-weight:600;letter-spacing:.06em;color:#7a7a92;text-align:center;flex:none}
+#tools .sec+.sec{margin-top:0}
+#tools button[data-tool]{position:relative;width:60px;height:54px;padding:4px 0 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:10px;flex:none;background:#20202b;border:1px solid transparent}
+#tools button[data-tool]:hover{background:#2a2a38;border-color:#44445a}
+#tools button[data-tool] svg{width:22px;height:22px}
+#tools button[data-tool] .lb{font-size:10px;line-height:1;color:#a4a4ba;white-space:nowrap}
+#tools button[data-tool].on{background:#3d2c22;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+#tools button[data-tool].on .lb{color:#fff;font-weight:600}
+#tools button kbd{position:absolute;right:4px;top:3px;font-size:9px;line-height:1;color:#6e6e86;font-family:inherit}
+#tools button.on kbd{color:var(--accent)}
+#tools hr{width:44px;border:0;border-top:1px solid var(--line);margin:5px 0 3px;flex:none}
+#tools .hands{display:flex;flex-direction:column;gap:3px;width:60px;padding:3px;background:#14141c;border:1px solid var(--line);border-radius:10px;flex:none}
+#tools .hands button{position:relative;width:100%;height:28px;padding:0 0 0 12px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:0;border-radius:7px;background:none;color:#a4a4ba}
+#tools .hands button::before{content:"";position:absolute;left:7px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:var(--dot)}
+#tools .hands button:hover{background:#262633;color:var(--text)}
+#tools .hands button.on{background:#2e2e3e;color:#fff;box-shadow:inset 0 0 0 1px var(--dot)}
+#tools .hands button[data-hand="0"]{--dot:var(--left)}#tools .hands button[data-hand="1"]{--dot:var(--right)}
+#tools .hands button[data-hand="2"]{--dot:linear-gradient(90deg,var(--left) 50%,var(--right) 50%);font-size:11px}
+#tools .hands button[data-hand="2"].on{box-shadow:inset 0 0 0 1px #8a7fd0}
+#tools .hint{font-size:9px;color:#6e6e86;text-align:center;line-height:1.3;flex:none}
 #pfwrap{position:relative;min-width:0;min-height:0}
 #pf{position:absolute;inset:0;width:100%;height:100%;display:block}
 #pfinfo{position:absolute;left:10px;top:8px;color:var(--dim);font-size:12px;pointer-events:none;font-variant-numeric:tabular-nums}
@@ -200,19 +215,21 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
 
   <main>
     <nav id="tools">
-      <button data-tool="select" title="選択 (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 3l14 8-6 1.5L10 19z"/></svg><kbd>1</kbd></button>
+      <div class="sec">ツール</div>
+      <button data-tool="select" title="選択 (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 3l14 8-6 1.5L10 19z"/></svg><span class="lb">選択</span><kbd>1</kbd></button>
       <hr>
       <button data-tool="Jab" title="ジャブ Jab (2)"></button>
       <button data-tool="Upper" title="アッパー Upper (3)"></button>
       <button data-tool="Hook" title="フック Hook (4)　左レーンなら左フック、右レーンなら右フック"></button>
       <button data-tool="Rush" title="連打 Rush (5)"></button>
       <hr>
-      <div class="cap">配置先<br>（打ち込み）</div>
+      <div class="sec" title="L+R で左右両方のレーンに置く。打ち込みの 2〜5 キーもこのレーンに置く">配置先</div>
       <div class="hands">
         <button data-hand="0" title="左手のレーン (Z)">L</button>
         <button data-hand="1" title="右手のレーン (C)">R</button>
         <button data-hand="2" title="左右両方 (X)">L+R</button>
       </div>
+      <div class="hint">Z / C / X</div>
     </nav>
     <section id="pfwrap">
       <canvas id="pf"></canvas>
@@ -667,10 +684,11 @@ function drawToolIcons() {
     const tool = b.dataset.tool; if (tool === 'select') return;
     let cv = b.querySelector('canvas');
     if (!cv) { cv = document.createElement('canvas'); b.prepend(cv); }
-    const d = devicePixelRatio || 1, sz = 30, h = S.hand === R ? R : L;
+    const d = devicePixelRatio || 1, sz = 26, h = S.hand === R ? R : L;
     cv.width = sz * d; cv.height = sz * d; cv.style.width = cv.style.height = sz + 'px';
     const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0);
-    drawGlyph(c, sz / 2, sz / 2, 11.5, resolveType(tool, h), h, { label: true });
+    drawGlyph(c, sz / 2, sz / 2, 10.5, resolveType(tool, h), h, { label: true });
+    if (!b.querySelector('.lb')) { const l = document.createElement('span'); l.className = 'lb'; l.textContent = TYPE_JP[tool]; b.append(l); }
     if (!b.querySelector('kbd')) { const k = document.createElement('kbd'); k.textContent = ['Jab', 'Upper', 'Hook', 'Rush'].indexOf(tool) + 2; b.append(k); }
   });
   document.querySelectorAll('#tools [data-hand]').forEach(b => b.classList.toggle('on', +b.dataset.hand === S.hand));
