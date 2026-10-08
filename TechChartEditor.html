@@ -83,39 +83,89 @@ main>#tools{grid-area:tools}main>#pfwrap{grid-area:pf}main>aside{grid-area:side}
 #pfhint{position:absolute;right:10px;bottom:8px;color:#6a6a82;font-size:11px;pointer-events:none}
 
 aside{position:relative;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);min-height:0}
-#insp{padding:12px;border-bottom:1px solid var(--line)}
-#insp h3{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
-.dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
-.kv{display:grid;grid-template-columns:96px 1fr;gap:6px 8px;align-items:center}
-.kv>label{justify-content:flex-start}
-.kv output{font-variant-numeric:tabular-nums}
-.xy{display:flex;gap:6px}.xy input{width:100%}
-.kv input[type=number],.kv select{width:100%}
-.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.btns button{font-size:12px;padding:3px 8px}
-.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px}
-.stat{background:#15151d;border:1px solid var(--line);border-radius:7px;padding:6px 8px}
-.stat b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
-.stat span{color:var(--dim);font-size:11px}
-.muted{color:var(--dim);font-size:12px}
-.tabs{display:flex;border-bottom:1px solid var(--line);user-select:none}
-.tabs button{flex:1;border:0;border-radius:0;background:none;padding:7px;color:var(--dim)}
-.tabs button.on{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
-#badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#553344;color:#ffb3c8;font-size:11px}
+/* タブ */
+.ptabs{display:flex;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--line);background:#191922;user-select:none;flex:none}
+.ptabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px;border:1px solid transparent;border-bottom:0;border-radius:9px 9px 0 0;background:none;color:var(--dim);font-size:13px;font-weight:600;margin-bottom:-1px}
+.ptabs button:hover{color:var(--text);background:#22222d}
+.ptabs button.on{color:var(--text);background:var(--panel);border-color:var(--line);box-shadow:inset 0 2px 0 var(--accent)}
+.tcount{min-width:18px;padding:0 6px;border-radius:9px;background:#2e2e3e;color:#c8c8d8;font-size:11px;font-weight:600;line-height:18px}
+.tcount:empty{display:none}
+#badge{min-width:18px;padding:0 6px;border-radius:9px;background:#553344;color:#ffb3c8;font-size:11px;line-height:18px}
 #badge:empty{display:none}
-#tabbody{flex:1;overflow:auto;min-height:0}
-table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
-td,th{padding:4px 8px;text-align:left;white-space:nowrap}
-th{position:sticky;top:0;background:var(--panel);color:var(--dim);font-weight:500;border-bottom:1px solid var(--line)}
+.pane{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-width:thin;scrollbar-color:#3a3a50 transparent}
+.pane::-webkit-scrollbar{width:7px}.pane::-webkit-scrollbar-thumb{background:#3a3a50;border-radius:4px}
+.pane[hidden]{display:none}
+/* 編集（インスペクタ） */
+#insp{padding:12px 12px 16px}
+.ihead{display:flex;align-items:center;gap:10px;padding:4px 4px 12px}
+.ihead .dot{width:14px;height:14px}
+.ihead b{font-size:16px}
+.ihead small{display:block;color:var(--dim);font-size:11.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
+.card{background:#16161f;border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;margin-bottom:10px}
+.card h4{margin:0 0 10px;font-size:12px;font-weight:700;color:#b4b4c8;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.card h4 .sub{margin-left:auto;font-weight:500;color:var(--dim);font-size:11px;letter-spacing:0}
+.fld{display:flex;flex-direction:column;align-items:stretch;gap:5px;margin-bottom:10px;color:inherit}
+.fld:last-child{margin-bottom:0}
+.fld>span{font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.fld>span em{font-style:normal;margin-left:auto;color:#c8c8d8;font-variant-numeric:tabular-nums}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.row2>*,.fld,.stepper{min-width:0}
+.stepper input{width:100%}
+.row2 .stepper button{width:28px}
+.row2 .stepper .unit{padding:0 6px 0 0}
+.segs{display:flex;gap:4px;background:#101017;border:1px solid var(--line);border-radius:10px;padding:3px}
+.segs button{flex:1;min-height:34px;padding:4px 6px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px}
+.segs button:hover{background:#262633;color:var(--text)}
+.segs button.on{background:#3a2a36;color:#fff;box-shadow:inset 0 0 0 1px var(--accent)}
+.segs button .dot{width:9px;height:9px}
+.stepper{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#101017}
+.stepper input{flex:1;min-width:0;border:0;border-radius:0;background:none;text-align:center;font-size:14px;font-variant-numeric:tabular-nums;min-height:36px;padding:4px 6px;width:auto}
+.stepper input:focus{outline:none;background:#191922}
+.stepper button{width:34px;border:0;border-radius:0;background:#20202b;color:#c8c8d8;font-size:16px;padding:0}
+.stepper button:hover{background:#2e2e3e;color:#fff}
+.stepper .unit{display:flex;align-items:center;padding:0 8px 0 2px;color:var(--dim);font-size:11.5px;background:#101017}
+.stepper:focus-within{border-color:var(--accent)}
+.slider{display:flex;align-items:center;gap:10px}
+.slider input[type=range]{flex:1;accent-color:var(--accent);height:28px}
+.presets{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+.presets button{flex:1;min-height:28px;padding:2px 6px;font-size:12px;border-radius:14px;background:none;color:#c8c8d8}
+.presets button.on{background:#3a2a36;border-color:var(--accent);color:#fff}
+.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.info b{color:#d8d8e6;font-weight:500;text-align:right}
+.mini{font-size:11px;padding:2px 8px;min-height:24px;border-radius:12px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.acts button{min-height:36px;font-size:12.5px;border-radius:9px}
+.acts button.danger{color:#ff8a96;border-color:#5a2a33}
+.acts button.danger:hover{background:#3a1f26;border-color:#ff5566}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.stat{background:#16161f;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.stat b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--dim);font-size:11px}
+.tips{background:#16161f;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;color:var(--dim);font-size:12px;line-height:1.7}
+.tips kbd{background:#101017;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-family:inherit;font-size:11px;color:#c8c8d8}
+.muted{color:var(--dim);font-size:12px}
+/* ノーツ一覧 */
+.lsearch{position:sticky;top:0;z-index:1;display:flex;gap:6px;padding:8px;background:var(--panel);border-bottom:1px solid var(--line)}
+.lsearch .segs{flex:1}
+.lsearch .segs button{min-height:28px;font-size:12px;padding:2px 4px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+td,th{padding:7px 8px;text-align:left;white-space:nowrap}
+th{position:sticky;top:45px;background:var(--panel);color:var(--dim);font-weight:500;font-size:11.5px;border-bottom:1px solid var(--line)}
 tbody tr{cursor:pointer;border-bottom:1px solid #22222d}
-tbody tr:hover{background:#262633}
+tbody tr:hover{background:#22222d}
 tbody tr.sel{background:#3a2a36}
-.chip{display:inline-flex;align-items:center;gap:5px}
-.warn{padding:7px 10px;border-bottom:1px solid #22222d;cursor:pointer;font-size:12px;display:flex;gap:8px}
-.warn:hover{background:#262633}
-.warn .lv{flex:none;width:44px;font-size:11px;text-align:center;border-radius:4px;height:18px;line-height:18px}
+tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:6px}
+.tag{font-size:10.5px;border-radius:8px;padding:0 6px;font-weight:700;color:#14141b}
+.tag.size{background:#9fe0b8}.tag.appr{background:#ffd24a}.tag.cnt{background:#ff8fd6}
+/* チェック */
+.warn{display:flex;gap:10px;align-items:flex-start;margin:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#16161f;cursor:pointer;font-size:12.5px;line-height:1.55}
+.warn:hover{border-color:#55556e;background:#1c1c27}
+.warn .lv{flex:none;min-width:44px;font-size:11px;font-weight:700;text-align:center;border-radius:6px;padding:2px 6px}
 .lv.err{background:#5a1f2a;color:#ff9aa8}.lv.warn{background:#51401a;color:#ffd97a}.lv.info{background:#1f3550;color:#9fcaff}
-.ok{padding:14px;color:#8fd9a8}
+.warn .where{color:var(--dim);font-size:11.5px}
+.ok{margin:12px;padding:16px;border:1px solid #2d4a37;border-radius:10px;background:#18261e;color:#8fd9a8}
 
 footer{display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--panel);border-top:1px solid var(--line);user-select:none}
 #playBtn{width:40px;height:40px;border-radius:50%;font-size:16px;padding:0;background:var(--accent);border-color:var(--accent);color:#1a0a12}
@@ -218,9 +268,13 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
     </section>
     <aside>
       <div class="sizer sz-side" title="ドラッグで幅を変更（ダブルクリックで元に戻す）"></div>
-      <div id="insp"></div>
-      <div class="tabs"><button data-tab="list" class="on">ノーツ一覧</button><button data-tab="check">チェック <span id="badge"></span></button></div>
-      <div id="tabbody"></div>
+      <div class="ptabs" role="tablist">
+        <button data-tab="edit" role="tab" title="選択中のノーツを編集">編集 <span class="tcount" id="selCount"></span></button>
+        <button data-tab="list" role="tab">ノーツ一覧 <span class="tcount" id="listCount"></span></button>
+        <button data-tab="check" role="tab" title="譜面チェック">チェック <span id="badge"></span></button>
+      </div>
+      <div id="insp" class="pane" role="tabpanel"></div>
+      <div id="tabbody" class="pane" role="tabpanel" hidden></div>
     </aside>
   </main>
 
@@ -324,7 +378,7 @@ const S = {
   gridSnap: true, grid: 0.5, time: 0, playing: false, tool: 'select',
   sel: new Set(), zoom: 140, viewStart: 0, viewEnd: null, rate: 1, hitsound: true, metronome: false, volume: 0.7,
 };
-let nextId = 1, drag = null, pfMouse = null, clip = null, tab = 'list';
+let nextId = 1, drag = null, pfMouse = null, clip = null, tab = 'edit', listFilter = '', lastSelKey = '', keepTab = false;
 
 const $ = s => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1423,39 +1477,76 @@ function setTool(t) {
   document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
 }
 
-// ====== パネル ======
-function refreshPanels() { refreshInspector(); renderTab(); syncRangeInputs(); }
+// ====== パネル（編集 / ノーツ一覧 / チェック のタブ） ======
+function refreshPanels() {
+  // ノーツを選んだら「編集」タブへ（一覧・チェックから選んだときはそのまま）
+  const key = [...S.sel].sort().join(',');
+  if (key !== lastSelKey) { if (key && !keepTab) tab = 'edit'; lastSelKey = key; }
+  keepTab = false;
+  refreshInspector(); renderTab(); syncRangeInputs();
+}
+const SCALES = [0.5, 0.75, 1, 1.25, 1.5, 2], APPRS = [0.8, 1, 1.2, 1.5, 2];
+const same = (arr, f) => { const v = [...new Set(arr.map(f))]; return v.length === 1 ? v[0] : null; };
+const typeSegs = cur => `<div class="segs">${TYPES.map(t => `<button data-set="type" data-v="${t}" class="${t === cur ? 'on' : ''}"><span class="dot" style="background:${COLORS[t]}"></span>${TYPE_JP[t]}</button>`).join('')}</div>`;
+const stepper = (k, v, st, unit, ph = '') => `<div class="stepper"><button data-step="${k}" data-d="${-st}" title="−${st}">−</button><input type="number" step="${st}" data-k="${k}" value="${v === '' ? '' : r3(v)}" placeholder="${ph}"><span class="unit">${unit}</span><button data-step="${k}" data-d="${st}" title="＋${st}">＋</button></div>`;
+const posStep = () => S.gridSnap ? S.grid : 0.1;
+function apprCard(list) {
+  const one = list.length === 1 ? list[0] : null, a = same(list, apprOf), own = list.some(n => n.appr > 0);
+  return `<div class="card"><h4>出現まで<span class="sub">${a == null ? 'ノーツごとに違う' : own ? '個別に指定' : `ヘッダーの Approach（${S.approach} 秒）`}</span></h4>
+    <label class="fld"><span>出現してから判定までの秒数${own ? '<button class="mini" data-act="apprReset" title="ヘッダーの Approach に戻す">既定に戻す</button>' : ''}</span>
+      ${stepper('appr', one && one.appr > 0 ? one.appr : '', 0.05, '秒', a == null ? 'いろいろ' : `既定 ${S.approach}`)}</label>
+    <div class="presets">${APPRS.map(v => `<button data-set="appr" data-v="${v}" class="${own && v === a ? 'on' : ''}">${v}秒</button>`).join('')}</div>
+    ${one ? `<div class="info" style="margin-top:8px"><span>出現時刻</span><b>${fmtTime(Math.max(0.1, one.t - apprOf(one)))}${one.t - apprOf(one) < 0.1 ? '（曲の頭で短縮）' : ''}</b></div>` : ''}
+  </div>`;
+}
+function scaleCard(list) {
+  const sc = same(list, scaleOf);
+  return `<div class="card"><h4>大きさ<span class="sub">当たる半径 ${sc == null ? '—' : r3(HIT_R * sc)}（見た目も変わる）</span></h4>
+    <div class="fld"><span>倍率 <em>${sc == null ? 'いろいろ' : sc + ' 倍'}</em></span>
+      <div class="slider"><input type="range" min="0.25" max="3" step="0.05" data-k="scale" value="${sc ?? 1}" aria-label="大きさ"></div>
+      <div class="presets">${SCALES.map(v => `<button data-set="scale" data-v="${v}" class="${v === sc ? 'on' : ''}">${v}×</button>`).join('')}</div>
+    </div></div>`;
+}
+function rushCountFld(list) {
+  const one = list.length === 1 ? list[0] : null, cnt = same(list, n => n.count || 0);
+  return `<label class="fld"><span>連射回数${cnt !== 0 ? '<button class="mini" data-act="countReset" title="長さから自動で決める">自動に戻す</button>' : ''}</span>
+      ${stepper('count', cnt > 0 ? cnt : '', 1, '発', one ? `自動 ${autoRush(one)}` : (cnt === 0 ? '自動' : 'いろいろ'))}</label>
+    ${one ? `<div class="info"><span>速さ</span><b>${(rushCountOf(one) / Math.max(0.01, one.hold)).toFixed(1)} 発/秒（${rushCountOf(one)} 発 ÷ ${r3(one.hold)} 秒）</b></div>` : ''}`;
+}
 function refreshInspector() {
   const el = $('#insp'), sel = selected(), bl = beatLen();
-  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && drag == null) return;
-  const typeOpts = cur => TYPES.map(t => `<option value="${t}"${t === cur ? ' selected' : ''}>${TYPE_JP[t]} (${t})</option>`).join('');
+  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type !== 'range' && drag == null) return;
+  const acts = `<div class="acts"><button data-act="snapT">時刻スナップ</button><button data-act="mirX">左右反転</button><button data-act="mirY">上下反転</button><button data-act="del" class="danger">削除</button></div>`;
   if (sel.length === 1) {
-    const n = sel[0], i = S.notes.indexOf(n) + 1, inp = (k, v, st = '0.1') => `<input type="number" step="${st}" data-k="${k}" value="${r3(v)}">`;
-    el.innerHTML = `<h3><span class="dot" style="background:${COLORS[n.type]}"></span>#${i} ${TYPE_JP[n.type]}</h3>
-      <div class="kv">
-        <label>種類</label><select data-k="type">${typeOpts(n.type)}</select>
-        <label>判定時刻 (秒)</label>${inp('t', n.t, '0.001')}
-        <label>拍</label>${inp('beat', n.t / bl, String(r3(1 / S.snap)))}
-        <label title="出現してから判定までの秒数。空欄ならヘッダーの Approach を使う">出現まで (秒)</label><div class="xy"><input type="number" step="0.05" min="0.1" data-k="appr" value="${n.appr > 0 ? r3(n.appr) : ''}" placeholder="既定 ${S.approach}">${n.appr > 0 ? '<button data-act="apprReset" title="ヘッダーの Approach に戻す">既定</button>' : ''}</div>
-        <label>出現時刻</label><output>${r3(Math.max(0.1, n.t - apprOf(n)))} 秒${n.t - apprOf(n) < 0.1 ? '（曲の頭で短縮）' : ''}</output>
-        <label title="当たる半径の倍率（見た目の大きさも変わる）">大きさ (倍)</label><div class="xy">${inp('scale', scaleOf(n), '0.05')}<select data-k="scalePreset" title="よく使う大きさ"><option value="">—</option>${[0.5, 0.75, 1, 1.25, 1.5, 2].map(v => `<option value="${v}">${v} 倍</option>`).join('')}</select></div>
-        <label>位置 X / Y</label><div class="xy">${inp('pos.x', n.pos.x)}${inp('pos.y', n.pos.y)}</div>
-        ${n.type === 'Hold' ? `<label>終点 X / Y</label><div class="xy">${inp('move.x', n.move.x)}${inp('move.y', n.move.y)}</div>` : ''}
-        ${n.type === 'Sync' ? `<label>相方 X / Y</label><div class="xy">${inp('pair.x', n.pair.x)}${inp('pair.y', n.pair.y)}</div>` : ''}
-        ${hasDur(n) ? `<label>長さ (拍)</label>${inp('holdBeats', n.hold / bl, String(r3(1 / S.snap)))}<label>長さ (秒)</label>${inp('holdSec', n.hold, '0.05')}` : ''}
-        ${n.type === 'Rush' ? `<label title="必要な撃つ回数。空欄なら 長さ × ${RUSH_HPS} 発/秒">連射回数</label><div class="xy"><input type="number" step="1" min="1" data-k="count" value="${n.count > 0 ? n.count : ''}" placeholder="自動 ${autoRush(n)}">${n.count > 0 ? '<button data-act="countReset" title="長さから自動で決める">自動</button>' : ''}</div>
-        <label>連射の速さ</label><output>${(rushCountOf(n) / Math.max(0.01, n.hold)).toFixed(1)} 発/秒（${rushCountOf(n)} 発 ÷ ${r3(n.hold)} 秒）</output>` : ''}
+    const n = sel[0], i = S.notes.indexOf(n) + 1, ps = posStep(), bi = Math.floor(n.t / bl + 1e-6);
+    const xy = (k, label) => `<div class="fld"><span>${label}</span><div class="row2">${stepper(k + '.x', n[k].x, ps, 'X')}${stepper(k + '.y', n[k].y, ps, 'Y')}</div></div>`;
+    el.innerHTML = `<div class="ihead"><span class="dot" style="background:${COLORS[n.type]}"></span><div><b>#${i} ${TYPE_JP[n.type]}</b><small>${fmtTime(n.t)}　小節 ${Math.floor(bi / 4) + 1} : 拍 ${bi % 4 + 1}　(${r3(n.t / bl)} 拍)</small></div></div>
+      <div class="card"><h4>種類</h4>${typeSegs(n.type)}</div>
+      <div class="card"><h4>タイミング<button class="mini" data-act="toNow" style="margin-left:auto" title="今の再生位置（スナップ）に動かす">今の位置へ</button></h4>
+        <div class="row2"><label class="fld"><span>判定時刻</span>${stepper('t', n.t, r3(step()), '秒')}</label>
+          <label class="fld"><span>拍</span>${stepper('beat', n.t / bl, r3(1 / S.snap), '拍')}</label></div>
       </div>
-      <div class="btns"><button data-act="snapT">時刻スナップ</button><button data-act="mirX">左右反転</button><button data-act="mirY">上下反転</button><button data-act="del" class="danger">削除</button></div>`;
+      ${apprCard([n])}
+      ${scaleCard([n])}
+      <div class="card"><h4>位置<span class="sub">${S.gridSnap ? `グリッド ${S.grid} ずつ` : '0.1 ずつ'}</span></h4>
+        ${xy('pos', n.type === 'Sync' ? '的 A' : n.type === 'Hold' ? '始点' : '位置')}
+        ${n.type === 'Hold' ? xy('move', '終点') : ''}
+        ${n.type === 'Sync' ? xy('pair', '的 B（相方）') : ''}
+      </div>
+      ${hasDur(n) ? `<div class="card"><h4>${n.type === 'Rush' ? '連射' : '長撃ち'}の長さ</h4>
+        <div class="row2"><label class="fld"><span>拍</span>${stepper('holdBeats', n.hold / bl, r3(1 / S.snap), '拍')}</label>
+          <label class="fld"><span>秒</span>${stepper('holdSec', n.hold, 0.05, '秒')}</label></div>
+        ${n.type === 'Rush' ? rushCountFld([n]) : ''}
+      </div>` : ''}
+      ${acts}`;
   } else if (sel.length > 1) {
-    const span = sel[sel.length - 1].t - sel[0].t;
-    el.innerHTML = `<h3>${sel.length} ノーツを選択中</h3>
-      <div class="kv"><label>範囲</label><output>${fmtTime(sel[0].t)} 〜 ${fmtTime(sel[sel.length - 1].t)} (${r3(span / bl)} 拍)</output>
-      <label>種類を一括変更</label><select data-k="type"><option value="">—</option>${typeOpts('')}</select>
-      <label>大きさを一括 (倍)</label><input type="number" step="0.05" min="0.1" data-k="scale" placeholder="${[...new Set(sel.map(scaleOf))].length === 1 ? scaleOf(sel[0]) : 'いろいろ'}">
-      <label>出現までを一括 (秒)</label><div class="xy"><input type="number" step="0.05" min="0.1" data-k="appr" placeholder="${[...new Set(sel.map(apprOf))].length === 1 ? apprOf(sel[0]) : 'いろいろ'}"><button data-act="apprReset" title="すべてヘッダーの Approach に戻す">既定</button></div>
-      ${sel.some(n => n.type === 'Rush') ? `<label>連射回数を一括</label><div class="xy"><input type="number" step="1" min="1" data-k="count" placeholder="連射のみ"><button data-act="countReset" title="長さから自動で決める">自動</button></div>` : ''}</div>
-      <div class="btns"><button data-act="snapT">時刻スナップ</button><button data-act="mirX">左右反転</button><button data-act="mirY">上下反転</button><button data-act="del" class="danger">削除</button></div>`;
+    const span = sel[sel.length - 1].t - sel[0].t, rushes = sel.filter(n => n.type === 'Rush');
+    el.innerHTML = `<div class="ihead"><span class="dot" style="background:var(--accent)"></span><div><b>${sel.length} ノーツを選択中</b><small>${fmtTime(sel[0].t)} 〜 ${fmtTime(sel[sel.length - 1].t)}（${r3(span / bl)} 拍）</small></div></div>
+      <div class="card"><h4>種類をまとめて変更</h4>${typeSegs(same(sel, n => n.type))}</div>
+      ${apprCard(sel)}
+      ${scaleCard(sel)}
+      ${rushes.length ? `<div class="card"><h4>連射（${rushes.length} 個）</h4>${rushCountFld(rushes)}</div>` : ''}
+      ${acts}`;
   } else {
     const cnt = t => S.notes.filter(n => n.type === t).length, d = S.notes.length ? endT(S.notes[S.notes.length - 1]) : 0;
     el.innerHTML = `<div class="stats">
@@ -1463,29 +1554,52 @@ function refreshInspector() {
         <div class="stat"><b>${fmtTime(d).slice(0, 5)}</b><span>譜面の長さ</span></div>
         ${TYPES.map(t => `<div class="stat"><b style="color:${COLORS[t]}">${cnt(t)}</b><span>${TYPE_JP[t]} ${t}</span></div>`).join('')}
       </div>
-      <div class="muted">ノーツをクリックで選択。2〜5 キーでツールを選んでフィールドをクリックすると現在時刻に配置します。<br>? ボタンで操作一覧。</div>`;
+      <div class="tips">ノーツをクリックすると、ここで種類・時刻・<b>出現まで</b>・<b>大きさ</b>・位置・長さ・<b>連射回数</b>を変えられます。<br>
+        <kbd>2</kbd>〜<kbd>5</kbd> でツールを選んでフィールドをクリックすると現在時刻に配置。複数選択（ドラッグ / <kbd>Shift</kbd>+クリック）でまとめて変更。<br>? ボタンで操作一覧。</div>`;
   }
+}
+// 値の反映（選択中のノーツ）。大きさ・出現まで・連射回数は全部に、それ以外は1つ選んだときだけ
+function applyField(k, raw) {
+  const sel = selected(); if (!sel.length) return;
+  const v = parseFloat(raw), bl = beatLen();
+  if (k === 'scale') { if (!(v > 0)) return; sel.forEach(n => n.scale = r3(clamp(v, 0.1, 5))); }
+  else if (k === 'appr') { if (raw !== '' && !(v > 0)) return; sel.forEach(n => n.appr = raw === '' ? 0 : r3(Math.max(0.1, v))); }
+  else if (k === 'count') { if (raw !== '' && !(v > 0)) return; sel.forEach(n => { if (n.type === 'Rush') n.count = raw === '' ? 0 : Math.max(1, Math.round(v)); }); }
+  else {
+    if (!isFinite(v) || sel.length !== 1) return;
+    const n = sel[0];
+    if (k === 't') n.t = r6(Math.max(0, v));
+    else if (k === 'beat') n.t = r6(Math.max(0, v * bl));
+    else if (k === 'holdBeats') n.hold = r6(Math.max(0.01, v * bl));
+    else if (k === 'holdSec') n.hold = r6(Math.max(0.01, v));
+    else if (k.includes('.')) { const [a, b] = k.split('.'); n[a] = clampPos({ ...n[a], [b]: r3(v) }); }
+    else return;
+  }
+  commit();
 }
 $('#insp').addEventListener('change', e => {
   const k = e.target.dataset.k; if (!k) return;
-  const sel = selected(); if (!sel.length) return;
-  if (k === 'type') { if (!e.target.value) return; sel.forEach(n => changeType(n, e.target.value)); e.target.blur(); commit(); return; }
-  // 大きさ・出現まで・連射回数は選択中のノーツすべてに（空欄の「出現まで」「連射回数」は既定に戻す）
-  if (k === 'scale' || k === 'scalePreset' || k === 'appr' || k === 'count') {
-    const raw = e.target.value.trim(), v = parseFloat(raw);
-    if (k === 'appr') { if (raw && !(v > 0)) return; sel.forEach(n => n.appr = raw ? r3(Math.max(0.1, v)) : 0); }
-    else if (k === 'count') { if (raw && !(v > 0)) return; sel.forEach(n => { if (n.type === 'Rush') n.count = raw ? Math.max(1, Math.round(v)) : 0; }); }
-    else { if (!(v > 0)) return; sel.forEach(n => n.scale = r3(clamp(v, 0.1, 5))); }
-    e.target.blur(); commit(); return;
+  applyField(k, e.target.value.trim()); e.target.blur();
+});
+// スライダーを動かしている間は数字だけ更新（離したら反映）
+$('#insp').addEventListener('input', e => {
+  if (e.target.dataset.k === 'scale') { const em = e.target.closest('.fld').querySelector('em'); if (em) em.textContent = (+e.target.value) + ' 倍'; }
+});
+$('#insp').addEventListener('click', e => {
+  const st = e.target.closest('[data-step]');
+  if (st) {
+    const inp = st.parentElement.querySelector('input'), d = +st.dataset.d, k = st.dataset.step;
+    const cur = inp.value === '' ? parseFloat(inp.placeholder.replace(/[^\d.]/g, '')) || 0 : +inp.value;
+    const nv = k === 'count' ? Math.max(1, Math.round(cur + d)) : k.includes('.') ? r6(cur + d) : r6(Math.max(0, cur + d));
+    applyField(k, String(nv)); return;
   }
-  const v = parseFloat(e.target.value); if (!isFinite(v)) return;
-  const n = sel[0], bl = beatLen();
-  if (k === 't') n.t = r6(Math.max(0, v));
-  else if (k === 'beat') n.t = r6(Math.max(0, v * bl));
-  else if (k === 'holdBeats') n.hold = r6(Math.max(0.01, v * bl));
-  else if (k === 'holdSec') n.hold = r6(Math.max(0.01, v));
-  else { const [a, b] = k.split('.'); n[a] = clampPos({ ...n[a], [b]: r3(v) }); }
-  e.target.blur(); commit();
+  const b = e.target.closest('[data-set]'); if (!b) return;
+  const sel = selected(); if (!sel.length) return;
+  const k = b.dataset.set, v = b.dataset.v;
+  if (k === 'type') sel.forEach(n => changeType(n, v));
+  else if (k === 'scale') sel.forEach(n => n.scale = +v);
+  else if (k === 'appr') sel.forEach(n => n.appr = +v);
+  commit();
 });
 
 function checks() {
@@ -1517,24 +1631,39 @@ function checks() {
   return W;
 }
 function renderTab() {
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('.ptabs button').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  $('#insp').hidden = tab !== 'edit'; $('#tabbody').hidden = tab === 'edit';
   const W = checks(), body = $('#tabbody');
   $('#badge').textContent = W.filter(w => w.lv !== 'info').length || '';
+  $('#selCount').textContent = S.sel.size || '';
+  $('#listCount').textContent = S.notes.length || '';
   if (tab === 'list') {
-    const bl = beatLen();
-    body.innerHTML = `<table><thead><tr><th>#</th><th>時刻</th><th>拍</th><th>種類</th><th>位置</th></tr></thead><tbody>${S.notes.map((n, i) => `<tr data-id="${n.id}"${S.sel.has(n.id) ? ' class="sel"' : ''}><td>${i + 1}</td><td>${fmtTime(n.t)}</td><td>${r3(n.t / bl)}</td><td><span class="chip"><span class="dot" style="background:${COLORS[n.type]}"></span>${TYPE_JP[n.type]}</span></td><td>${n.pos.x}, ${n.pos.y}</td></tr>`).join('')}</tbody></table>`;
+    const keepScroll = body.scrollTop, bl = beatLen();
+    const custom = n => scaleOf(n) !== 1 || n.appr > 0 || n.count > 0;
+    const shown = S.notes.filter(n => !listFilter || (listFilter === 'custom' ? custom(n) : n.type === listFilter));
+    const f = (v, t) => `<button data-lf="${v}" class="${listFilter === v ? 'on' : ''}">${t}</button>`;
+    body.innerHTML = `<div class="lsearch"><div class="segs">${f('', 'すべて')}${TYPES.map(t => f(t, TYPE_JP[t])).join('')}${f('custom', '個別設定')}</div></div>
+      <table><thead><tr><th>#</th><th>時刻</th><th>拍</th><th>種類</th><th>位置</th></tr></thead><tbody>${shown.map(n => {
+        const i = S.notes.indexOf(n);
+        return `<tr data-id="${n.id}"${S.sel.has(n.id) ? ' class="sel"' : ''}><td>${i + 1}</td><td>${fmtTime(n.t)}</td><td>${r3(n.t / bl)}</td>
+          <td><span class="chip"><span class="dot" style="background:${COLORS[n.type]}"></span>${TYPE_JP[n.type]}${scaleOf(n) !== 1 ? ` <span class="tag size" title="大きさ">×${scaleOf(n)}</span>` : ''}${n.appr > 0 ? ` <span class="tag appr" title="出現まで">${r3(n.appr)}秒</span>` : ''}${n.count > 0 ? ` <span class="tag cnt" title="連射回数">${n.count}発</span>` : ''}</span></td>
+          <td>${n.pos.x}, ${n.pos.y}</td></tr>`;
+      }).join('')}</tbody></table>${shown.length ? '' : '<div class="ok" style="color:var(--dim);border-color:var(--line);background:none">該当するノーツはありません</div>'}`;
+    body.scrollTop = keepScroll;
     body.querySelector('tr.sel')?.scrollIntoView({ block: 'nearest' });
-  } else {
-    body.innerHTML = W.length ? W.map(w => `<div class="warn" data-id="${w.n.id}"><span class="lv ${w.lv}">${{ err: 'エラー', warn: '注意', info: '情報' }[w.lv]}</span><span><b>#${w.i + 1}</b> ${fmtTime(w.n.t)}<br>${w.m}</span></div>`).join('')
+  } else if (tab === 'check') {
+    body.innerHTML = W.length ? W.map(w => `<div class="warn" data-id="${w.n.id}"><span class="lv ${w.lv}">${{ err: 'エラー', warn: '注意', info: '情報' }[w.lv]}</span><span><b>#${w.i + 1} ${TYPE_JP[w.n.type]}</b> <span class="where">${fmtTime(w.n.t)}</span><br>${w.m}</span></div>`).join('')
       : '<div class="ok">✓ 問題は見つかりませんでした</div>';
   }
 }
 $('#tabbody').addEventListener('click', e => {
+  const lf = e.target.closest('[data-lf]'); if (lf) { listFilter = lf.dataset.lf; renderTab(); return; }
   const row = e.target.closest('[data-id]'); if (!row) return;
   const n = byId(+row.dataset.id); if (!n) return;
+  keepTab = true; // 一覧・チェックから選んだときはタブを切り替えない
   S.sel = new Set([n.id]); seek(n.t); refreshPanels();
 });
-document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; renderTab(); } });
+document.querySelector('.ptabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; renderTab(); if (tab === 'edit') refreshInspector(); } });
 
 // ====== ヘッダー / フッター ======
 function syncHeader() {
@@ -1647,9 +1776,9 @@ async function openChart() {
 
 // ====== レイアウト（配置・大きさのカスタマイズ） ======
 const LAYOUT_KEY = 'ms2026.techChartEditor.layout';
-const LAYOUT_DEFAULT = { tlH: 150, sideW: 310, tlPos: 'top', sidePos: 'right', tools: true, side: true, mascot: true };
+const LAYOUT_DEFAULT = { tlH: 150, sideW: 360, tlPos: 'top', sidePos: 'right', tools: true, side: true, mascot: true };
 const LAYOUT_PRESETS = {
-  default: { tlH: 150, sideW: 310 },
+  default: { tlH: 150, sideW: 360 },
   timeline: { tlH: 300, sideW: 280 },
   field: { tlH: 110, sideW: 260 },
 };
@@ -1733,9 +1862,10 @@ const ACTIONS = {
   play: togglePlay,
   zoomIn() { setZoom(S.zoom * 1.25); }, zoomOut() { setZoom(S.zoom / 1.25); },
   snapT: snapSelectedTimes, mirX() { mirror('x'); }, mirY() { mirror('y'); },
+  toNow() { const sel = selected(); if (sel.length !== 1) return; sel[0].t = snapT(S.time); commit('今の位置へ動かしました'); },
   del() { deleteNotes([...S.sel]); },
   apprReset() { const sel = selected(); if (!sel.length) return; sel.forEach(n => n.appr = 0); commit('出現までを既定に戻しました'); },
-  countReset() { const sel = selected(); if (!sel.length) return; sel.forEach(n => n.count = 0); commit('連射回数を自動にしました'); },
+  countReset() { const sel = selected().filter(n => n.type === 'Rush'); if (!sel.length) return; sel.forEach(n => n.count = 0); commit('連射回数を自動にしました'); },
 };
 document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && ACTIONS[b.dataset.act]) { ACTIONS[b.dataset.act](); b.blur(); } });
 $('#fileChart').addEventListener('change', async e => { const f = e.target.files[0]; if (f && importText(await f.text(), f.name)) rememberHandle(null); e.target.value = ''; });
