@@ -15,10 +15,6 @@ window.CHART_EDITOR_CONFIG = {
   // 設定方法は BOARD_SETUP.md を参照。空のままならボードは「未設定」と表示される
   boardApiUrl: 'https://script.google.com/macros/s/AKfycbwCvgOKHxKhzBL3MO_t3RJgGpUZ06Swk8gTzUt3jYJwp21vzuNVa7BE_TcR_g67QmdA/exec',
 
-  // （任意）Google Drive API の API キー。入れると音源をドライブから直接ダウンロードするので速くなる。
-  // 空なら Apps Script 経由。作り方は BOARD_SETUP.md の「音源の読み込みを速くする」
-  driveApiKey: '',
-
   // Apps Script 側でキー（スクリプト プロパティ KEY）を設定した場合だけ同じ値を入れる
   boardKey: '',
 };

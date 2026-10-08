@@ -20,9 +20,6 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } },
   };
   let draft = {};
-  const ROWS_KEY = 'ms2026.board.rows';
-  const peekRows = () => { try { return JSON.parse(localStorage.getItem(ROWS_KEY)) || []; } catch (e) { return []; } };
-  const keepRows = r => { try { localStorage.setItem(ROWS_KEY, JSON.stringify(r)); } catch (e) { } };
   let rows = [], adding = false, serverNow = Date.now(), fetchedAt = Date.now();
 
   // 名前（name-gate.js で入力。入れるまでページは使えない）
@@ -55,45 +52,11 @@
         : await fetch(CFG.boardApiUrl);
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || '失敗しました');
-      rows = j.rows; serverNow = Date.parse(j.now) || Date.now(); fetchedAt = Date.now(); keepRows(rows);
+      rows = j.rows; serverNow = Date.parse(j.now) || Date.now(); fetchedAt = Date.now();
       msg(''); render();
     } catch (e) { msg(`ボードと通信できませんでした（${esc(e.message)}）。少し待ってから「↻ 更新」を押してください。`); }
   }
   const load = () => api();
-  // ボード・音源の一覧・譜面の一覧を1回で読む（古い Apps Script なら別々に読む）
-  let syncing = false;
-  async function bundle(fresh) {
-    if (syncing) return; syncing = true; setSync(true);
-    try {
-      const j = await (await fetch(CFG.boardApiUrl + (CFG.boardApiUrl.includes('?') ? '&' : '?') + 'action=bundle' + (fresh ? '&fresh=1' : ''))).json();
-      if (!j.ok) throw new Error(j.error || '失敗しました');
-      if (!j.audio || !j.charts) { await Promise.all([load(), loadAudioList(fresh), loadCharts(fresh)]); return; }
-      rows = j.rows; serverNow = Date.parse(j.now) || Date.now(); fetchedAt = Date.now(); keepRows(rows);
-      audio = j.audio; audioErr = ''; DriveAudio.remember(audio);
-      charts = j.charts; chartsErr = ''; DriveCharts.remember(charts);
-      msg(''); render();
-      prefetchMine();
-    } catch (e) { msg(`ボードと通信できませんでした（${esc(e.message)}）。少し待ってから「↻ 更新」を押してください。`); }
-    finally { syncing = false; setSync(false); }
-  }
-  function setSync(on) { const b = $('bReload'); b.disabled = on; b.textContent = on ? '↻ 更新中…' : '↻ 更新'; }
-
-  // 自分が担当している譜面（未着手・作成中）の音源を、ひまなときに先に読んでおく（エディタですぐ使える）
-  let prefetched = false;
-  async function prefetchMine() {
-    if (prefetched || !DriveAudio.enabled()) return; prefetched = true;
-    const me = ls.get(USER_KEY);
-    const songs = [...new Set(rows.filter(r => r.assignee === me && (r.status === 'todo' || r.status === 'doing')).map(r => r.song))];
-    const todo = [];
-    for (const song of songs) { const f = DriveAudio.find(audio, song); if (f && !(await DriveAudio.isCached(f))) todo.push(f); }
-    for (let i = 0; i < Math.min(todo.length, 4); i++) {
-      if (document.visibilityState !== 'visible') await new Promise(r => document.addEventListener('visibilitychange', r, { once: true }));
-      prefetchNote = `♪ 担当曲の音源を先読み中 ${i + 1}/${Math.min(todo.length, 4)}`; renderAudio();
-      try { await DriveAudio.load(todo[i]); } catch (e) { /* 先読みの失敗は無視 */ }
-    }
-    prefetchNote = todo.length ? '♪ 担当曲の音源は先読み済み' : ''; renderAudio();
-  }
-  let prefetchNote = '';
   function update(id, fields) {
     const r = rows.find(x => x.id === id); if (r) Object.assign(r, fields);
     render(); return api({ action: 'update', id, fields });
@@ -138,7 +101,7 @@
 
     $('blist').innerHTML = addCard + list.map(r => {
       const due = String(r.due || '').slice(0, 10);
-      const editor = (r.part === 'TECH' ? 'TechChartEditor.html' : 'PowerChartEditor.html') + (r.asset ? '#open=' + encodeURIComponent(r.asset) + '&song=' + encodeURIComponent(r.song) : '');
+      const editor = (r.part === 'TECH' ? 'TechChartEditor.html' : 'PowerChartEditor.html') + (r.asset ? '#open=' + encodeURIComponent(r.asset) : '');
       const df = DriveCharts.find(charts, r.part, r.asset);
       const dv = chartsErr ? '' : df
         ? `<a class="dv${df.notes ? '' : ' zero'}" href="${esc(df.url)}" target="_blank" rel="noopener" title="ドライブで開く（${esc(df.path)}${esc(df.name)}）">☁ ${df.notes} ノーツ・${esc(DriveCharts.fmtDate(df.updated))}${df.savedBy ? ' ' + esc(df.savedBy) : ''}</a>`
@@ -307,7 +270,6 @@
     renderAudio();
   }
   function renderAudio() {
-    $('asum').title = prefetchNote;
     $('audioNames').innerHTML = audio.map(f => `<option value="${esc(DriveAudio.songOf(f.name))}">`).join('');
     if (!DriveAudio.enabled()) { $('amsg').textContent = '譜面ボードを設定すると、音源フォルダの曲がここに出ます。'; return; }
     if (audioErr) {
@@ -315,7 +277,7 @@
       $('atable').hidden = true; return;
     }
     const unregistered = audio.filter(f => !rows.some(r => DriveAudio.norm(r.song) === DriveAudio.norm(DriveAudio.songOf(f.name))));
-    $('asum').textContent = (audio.length ? `${audio.length} 曲　ボード未登録 ${unregistered.length} 曲` : '') + (prefetchNote ? `　${prefetchNote}` : '');
+    $('asum').textContent = audio.length ? `${audio.length} 曲　ボード未登録 ${unregistered.length} 曲` : '';
     $('aAddAll').disabled = !unregistered.length || !chosen().parts.length || !chosen().diffs.length;
     $('amsg').textContent = audio.length ? '' : '音源フォルダに音声ファイル（mp3 / wav / ogg など）がありません。';
     $('atable').hidden = !audio.length;
@@ -366,20 +328,19 @@
   document.querySelectorAll('.aopt').forEach(x => x.addEventListener('change', renderAudio));
 
   $('bAdd').addEventListener('click', () => { adding = true; render(); });
-  $('bReload').addEventListener('click', () => { checkMsg = ''; bundle(true); });
+  $('bReload').addEventListener('click', () => { checkMsg = ''; load(); loadCharts(true); });
 
   if (!CFG.boardApiUrl) {
     msg('譜面ボードはまだ設定されていません。Google スプレッドシートを用意して <code>config.js</code> の <code>boardApiUrl</code> を設定してください（手順: <a href="https://github.com/YamadaSeigo/chart-editor/blob/main/BOARD_SETUP.md" target="_blank" rel="noopener">BOARD_SETUP.md</a>）。');
     $('bAdd').disabled = true; $('bReload').disabled = true;
     $('aAddAll').disabled = true; $('aReload').disabled = true; renderAudio();
   } else {
-    rows = peekRows(); audio = DriveAudio.peek(); charts = DriveCharts.peek();
-    if (rows.length || audio.length) render(); else msg('読み込み中…');
-    bundle(false);
-    // 1分ごとに最新にする（入力中・画面を見ていないときは待つ）。サーバー側でもキャッシュするので軽い
+    msg('読み込み中…'); load(); loadAudioList(); loadCharts();
+    // ドライブの譜面は1分ごとに見直す
+    setInterval(() => { if (document.visibilityState === 'visible') loadCharts(true); }, 60000);
+    // 30秒ごとに最新にする（入力中は待つ）
     setInterval(() => {
-      if (document.visibilityState === 'visible' && !document.activeElement?.closest?.('#board input,#board select')) bundle(false);
-    }, 60000);
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - fetchedAt > 60000) bundle(false); });
+      if (document.visibilityState === 'visible' && !document.activeElement?.closest?.('#board input,#board select')) load();
+    }, 30000);
   }
 })();

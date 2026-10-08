@@ -11,7 +11,7 @@
 // 音源を入れる Google ドライブのフォルダ（URL の folders/ の後ろ）。このフォルダ（とその中のフォルダ）以外のファイルは返さない
 const AUDIO_FOLDER_ID = '12SSJ2qgAaitkxpuXNrYUMcT1_6AIrxLT';
 const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac|flac|opus|webm)$/i;
-const AUDIO_CHUNK = 10 * 1024 * 1024; // 1回で返す大きさ（base64 にすると約 13MB）。大きいほど呼び出しが減る
+const AUDIO_CHUNK = 6 * 1024 * 1024; // 1回で返す大きさ（base64 にすると約 8MB）
 // ノーツ（.asset）を保存する Google ドライブのフォルダ。中に TECH / POWER のフォルダを作って分けて保存する
 const NOTES_FOLDER_ID = '10ugDZ9dDHFa9-Q3CwKn8Z6v_aOJqW1xI';
 const PARTS = ['TECH', 'POWER'];
@@ -39,57 +39,15 @@ function authorize() {
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
-  const fresh = p.fresh === '1';
   try {
-    const now = new Date().toISOString();
-    // ボード・音源の一覧・譜面の一覧を1回でまとめて返す（呼び出しの回数を減らす）
-    if (p.action === 'bundle') return json_({ ok: true, rows: rowsCached_(fresh), audio: audioCached_(fresh), charts: chartsCached_(fresh), now });
-    if (p.action === 'audioList') return json_({ ok: true, files: audioCached_(fresh), now });
+    if (p.action === 'audioList') return json_({ ok: true, files: listAudio_(), now: new Date().toISOString() });
     if (p.action === 'audio') return json_(audioChunk_(p.id, Number(p.offset) || 0));
-    if (p.action === 'charts') return json_({ ok: true, files: chartsCached_(fresh), now });
+    if (p.action === 'charts') return json_({ ok: true, files: listCharts_(), now: new Date().toISOString() });
     if (p.action === 'chart') return json_(readChart_(p.id));
-    if (p.action === 'chartByAsset') return json_(readChartByAsset_(p.part, p.asset));
-    return json_({ ok: true, rows: rowsCached_(fresh), now });
+    return json_({ ok: true, rows: readRows_(sheet_()), now: new Date().toISOString() });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
-}
-
-// ---------------- キャッシュ（ドライブやシートを毎回読まない） ----------------
-// 一覧は CacheService に置き、保存・ゴミ箱・ボードの変更で消す。音源の一覧は 10 分（↻ で読み直し）
-const CACHE = () => CacheService.getScriptCache();
-function cget_(key) { try { const v = CACHE().get(key); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
-function cput_(key, obj, sec) { try { CACHE().put(key, JSON.stringify(obj), sec); } catch (e) { /* 大きすぎるときはキャッシュしない */ } }
-function cdel_(keys) { try { CACHE().removeAll(keys); } catch (e) { } }
-
-function rowsCached_(fresh) {
-  let rows = fresh ? null : cget_('rows');
-  if (!rows) { rows = readRows_(sheet_()).map(r => { const c = Object.assign({}, r); delete c._row; return c; }); cput_('rows', rows, 60); }
-  return withLive_(rows);
-}
-function audioCached_(fresh) {
-  let list = fresh ? null : cget_('audio');
-  if (!list) { list = listAudio_(); cput_('audio', list, 600); }
-  return list;
-}
-function chartsCached_(fresh) {
-  let list = fresh ? null : cget_('charts');
-  if (!list) { list = listCharts_(); cput_('charts', list, 600); }
-  return list;
-}
-
-// 「編集中」はシートに書かずキャッシュに置く（エディタが1分ごとに知らせるたびにシートを書き換えると遅くなるため）
-const liveKey_ = (part, asset) => 'live_' + part + '_' + String(asset).toLowerCase();
-function withLive_(rows) {
-  const keys = rows.map(r => liveKey_(r.part, r.asset));
-  let live = {};
-  try { live = CACHE().getAll(keys) || {}; } catch (e) { }
-  return rows.map(r => {
-    const v = live[liveKey_(r.part, r.asset)];
-    if (!v) return Object.assign({}, r, { editingBy: '', editingAt: '' });
-    const o = JSON.parse(v);
-    return Object.assign({}, r, { editingBy: o.user, editingAt: o.at });
-  });
 }
 
 /** 音源フォルダの音声ファイル一覧（中のフォルダも含む。path はフォルダ名/） */
@@ -160,14 +118,6 @@ function readChart_(id) {
   if (!inFolder_(f, NOTES_FOLDER_ID)) return { ok: false, error: 'ノーツ保存フォルダの外のファイルです' };
   const parents = f.getParents(), path = parents.hasNext() ? parents.next().getName() + '/' : '';
   return { ok: true, file: fileInfo_(f, path), content: f.getBlob().getDataAsString() };
-}
-
-function readChartByAsset_(part, asset) {
-  if (PARTS.indexOf(String(part)) < 0) return { ok: false, error: 'パートが不正です' };
-  const it = partFolder_(String(part)).getFilesByName(String(asset) + '.asset');
-  if (!it.hasNext()) return { ok: true, missing: true };
-  const f = it.next();
-  return { ok: true, file: fileInfo_(f, part + '/'), content: f.getBlob().getDataAsString() };
 }
 
 /**
@@ -256,14 +206,12 @@ function audioChunk_(id, offset) {
 }
 
 function doPost(e) {
-  let req;
-  try { req = JSON.parse(e.postData.contents || '{}'); } catch (err) { return json_({ ok: false, error: '不正なリクエスト' }); }
-  const key = PropertiesService.getScriptProperties().getProperty('KEY');
-  if (key && req.key !== key) return json_({ ok: false, error: 'キーが違います' });
-  if (req.action === 'heartbeat') return heartbeat_(req);
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
+    const req = JSON.parse(e.postData.contents || '{}');
+    const key = PropertiesService.getScriptProperties().getProperty('KEY');
+    if (key && req.key !== key) return json_({ ok: false, error: 'キーが違います' });
 
     const sh = sheet_();
     const rows = readRows_(sh);
@@ -304,56 +252,37 @@ function doPost(e) {
       }
       case 'trashCharts': {
         const moved = trashCharts_(req.ids, user);
-        cdel_(['charts']);
-        return json_({ ok: true, moved, files: chartsCached_(true), rows: withLive_(rows), now });
+        return json_({ ok: true, moved, files: listCharts_(), rows, now });
       }
       case 'saveChart': {
         const res = saveChart_(req, user, rows, sh, now);
-        cdel_(['charts', 'rows']);
         if (!res.ok) return json_(res);
-        return json_({ ok: true, file: res.file, rows: rowsCached_(true), now });
+        return json_({ ok: true, file: res.file, rows: readRows_(sh), now });
+      }
+      case 'heartbeat': {
+        // エディタで開いている譜面（パート + アセット名）を「作成中」にする。leaving なら解除
+        const asset = String(req.asset || '').toLowerCase();
+        rows.filter(r => r.part === req.part && String(r.asset).toLowerCase() === asset).forEach(r => {
+          if (req.leaving) {
+            if (r.editingBy === user) { r.editingBy = ''; r.editingAt = ''; writeRow_(sh, r); }
+            return;
+          }
+          r.editingBy = user; r.editingAt = now;
+          if (r.status === 'todo') { r.status = 'doing'; r.updatedAt = now; r.updatedBy = user; }
+          if (!r.assignee) r.assignee = user;
+          writeRow_(sh, r);
+        });
+        break;
       }
       default:
         return json_({ ok: false, error: '不明な操作: ' + req.action });
     }
-    cdel_(['rows']);
-    return json_({ ok: true, rows: rowsCached_(true), now });
+    return json_({ ok: true, rows: readRows_(sh), now });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   } finally {
     lock.releaseLock();
   }
-}
-
-/**
- * エディタで開いている譜面（パート + アセット名）を「編集中」にする（キャッシュに 3 分）。leaving なら解除。
- * 未着手なら作成中にし、担当が空なら自分にする（このときだけシートに書く）
- */
-function heartbeat_(req) {
-  const user = String(req.user || '').slice(0, 40), now = new Date().toISOString();
-  const k = liveKey_(req.part, req.asset);
-  if (req.leaving) {
-    const cur = cget_(k);
-    if (cur && cur.user === user) cdel_([k]);
-    return json_({ ok: true, now });
-  }
-  cput_(k, { user, at: now }, 180);
-  const asset = String(req.asset || '').toLowerCase();
-  const rows = rowsCached_(false);
-  const need = rows.some(r => r.part === req.part && String(r.asset).toLowerCase() === asset && (r.status === 'todo' || !r.assignee));
-  if (!need) return json_({ ok: true, rows, now });
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    const sh = sheet_();
-    readRows_(sh).filter(r => r.part === req.part && String(r.asset).toLowerCase() === asset).forEach(r => {
-      if (r.status === 'todo') { r.status = 'doing'; r.updatedAt = now; r.updatedBy = user; }
-      if (!r.assignee) r.assignee = user;
-      writeRow_(sh, r);
-    });
-    cdel_(['rows']);
-    return json_({ ok: true, rows: rowsCached_(true), now });
-  } finally { lock.releaseLock(); }
 }
 
 function sheet_() {
@@ -385,6 +314,5 @@ function writeRow_(sh, r) {
 
 function json_(o) {
   if (o.rows) o.rows = o.rows.map(r => { const c = Object.assign({}, r); delete c._row; return c; });
-  if (o.files) o.files = o.files.map(f => { const c = Object.assign({}, f); delete c._row; return c; });
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
