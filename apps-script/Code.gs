@@ -4,22 +4,42 @@
  * 「作るべき譜面のリスト」と「誰がどの譜面を作成中か」を charts シートに保存し、
  * chart-editor のページ（index.html / 各エディタ）から読み書きする。
  * 音源フォルダ（AUDIO_FOLDER_ID）の中の音声ファイルの一覧と中身も返す（ページから音源を直接読み込むため）。
+ * ノーツ保存フォルダ（NOTES_FOLDER_ID）に、エディタで作った譜面（.asset）を保存・一覧・読み込みする。
  * 設定方法は BOARD_SETUP.md を参照。
  */
 // 音源を入れる Google ドライブのフォルダ（URL の folders/ の後ろ）。このフォルダ（とその中のフォルダ）以外のファイルは返さない
 const AUDIO_FOLDER_ID = '12SSJ2qgAaitkxpuXNrYUMcT1_6AIrxLT';
 const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac|flac|opus|webm)$/i;
 const AUDIO_CHUNK = 6 * 1024 * 1024; // 1回で返す大きさ（base64 にすると約 8MB）
+// ノーツ（.asset）を保存する Google ドライブのフォルダ。中に TECH / POWER のフォルダを作って分けて保存する
+const NOTES_FOLDER_ID = '10ugDZ9dDHFa9-Q3CwKn8Z6v_aOJqW1xI';
+const PARTS = ['TECH', 'POWER'];
 const SHEET_NAME = 'charts';
 const HEAD = ['id', 'part', 'song', 'difficulty', 'asset', 'status', 'assignee', 'due', 'note',
   'updatedAt', 'updatedBy', 'editingBy', 'editingAt'];
 const EDITABLE = ['part', 'song', 'difficulty', 'asset', 'status', 'assignee', 'due', 'note'];
+
+/**
+ * 権限の承認用。Apps Script のエディタでこの関数を選んで「実行」すると、
+ * スプレッドシートとドライブ（音源フォルダ）を読む権限の承認画面が出る。
+ * デプロイを更新するだけでは新しい権限の承認は出ないので、権限が増えたときは一度これを実行する
+ */
+function authorize() {
+  const folder = DriveApp.getFolderById(AUDIO_FOLDER_ID);
+  const notes = DriveApp.getFolderById(NOTES_FOLDER_ID);
+  PARTS.forEach(partFolder_); // 保存先のフォルダを作る（書き込みの権限もここで承認される）
+  sheet_();
+  Logger.log('OK: 音源フォルダ「' + folder.getName() + '」の音声ファイル ' + listAudio_().length + ' 件 / ' +
+    'ノーツ保存フォルダ「' + notes.getName() + '」の譜面 ' + listCharts_().length + ' 件');
+}
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
   try {
     if (p.action === 'audioList') return json_({ ok: true, files: listAudio_(), now: new Date().toISOString() });
     if (p.action === 'audio') return json_(audioChunk_(p.id, Number(p.offset) || 0));
+    if (p.action === 'charts') return json_({ ok: true, files: listCharts_(), now: new Date().toISOString() });
+    if (p.action === 'chart') return json_(readChart_(p.id));
     return json_({ ok: true, rows: readRows_(sheet_()), now: new Date().toISOString() });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
@@ -44,8 +64,92 @@ function listAudio_() {
   return out.sort((a, b) => (a.path + a.name).localeCompare(b.path + b.name));
 }
 
-/** 音源フォルダの中にあるファイルか（親を数段さかのぼって確かめる） */
-function inAudioFolder_(file) {
+// ---------------- ノーツ（譜面ファイル） ----------------
+
+function partFolder_(part) {
+  const root = DriveApp.getFolderById(NOTES_FOLDER_ID);
+  const it = root.getFoldersByName(part);
+  return it.hasNext() ? it.next() : root.createFolder(part);
+}
+
+/** 中身からパートとノーツ数を調べる */
+function chartInfo_(text) {
+  const part = /App\.PowerChart/.test(text) ? 'POWER' : /App\.NotesRecord/.test(text) ? 'TECH' : '';
+  const notes = (text.match(part === 'POWER' ? /^\s*-\s*beat:/gm : /^\s*-\s*spawnTime:/gm) || []).length;
+  return { part, notes };
+}
+
+function fileInfo_(f, path) {
+  // ノーツ数は中身を読まないと分からないので、更新日時ごとにキャッシュする
+  const cache = CacheService.getScriptCache(), key = 'ci_' + f.getId() + '_' + f.getLastUpdated().getTime();
+  let info = null;
+  try { info = JSON.parse(cache.get(key)); } catch (e) { }
+  if (!info) { info = chartInfo_(f.getBlob().getDataAsString()); cache.put(key, JSON.stringify(info), 21600); }
+  return {
+    id: f.getId(), name: f.getName(), asset: f.getName().replace(/\.[^.]+$/, ''), path: path,
+    part: info.part || (PARTS.indexOf(path.split('/')[0]) >= 0 ? path.split('/')[0] : ''), notes: info.notes,
+    size: f.getSize(), updated: f.getLastUpdated().toISOString(), savedBy: f.getDescription() || '', url: f.getUrl(),
+  };
+}
+
+/** ノーツ保存フォルダの譜面ファイル（.asset / .json）の一覧（中のフォルダも2段まで） */
+function listCharts_() {
+  const out = [];
+  const walk = (folder, path, depth) => {
+    const files = folder.getFiles();
+    while (files.hasNext()) {
+      const f = files.next();
+      if (/\.(asset|json)$/i.test(f.getName())) out.push(fileInfo_(f, path));
+    }
+    if (depth >= 2) return;
+    const subs = folder.getFolders();
+    while (subs.hasNext()) { const sub = subs.next(); walk(sub, path + sub.getName() + '/', depth + 1); }
+  };
+  walk(DriveApp.getFolderById(NOTES_FOLDER_ID), '', 0);
+  return out.sort((a, b) => (a.path + a.name).localeCompare(b.path + b.name));
+}
+
+function readChart_(id) {
+  const f = DriveApp.getFileById(String(id));
+  if (!inFolder_(f, NOTES_FOLDER_ID)) return { ok: false, error: 'ノーツ保存フォルダの外のファイルです' };
+  const parents = f.getParents(), path = parents.hasNext() ? parents.next().getName() + '/' : '';
+  return { ok: true, file: fileInfo_(f, path), content: f.getBlob().getDataAsString() };
+}
+
+/**
+ * 譜面を保存する（パートのフォルダの「アセット名.asset」。あれば上書き）。
+ * baseUpdated（前に読んだ・保存したときの更新日時）と今の更新日時が違えば、ほかの人が先に保存したので force がない限り止める
+ */
+function saveChart_(req, user, rows, sh, now) {
+  const part = String(req.part || ''), asset = String(req.asset || '').trim(), content = String(req.content || '');
+  if (PARTS.indexOf(part) < 0) return { ok: false, error: 'パートが不正です' };
+  if (!/^[\w\-. ]{1,80}$/.test(asset)) return { ok: false, error: 'アセット名は英数字・_・-・. で 80 文字までにしてください' };
+  if (!/MonoBehaviour:/.test(content) || content.length > 5 * 1024 * 1024) return { ok: false, error: '譜面の中身が不正です' };
+  const info = chartInfo_(content);
+  if (info.part && info.part !== part) return { ok: false, error: 'パートと中身が合いません' };
+
+  const folder = partFolder_(part), name = asset + '.asset';
+  const it = folder.getFilesByName(name);
+  let file = it.hasNext() ? it.next() : null;
+  if (file && !req.force && req.baseUpdated !== file.getLastUpdated().toISOString()) {
+    return { ok: false, conflict: true, error: 'ドライブの譜面がほかで更新されています', file: fileInfo_(file, part + '/') };
+  }
+  if (file) file.setContent(content);
+  else file = folder.createFile(name, content, 'text/plain');
+  file.setDescription(user);
+
+  // ボードの同じ譜面：未着手なら作成中にする
+  rows.filter(r => r.part === part && String(r.asset).toLowerCase() === asset.toLowerCase()).forEach(r => {
+    if (r.status === 'todo') r.status = 'doing';
+    if (!r.assignee) r.assignee = user;
+    r.updatedAt = now; r.updatedBy = user;
+    writeRow_(sh, r);
+  });
+  return { ok: true, file: fileInfo_(DriveApp.getFileById(file.getId()), part + '/') };
+}
+
+/** フォルダ（rootId）の中にあるファイルか（親を数段さかのぼって確かめる） */
+function inFolder_(file, rootId) {
   let level = [file];
   for (let depth = 0; depth < 5 && level.length; depth++) {
     const next = [];
@@ -53,7 +157,7 @@ function inAudioFolder_(file) {
       const parents = item.getParents();
       while (parents.hasNext()) {
         const parent = parents.next();
-        if (parent.getId() === AUDIO_FOLDER_ID) return true;
+        if (parent.getId() === rootId) return true;
         next.push(parent);
       }
     }
@@ -61,6 +165,12 @@ function inAudioFolder_(file) {
   }
   return false;
 }
+
+/** 音源フォルダの中にあるファイルか（親を数段さかのぼって確かめる） */
+function inAudioFolder_(file) {
+  return inFolder_(file, AUDIO_FOLDER_ID);
+}
+
 
 /** 音声ファイルの中身を offset から AUDIO_CHUNK バイトだけ base64 で返す（大きいファイルは何回かに分けて読む） */
 function audioChunk_(id, offset) {
@@ -119,6 +229,11 @@ function doPost(e) {
         const r = find(req.id);
         if (r) sh.deleteRow(r._row);
         break;
+      }
+      case 'saveChart': {
+        const res = saveChart_(req, user, rows, sh, now);
+        if (!res.ok) return json_(res);
+        return json_({ ok: true, file: res.file, rows: readRows_(sh), now });
       }
       case 'heartbeat': {
         // エディタで開いている譜面（パート + アセット名）を「作成中」にする。leaving なら解除

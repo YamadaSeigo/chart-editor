@@ -3,11 +3,12 @@
 // ・ヘッダーに Google ドライブへのリンクと、今の譜面のボード上の状態を出す
 // ・開いている譜面（アセット名 = 名前欄）がボードにあれば、定期的に「作成中」と知らせる
 // ・音源フォルダ（Google ドライブ）から音源を選んで読み込む。ボードの曲名と同じ名前の音源は、前に読んだことがあれば自動で読み込む
+// ・譜面をノーツ保存フォルダ（Google ドライブ）に保存する・開く。URL の #open=アセット名 でその譜面を開く（ボードの「開く」）
 (function () {
   'use strict';
   const PART = document.currentScript.dataset.part;
   const CFG = window.CHART_EDITOR_CONFIG || {};
-  const DA = window.DriveAudio;
+  const DA = window.DriveAudio, DC = window.DriveCharts;
   const USER_KEY = 'ms2026.chartBoard.user';
   const BEAT_MS = 60 * 1000;
   const STATUS_JP = { todo: '未着手', doing: '作成中', review: '確認待ち', done: '完成' };
@@ -32,7 +33,11 @@
 .dalist .sz{color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums}
 .dalist .ok{color:#8fd9a8;font-size:11px}
 .dalist .hit{color:var(--accent);font-size:11px}
-.daempty{padding:14px;color:var(--dim)}`;
+.daempty{padding:14px;color:var(--dim)}
+.bdlink.save{border-color:var(--accent);color:var(--accent)}
+.bdlink.save:hover{background:var(--accent);color:#14141b}
+.dalist .who{color:var(--dim);font-size:11px;white-space:nowrap}
+.dalist .cur{color:var(--accent);font-size:11px}`;
   document.head.append(css);
 
   const nav = document.querySelector('.edsw');
@@ -47,9 +52,16 @@
   pickBtn.className = 'bdlink'; pickBtn.title = '音源フォルダ（Google ドライブ）から音源を選んで読み込む（ダウンロード不要）';
   pickBtn.textContent = '♪ ドライブの音源';
   pickBtn.hidden = !(DA && DA.enabled());
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'bdlink save'; saveBtn.textContent = '☁ ドライブに保存';
+  saveBtn.title = 'この譜面をノーツ保存フォルダ（Google ドライブ）に「名前.asset」で保存（同じ名前があれば上書き）';
+  const openBtn = document.createElement('button');
+  openBtn.className = 'bdlink'; openBtn.textContent = '☁ 開く';
+  openBtn.title = 'ノーツ保存フォルダ（Google ドライブ）の譜面を開く';
+  saveBtn.hidden = openBtn.hidden = !(DC && DC.enabled());
   const chip = document.createElement('span');
   chip.className = 'bdchip';
-  nav.after(drive, pickBtn, chip);
+  nav.after(drive, saveBtn, openBtn, pickBtn, chip);
 
   const user = () => { try { return localStorage.getItem(USER_KEY) || ''; } catch (e) { return ''; } };
   const asset = () => (typeof S !== 'undefined' && S.name) || '';
@@ -148,6 +160,104 @@
     dlg.close();
   });
 
+  // ====== 譜面をドライブに保存する・開く ======
+  let saving = false;
+  async function saveToDrive(force) {
+    if (saving) return;
+    if (!user()) { alert('トップページの「あなたの名前」を先に入れてください（保存した人として記録します）'); return; }
+    if (!/^[\w\-. ]{1,80}$/.test(asset())) { alert('名前（アセット名）は英数字・_・-・. で 80 文字までにしてください'); return; }
+    saving = true; saveBtn.disabled = true; saveBtn.textContent = '☁ 保存中…';
+    try {
+      const j = await DC.save({ part: PART, asset: asset(), content: toAsset(), user: user(), force: !!force });
+      if (j.conflict) {
+        const f = j.file;
+        saving = false;
+        if (confirm(`ドライブの「${f.name}」は ${DC.fmtDate(f.updated)} に${f.savedBy ? ` ${f.savedBy} が` : ''}保存した版（${f.notes} ノーツ）に更新されています。\n\nあなたの譜面で上書きしますか？\n（キャンセルして「☁ 開く」で向こうの版を確かめることもできます）`)) return saveToDrive(true);
+        return;
+      }
+      if (!j.ok) throw new Error(j.error);
+      rows = j.rows || rows;
+      dirty = false; updateSaveUI(); // エディタ側の「未保存」表示を消す
+      toast(`ドライブに保存しました（${j.file.path}${j.file.name}・${j.file.notes} ノーツ）`);
+      render();
+    } catch (e) { toast('ドライブに保存できませんでした: ' + e.message); }
+    finally { saving = false; saveBtn.disabled = false; saveBtn.textContent = '☁ ドライブに保存'; }
+  }
+  saveBtn.addEventListener('click', () => saveToDrive(false));
+
+  async function openFromDrive(f) {
+    if (dirty && !confirm('今の譜面に未保存の変更があります。破棄してドライブの譜面を開きますか？')) return false;
+    try {
+      const j = await DC.read(f.id);
+      if (!importText(j.content, j.file.name)) return false;
+      rememberHandle(null); // ローカルの保存先は外す（Ctrl+S で別のファイルを上書きしないように）
+      toast(`ドライブの「${j.file.name}」を開きました（${j.file.notes} ノーツ）`);
+      lastAsset = ''; // ボードの表示をすぐ更新
+      return true;
+    } catch (e) { toast('ドライブの譜面を開けませんでした: ' + e.message); return false; }
+  }
+
+  const cdlg = document.createElement('dialog');
+  cdlg.id = 'dcDlg'; cdlg.className = 'dadlg';
+  cdlg.innerHTML = `<h2>ドライブの譜面（${PART}）</h2>
+    <input type="text" placeholder="名前で絞り込み" spellcheck="false" style="width:100%;margin-bottom:8px">
+    <div class="dalist"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <span class="muted" style="flex:1">開いた譜面は「☁ ドライブに保存」で同じファイルに上書きされます。</span>
+      ${CFG.driveUrl ? `<a class="bdlink" href="${esc(CFG.driveUrl)}" target="_blank" rel="noopener">${FOLDER_SVG}フォルダを開く</a>` : ''}
+      <button data-reload title="一覧を読み直す">↻</button><button data-close>閉じる</button>
+    </div>`;
+  cdlg.style.width = '600px'; cdlg.style.maxWidth = '94vw';
+  document.body.append(cdlg);
+  const cq = cdlg.querySelector('input'), clist = cdlg.querySelector('.dalist');
+  let charts = [];
+  function fillCharts() {
+    const words = cq.value.toLowerCase();
+    const shown = charts.filter(f => f.part === PART && (!words || f.name.toLowerCase().includes(words)));
+    if (!shown.length) { clist.innerHTML = `<div class="daempty">${charts.length ? '見つかりません。' : 'まだ保存された譜面がありません。'}</div>`; return; }
+    clist.innerHTML = shown.map(f => {
+      const r = rows.find(x => x.part === PART && String(x.asset).toLowerCase() === f.asset.toLowerCase());
+      return `<button data-id="${esc(f.id)}">
+        <span class="nm">${esc(f.asset)} <span class="pt">${esc(f.path)}</span></span>
+        ${f.asset.toLowerCase() === asset().toLowerCase() ? '<span class="cur">今の譜面</span>' : ''}
+        ${r ? `<span class="who">${esc(r.song)} ${esc(r.difficulty)}・${STATUS_JP[r.status] || ''}</span>` : '<span class="who">ボード未登録</span>'}
+        <span class="sz">${f.notes} ノーツ</span><span class="who">${esc(DC.fmtDate(f.updated))} ${esc(f.savedBy)}</span></button>`;
+    }).join('');
+  }
+  async function loadCharts(force) {
+    clist.innerHTML = '<div class="daempty">読み込み中…</div>';
+    try { charts = await DC.list(force); fillCharts(); }
+    catch (e) { clist.innerHTML = `<div class="daempty">ノーツ保存フォルダを読めませんでした（${esc(e.message)}）</div>`; }
+  }
+  openBtn.addEventListener('click', () => { cdlg.showModal(); cq.value = ''; loadCharts(); cq.focus(); });
+  cq.addEventListener('input', fillCharts);
+  cdlg.addEventListener('keydown', e => e.stopPropagation());
+  cdlg.addEventListener('click', async e => {
+    if (e.target === cdlg || e.target.closest('[data-close]')) { cdlg.close(); return; }
+    if (e.target.closest('[data-reload]')) { loadCharts(true); return; }
+    const b = e.target.closest('.dalist button[data-id]'); if (!b) return;
+    const f = charts.find(x => x.id === b.dataset.id);
+    if (f && await openFromDrive(f)) cdlg.close();
+  });
+
+  // ボードの「開く」から来たとき（#open=アセット名）：ドライブにあれば開き、なければその名前で新しい譜面にする
+  async function openFromHash() {
+    const m = location.hash.match(/^#open=(.+)$/); if (!m || !DC || !DC.enabled()) return;
+    const want = decodeURIComponent(m[1]);
+    history.replaceState(null, '', location.pathname + location.search);
+    if (want.toLowerCase() === asset().toLowerCase()) return; // もう開いている
+    try {
+      const f = DC.find(await DC.list(true), PART, want);
+      if (f) { await openFromDrive(f); return; }
+    } catch (e) { toast('ドライブの譜面一覧を読めませんでした: ' + e.message); return; }
+    if (confirm(`「${want}」はまだドライブに保存されていません。この名前で新しい譜面を作りますか？\n（今の譜面は${dirty ? '未保存の変更ごと' : ''}閉じます）`)) {
+      loadChartObj({ name: want, notes: [] }); rememberHandle(null); seek(0);
+      lastAsset = '';
+      toast(`新しい譜面「${want}」を作りました。できたら「☁ ドライブに保存」で保存してください`);
+    }
+  }
+  addEventListener('hashchange', openFromHash);
+
   // ====== ボードとのやり取り ======
   async function post(body) {
     const res = await fetch(CFG.boardApiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: CFG.boardKey, ...body }) });
@@ -171,7 +281,7 @@
     try { navigator.sendBeacon(CFG.boardApiUrl, new Blob([body], { type: 'text/plain;charset=utf-8' })); } catch (e) { }
   });
   // 名前欄（アセット名）が変わったらすぐ反映。音源を外したら表示を戻す
-  let lastAsset = '', lastHas = false;
+  var lastAsset = '', lastHas = false;
   setInterval(() => {
     if (asset() !== lastAsset) { lastAsset = asset(); render(); beat(); }
     else if (hasAudio() !== lastHas) { if (!hasAudio()) loadedId = null; render(); }
@@ -180,4 +290,5 @@
   setInterval(beat, BEAT_MS);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
   if (DA && DA.enabled()) refreshFiles().then(render);
+  setTimeout(openFromHash, 300); // エディタの起動（自動保存の読み込み）が終わってから
 })();

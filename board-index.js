@@ -64,13 +64,18 @@
         <td><select id="nDiff">${DIFFS.map(d => `<option${d === 'Normal' ? ' selected' : ''}>${d}</option>`).join('')}</select></td>
         <td><input type="text" id="nAsset" placeholder="空なら自動"></td>
         <td><select class="st todo" disabled><option>未着手</option></select></td>
+        <td></td>
         <td><input type="text" id="nWho" placeholder="未定"></td>
         <td><input type="date" id="nDue"></td>
         <td class="note"><input type="text" id="nNote" placeholder="メモ"></td>
         <td colspan="2"><button class="primary" id="nOk">追加</button> <button id="nCancel">取消</button></td></tr>` : '';
     $('btable').querySelector('tbody').innerHTML = addRow + list.map(r => {
       const due = String(r.due || '').slice(0, 10);
-      const editor = r.part === 'TECH' ? 'TechChartEditor.html' : 'PowerChartEditor.html';
+      const editor = (r.part === 'TECH' ? 'TechChartEditor.html' : 'PowerChartEditor.html') + (r.asset ? '#open=' + encodeURIComponent(r.asset) : '');
+      const df = DriveCharts.find(charts, r.part, r.asset);
+      const dv = df
+        ? `<a href="${esc(df.url)}" target="_blank" rel="noopener" title="ドライブで開く（${esc(df.path)}${esc(df.name)}）" class="${df.notes ? '' : 'zero'}">☁ ${df.notes} ノーツ・${esc(DriveCharts.fmtDate(df.updated))}${df.savedBy ? ' ' + esc(df.savedBy) : ''}</a>`
+        : '<span class="no">未保存</span>';
       const when = r.updatedAt ? esc(r.updatedAt.slice(5, 16).replace('T', ' ')) + (r.updatedBy ? ' ' + esc(r.updatedBy) : '') : '';
       return `<tr data-id="${esc(r.id)}">
         <td><span class="part ${esc(r.part)}">${esc(r.part)}</span></td>
@@ -78,16 +83,18 @@
         <td><select data-k="difficulty">${DIFFS.map(d => `<option${d === r.difficulty ? ' selected' : ''}>${d}</option>`).join('')}</select></td>
         <td><input type="text" data-k="asset" value="${esc(r.asset)}" placeholder="未定"></td>
         <td><select class="st ${esc(r.status)}" data-k="status">${opt(STATUS, r.status)}</select></td>
+        <td class="dv">${chartsErr ? '<span class="no">—</span>' : dv}</td>
         <td><input type="text" data-k="assignee" value="${esc(r.assignee)}" placeholder="未定">${!r.assignee && me ? ' <button data-take>担当する</button>' : ''}</td>
         <td><input type="date" data-k="due" value="${esc(due)}" class="${due && due < today && r.status !== 'done' ? 'overdue' : ''}"></td>
         <td class="note"><input type="text" data-k="note" value="${esc(r.note)}"></td>
         <td>${isLive(r) ? `<span class="live">${esc(r.editingBy)} が編集中</span>` : `<span class="dim" title="最終更新">${when}</span>`}</td>
-        <td><a class="open2" href="${editor}" title="${esc(r.part)} のエディタを開く（名前欄をアセット名にすると自動で作成中になります）">開く</a> <button class="x" data-del title="削除">✕</button></td></tr>`;
+        <td><a class="open2" href="${editor}" title="${esc(r.part)} のエディタでこの譜面を開く（ドライブに保存されていればそれを、なければこの名前で新しく作る）">開く</a> <button class="x" data-del title="削除">✕</button></td></tr>`;
     }).join('');
     $('btable').hidden = !rows.length && !adding;
     if (CFG.boardApiUrl && !rows.length && !adding && !$('bmsg').textContent) msg('まだ譜面が登録されていません。「＋ 作る譜面を追加」から登録してください。');
     if (adding) $('nSong').focus();
     renderAudio();
+    renderCheck();
     // カードにも「いま編集中」を出す
     for (const [part, id] of [['TECH', 'recentTech'], ['POWER', 'recentPower']]) {
       const el = $(id); el.querySelector('.live')?.remove();
@@ -121,6 +128,48 @@
     if (e.key === 'Enter' && e.target.closest('.addrow')) $('nOk').click();
     else if (e.key === 'Enter' && e.target.dataset.k) e.target.blur();
   });
+  // ====== ドライブに保存された譜面と、ボードの状態のチェック ======
+  let charts = [], chartsErr = '';
+  async function loadCharts(force) {
+    if (!DriveCharts.enabled()) return;
+    try { charts = await DriveCharts.list(force); chartsErr = ''; }
+    catch (e) { chartsErr = e.message; }
+    render();
+  }
+  // アセット名「TechChart_曲名_Hard」から曲名と難易度を推測する（ボードにないファイルを追加するとき）
+  function guess(f) {
+    const m = f.asset.match(/^(?:TechChart|PowerChart)_(.+)_(Easy|Normal|Hard|Extra)$/i);
+    const a = m && audio.find(x => DriveAudio.norm(DriveAudio.songOf(x.name)) === DriveAudio.norm(m[1]));
+    return { part: f.part || 'TECH', song: a ? DriveAudio.songOf(a.name) : m ? m[1] : f.asset, difficulty: m ? DIFFS.find(d => d.toLowerCase() === m[2].toLowerCase()) : 'Normal', asset: f.asset };
+  }
+  function issues() {
+    if (!DriveCharts.enabled() || chartsErr) return [];
+    const out = [];
+    for (const r of rows) {
+      const f = DriveCharts.find(charts, r.part, r.asset), name = `${r.song} ${r.difficulty}（${r.part}）`;
+      if (!r.asset) out.push({ lv: 'warn', text: `${name}: アセット名が空なので、ドライブの譜面と結び付けられません` });
+      else if (!f && (r.status === 'done' || r.status === 'review')) out.push({ lv: 'warn', text: `${name}: ${r.status === 'done' ? '完成' : '確認待ち'}なのに、ドライブに「${r.asset}.asset」がありません`, fix: '作成中に戻す', act: () => update(r.id, { status: 'doing' }) });
+      else if (f && r.status === 'todo') out.push({ lv: 'info', text: `${name}: ドライブに保存済み（${f.notes} ノーツ）なのに未着手です`, fix: '作成中にする', act: () => update(r.id, { status: 'doing' }) });
+      else if (f && !f.notes && (r.status === 'done' || r.status === 'review')) out.push({ lv: 'warn', text: `${name}: ドライブの譜面にノーツが1つもありません` });
+    }
+    for (const f of charts) {
+      if (rows.some(r => r.part === f.part && String(r.asset).toLowerCase() === f.asset.toLowerCase())) continue;
+      out.push({ lv: 'info', text: `ドライブの「${f.path}${f.name}」（${f.part || 'パート不明'}・${f.notes} ノーツ）がボードにありません`, fix: 'ボードに追加', act: () => { const g = guess(f); api({ action: 'add', row: { ...g, status: 'doing', assignee: f.savedBy } }); } });
+    }
+    return out;
+  }
+  let checkOpen = false;
+  function renderCheck() {
+    const el = $('bcheck'), list = issues();
+    el.hidden = !DriveCharts.enabled() || (!rows.length && !charts.length);
+    if (chartsErr) { el.innerHTML = `<details><summary>ノーツ保存フォルダを読めませんでした（${esc(chartsErr)}）。Apps Script で authorize を実行して承認し、デプロイを更新したか確認してください</summary></details>`; return; }
+    if (!list.length) { el.innerHTML = `<details><summary class="ok">✓ ボードとドライブの譜面（${charts.length} 件）は食い違いなし</summary></details>`; return; }
+    el.innerHTML = `<details${checkOpen ? ' open' : ''}><summary>⚠ ボードとドライブの譜面の食い違い ${list.length} 件</summary><ul>${list.map((x, i) =>
+      `<li><span class="lv ${x.lv}">${x.lv === 'warn' ? '注意' : '情報'}</span>${esc(x.text)}${x.fix ? `<button data-fix="${i}">${esc(x.fix)}</button>` : ''}</li>`).join('')}</ul></details>`;
+    el.querySelector('details').addEventListener('toggle', e => { checkOpen = e.target.open; });
+    el.querySelectorAll('[data-fix]').forEach(b => b.addEventListener('click', () => { b.disabled = true; list[+b.dataset.fix].act(); }));
+  }
+
   // ====== 音源（Google ドライブの音源フォルダ） ======
   let audio = [], audioErr = '', playing = null;
   const assetName = (part, song, diff) => `${part === 'TECH' ? 'TechChart' : 'PowerChart'}_${String(song).replace(/[^\w-]+/g, '')}_${diff}`;
@@ -204,14 +253,16 @@
   document.querySelectorAll('.aopt').forEach(x => x.addEventListener('change', renderAudio));
 
   $('bAdd').addEventListener('click', () => { adding = true; render(); });
-  $('bReload').addEventListener('click', load);
+  $('bReload').addEventListener('click', () => { load(); loadCharts(true); });
 
   if (!CFG.boardApiUrl) {
     msg('譜面ボードはまだ設定されていません。Google スプレッドシートを用意して <code>config.js</code> の <code>boardApiUrl</code> を設定してください（手順: <a href="https://github.com/YamadaSeigo/chart-editor/blob/main/BOARD_SETUP.md" target="_blank" rel="noopener">BOARD_SETUP.md</a>）。');
     $('bAdd').disabled = true; $('bReload').disabled = true;
     $('aAddAll').disabled = true; $('aReload').disabled = true; renderAudio();
   } else {
-    msg('読み込み中…'); load(); loadAudioList();
+    msg('読み込み中…'); load(); loadAudioList(); loadCharts();
+    // ドライブの譜面は1分ごとに見直す
+    setInterval(() => { if (document.visibilityState === 'visible') loadCharts(true); }, 60000);
     // 30秒ごとに最新にする（入力中は待つ）
     setInterval(() => {
       if (document.visibilityState === 'visible' && !document.activeElement?.closest?.('#board input,#board select')) load();
