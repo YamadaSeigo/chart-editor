@@ -49,6 +49,11 @@ header{display:flex;align-items:center;gap:14px;padding:7px 12px;background:var(
 .brand{font-size:15px;letter-spacing:.02em;white-space:nowrap}
 .brand b{color:var(--accent)}
 .brand small{color:var(--dim);margin-left:6px;font-size:11px}
+.edsw{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;font-size:12px;font-weight:600;letter-spacing:.03em}
+.edsw a{color:var(--dim);text-decoration:none;padding:3px 10px;line-height:18px}
+.edsw a+a{border-left:1px solid var(--line)}
+.edsw a:hover{background:#2e2e3e;color:var(--text)}
+.edsw a.on{background:var(--accent);color:#1a0a12;cursor:default}
 .grp{display:flex;align-items:center;gap:6px;padding-left:14px;border-left:1px solid var(--line)}
 .spacer{flex:1}
 input.short{width:58px}
@@ -148,6 +153,7 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
 <div id="app">
   <header>
     <div class="brand">TECH <b>Chart Editor</b><small>MS2026</small></div>
+    <nav class="edsw" title="エディタを切り替え（未保存の変更があるときは確認が出ます）"><a href="../MS2026ChartEditor/index.html" title="ホーム（エディタ一覧）">⌂</a><a class="on">TECH</a><a href="../PowerChartEditor/PowerChartEditor.html" title="POWER Chart Editor へ">POWER</a></nav>
     <div class="grp">
       <button data-act="new">新規</button>
       <button data-act="open" title=".asset / .json を開く">開く</button>
