@@ -21,8 +21,11 @@
   let draft = {};
   let rows = [], adding = false, serverNow = Date.now(), fetchedAt = Date.now();
 
-  $('me').value = ls.get(USER_KEY);
-  $('me').addEventListener('change', e => { ls.set(USER_KEY, e.target.value.trim()); render(); });
+  // 名前（name-gate.js で入力。入れるまでページは使えない）
+  const showMe = () => { $('meName').textContent = ls.get(USER_KEY) || '未設定'; };
+  showMe();
+  $('me').addEventListener('click', () => NameGate.ask(true));
+  NameGate.onChange(() => { showMe(); render(); });
 
   // 絞り込み（チップ）
   const filt = { p: '', s: 'open', m: false };

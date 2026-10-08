@@ -36,7 +36,8 @@ footer code{color:var(--dim)}
 header .sp{flex:1}
 .hbtn{display:inline-flex;align-items:center;gap:6px;color:var(--text);text-decoration:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:13px;align-self:center;white-space:nowrap}
 .hbtn:hover{border-color:#55556e;background:#2e2e3e}
-.me{display:inline-flex;align-items:center;gap:6px;color:var(--dim);font-size:12px;align-self:center}
+.me{align-self:center;background:none;color:var(--text);font-weight:600}
+.me small{color:var(--dim);font-weight:400;font-size:11px}
 input,select,button{font:inherit;color:inherit}
 input[type=text],input[type=date],select{background:#12121a;border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-height:36px;min-width:0}
 input:focus,select:focus{outline:2px solid var(--power);outline-offset:-2px;border-color:transparent}
@@ -156,7 +157,7 @@ th{color:var(--dim);font-weight:500;font-size:12px;background:#191922}
 </head>
 <body>
 <header><h1>MS2026 <b>Chart Editor</b></h1><small>譜面エディタ</small><span class="sp"></span>
-  <label class="me" title="譜面ボードで使う名前（このブラウザに保存）">あなたの名前 <input type="text" id="me" size="10" placeholder="未設定" spellcheck="false"></label>
+  <button class="me" id="me" title="譜面ボードの担当・保存した人に使う名前（このブラウザに保存）。クリックで変更">👤 <span id="meName"></span> <small>変更</small></button>
   <a class="hbtn" id="audioDriveBtn" target="_blank" rel="noopener" title="音源（曲の音声ファイル）を入れる Google ドライブのフォルダ">♪ 音源フォルダ</a>
   <a class="hbtn" id="driveBtn" target="_blank" rel="noopener" title="ノーツ（.asset）を保存する Google ドライブのフォルダ"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>ノーツ保存フォルダ（Google ドライブ）</a>
 </header>
@@ -287,6 +288,7 @@ addEventListener('resize', resize); resize();
 })(0);
 </script>
 <script src="config.js"></script>
+<script src="name-gate.js"></script>
 <script src="drive-audio.js"></script>
 <script src="drive-charts.js"></script>
 <script src="board-index.js"></script>

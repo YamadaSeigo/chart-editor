@@ -61,7 +61,11 @@
   saveBtn.hidden = openBtn.hidden = !(DC && DC.enabled());
   const chip = document.createElement('span');
   chip.className = 'bdchip';
-  nav.after(drive, saveBtn, openBtn, pickBtn, chip);
+  const meBtn = document.createElement('button');
+  meBtn.className = 'bdlink'; meBtn.title = 'あなたの名前（譜面ボードの担当・保存した人）。クリックで変更';
+  const showMe = () => { meBtn.textContent = '👤 ' + (user() || '未設定'); };
+  meBtn.addEventListener('click', () => window.NameGate && NameGate.ask(true));
+  nav.after(drive, saveBtn, openBtn, pickBtn, chip, meBtn);
 
   const user = () => { try { return localStorage.getItem(USER_KEY) || ''; } catch (e) { return ''; } };
   const asset = () => (typeof S !== 'undefined' && S.name) || '';
@@ -94,7 +98,7 @@
     let html = !r
       ? `<a href="index.html#board" title="譜面ボードを開く">ボード: <b>${esc(asset())}</b> は未登録</a>`
       : `<a href="index.html#board" title="譜面ボードを開く"><span class="st ${esc(r.status)}">${STATUS_JP[r.status] || esc(r.status)}</span>${esc(r.song)} ${esc(r.difficulty)}` +
-        (r.assignee ? `　担当 ${esc(r.assignee)}` : '') + (user() ? '' : '　（名前未設定）') + '</a>';
+        (r.assignee ? `　担当 ${esc(r.assignee)}` : '') + '</a>';
     const f = DA && matchFile(r);
     if (f) {
       if (loading === f.id) html += ' <button data-load disabled>♪ 読み込み中…</button>';
@@ -164,7 +168,7 @@
   let saving = false;
   async function saveToDrive(force) {
     if (saving) return;
-    if (!user()) { alert('トップページの「あなたの名前」を先に入れてください（保存した人として記録します）'); return; }
+    if (!user()) { NameGate.ask(); return; }
     if (!/^[\w\-. ]{1,80}$/.test(asset())) { alert('名前（アセット名）は英数字・_・-・. で 80 文字までにしてください'); return; }
     saving = true; saveBtn.disabled = true; saveBtn.textContent = '☁ 保存中…';
     try {
@@ -291,4 +295,6 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
   if (DA && DA.enabled()) refreshFiles().then(render);
   setTimeout(openFromHash, 300); // エディタの起動（自動保存の読み込み）が終わってから
+  showMe();
+  if (window.NameGate) NameGate.onChange(() => { showMe(); render(); beat(); });
 })();
