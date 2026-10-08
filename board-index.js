@@ -18,14 +18,25 @@
     get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } },
   };
+  let draft = {};
   let rows = [], adding = false, serverNow = Date.now(), fetchedAt = Date.now();
 
   $('me').value = ls.get(USER_KEY);
   $('me').addEventListener('change', e => { ls.set(USER_KEY, e.target.value.trim()); render(); });
-  try { const f = JSON.parse(ls.get(FILTER_KEY)); $('fPart').value = f.p; $('fStatus').value = f.s; $('fMine').checked = f.m; } catch (e) { $('fStatus').value = 'open'; }
-  for (const id of ['fPart', 'fStatus', 'fMine']) $(id).addEventListener('change', () => {
-    ls.set(FILTER_KEY, JSON.stringify({ p: $('fPart').value, s: $('fStatus').value, m: $('fMine').checked })); render();
-  });
+
+  // 絞り込み（チップ）
+  const filt = { p: '', s: 'open', m: false };
+  try { Object.assign(filt, JSON.parse(ls.get(FILTER_KEY)) || {}); } catch (e) { }
+  function syncFilter() {
+    $('fPart').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === filt.p));
+    $('fStatus').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === filt.s));
+    $('fMine').classList.toggle('on', !!filt.m);
+    ls.set(FILTER_KEY, JSON.stringify(filt));
+  }
+  $('fPart').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { filt.p = b.dataset.v; syncFilter(); render(); } });
+  $('fStatus').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { filt.s = b.dataset.v; syncFilter(); render(); } });
+  $('fMine').addEventListener('click', () => { filt.m = !filt.m; syncFilter(); render(); });
+  syncFilter();
 
   const isLive = r => r.editingBy && r.editingAt && (serverNow + (Date.now() - fetchedAt)) - Date.parse(r.editingAt) < LIVE_MS;
   function msg(html) { $('bmsg').innerHTML = html; $('bmsg').hidden = !html; }
@@ -39,60 +50,88 @@
       if (!j.ok) throw new Error(j.error || '失敗しました');
       rows = j.rows; serverNow = Date.parse(j.now) || Date.now(); fetchedAt = Date.now();
       msg(''); render();
-    } catch (e) { msg(`ボードと通信できませんでした（${esc(e.message)}）。少し待ってから ↻ を押してください。`); }
+    } catch (e) { msg(`ボードと通信できませんでした（${esc(e.message)}）。少し待ってから「↻ 更新」を押してください。`); }
   }
   const load = () => api();
   function update(id, fields) {
     const r = rows.find(x => x.id === id); if (r) Object.assign(r, fields);
     render(); return api({ action: 'update', id, fields });
   }
+  const assetName = (part, song, diff) => `${part === 'TECH' ? 'TechChart' : 'PowerChart'}_${String(song).replace(/[^\w-]+/g, '')}_${diff}`;
+
+  const diffSelect = (cur, attrs) => `<select class="diff ${esc(cur)}" ${attrs} title="難易度">${DIFFS.map(d => `<option${d === cur ? ' selected' : ''}>${d}</option>`).join('')}</select>`;
+  const statusSeg = cur => `<div class="seg" role="group" aria-label="状態">${STATUS.map(([k, t]) => `<button data-st="${k}" class="${k}${k === cur ? ' on' : ''}" aria-pressed="${k === cur}">${t}</button>`).join('')}</div>`;
 
   function render() {
-    const me = ls.get(USER_KEY), fp = $('fPart').value, fs = $('fStatus').value, mine = $('fMine').checked;
+    const me = ls.get(USER_KEY);
     const order = { doing: 0, review: 1, todo: 2, done: 3 };
     const list = rows
-      .filter(r => (!fp || r.part === fp) && (!fs || (fs === 'open' ? r.status !== 'done' : r.status === fs)) && (!mine || (me && r.assignee === me)))
+      .filter(r => (!filt.p || r.part === filt.p) && (!filt.s || (filt.s === 'open' ? r.status !== 'done' : r.status === filt.s)) && (!filt.m || (me && r.assignee === me)))
       .sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || String(a.due || '9').localeCompare(String(b.due || '9'))
         || String(a.song).localeCompare(String(b.song)) || DIFFS.indexOf(a.difficulty) - DIFFS.indexOf(b.difficulty));
     const cnt = k => rows.filter(r => r.status === k).length;
-    $('bsum').textContent = rows.length ? `全 ${rows.length} 件　未着手 ${cnt('todo')}・作成中 ${cnt('doing')}・確認待ち ${cnt('review')}・完成 ${cnt('done')}` : '';
+    $('bsum').innerHTML = rows.length ? `全 <b>${rows.length}</b> 件　未着手 <b>${cnt('todo')}</b>・作成中 <b>${cnt('doing')}</b>・確認待ち <b>${cnt('review')}</b>・完成 <b>${cnt('done')}</b>` + (list.length !== rows.length ? `　（表示 ${list.length} 件）` : '') : '';
     const today = new Date().toISOString().slice(0, 10);
-    const opt = (arr, cur) => arr.map(([v, t]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('');
-    const addRow = adding ? `<tr class="addrow">
-        <td><select id="nPart"><option>TECH</option><option>POWER</option></select></td>
-        <td><input type="text" id="nSong" placeholder="曲名" list="audioNames"></td>
-        <td><select id="nDiff">${DIFFS.map(d => `<option${d === 'Normal' ? ' selected' : ''}>${d}</option>`).join('')}</select></td>
-        <td><input type="text" id="nAsset" placeholder="空なら自動"></td>
-        <td><select class="st todo" disabled><option>未着手</option></select></td>
-        <td></td>
-        <td><input type="text" id="nWho" placeholder="未定"></td>
-        <td><input type="date" id="nDue"></td>
-        <td class="note"><input type="text" id="nNote" placeholder="メモ"></td>
-        <td colspan="2"><button class="primary" id="nOk">追加</button> <button id="nCancel">取消</button></td></tr>` : '';
-    $('btable').querySelector('tbody').innerHTML = addRow + list.map(r => {
+
+    // 追加フォームの入力中の内容は、描き直しても残す
+    if ($('addCard')) for (const k of ['nPart', 'nSong', 'nDiff', 'nAsset', 'nWho', 'nDue', 'nNote']) draft[k] = $(k).value;
+    if (!adding) draft = {};
+    const dv0 = (k, d = '') => esc(draft[k] ?? d);
+    const addCard = adding ? `<div class="crow add ${dv0('nPart', 'POWER')}" id="addCard">
+        <div class="c-main">
+          <div class="c-title">
+            <select class="part" id="nPart" title="パート">${['TECH', 'POWER'].map(p => `<option${p === (draft.nPart || 'POWER') ? ' selected' : ''}>${p}</option>`).join('')}</select>
+            <input type="text" class="c-song" id="nSong" placeholder="曲名を入力" list="audioNames" value="${dv0('nSong')}">
+            ${diffSelect(draft.nDiff || 'Normal', 'id="nDiff"')}
+          </div>
+          <div class="c-meta"><input type="text" class="c-asset" id="nAsset" placeholder="アセット名（空なら自動）" value="${dv0('nAsset')}"></div>
+        </div>
+        <div class="c-status"><span class="dim">追加すると「未着手」になります</span></div>
+        <div class="c-fields">
+          <label class="fld"><span>担当</span><input type="text" id="nWho" placeholder="未定" value="${dv0('nWho', me)}"></label>
+          <label class="fld"><span>期限</span><input type="date" id="nDue" value="${dv0('nDue')}"></label>
+          <label class="fld note"><span>メモ</span><input type="text" id="nNote" placeholder="メモ" value="${dv0('nNote')}"></label>
+        </div>
+        <div class="c-actions"><button id="nCancel">取消</button><button class="primary" id="nOk">追加する</button></div>
+      </div>` : '';
+
+    $('blist').innerHTML = addCard + list.map(r => {
       const due = String(r.due || '').slice(0, 10);
       const editor = (r.part === 'TECH' ? 'TechChartEditor.html' : 'PowerChartEditor.html') + (r.asset ? '#open=' + encodeURIComponent(r.asset) : '');
       const df = DriveCharts.find(charts, r.part, r.asset);
-      const dv = df
-        ? `<a href="${esc(df.url)}" target="_blank" rel="noopener" title="ドライブで開く（${esc(df.path)}${esc(df.name)}）" class="${df.notes ? '' : 'zero'}">☁ ${df.notes} ノーツ・${esc(DriveCharts.fmtDate(df.updated))}${df.savedBy ? ' ' + esc(df.savedBy) : ''}</a>`
-        : '<span class="no">未保存</span>';
-      const when = r.updatedAt ? esc(r.updatedAt.slice(5, 16).replace('T', ' ')) + (r.updatedBy ? ' ' + esc(r.updatedBy) : '') : '';
-      return `<tr data-id="${esc(r.id)}">
-        <td><span class="part ${esc(r.part)}">${esc(r.part)}</span></td>
-        <td><input type="text" data-k="song" value="${esc(r.song)}" list="audioNames">${DriveAudio.find(audio, r.song) ? '<span class="hasaudio" title="音源フォルダに同じ名前の音源があります（エディタで自動で読み込めます）">♪</span>' : ''}</td>
-        <td><select data-k="difficulty">${DIFFS.map(d => `<option${d === r.difficulty ? ' selected' : ''}>${d}</option>`).join('')}</select></td>
-        <td><input type="text" data-k="asset" value="${esc(r.asset)}" placeholder="未定"></td>
-        <td><select class="st ${esc(r.status)}" data-k="status">${opt(STATUS, r.status)}</select></td>
-        <td class="dv">${chartsErr ? '<span class="no">—</span>' : dv}</td>
-        <td><input type="text" data-k="assignee" value="${esc(r.assignee)}" placeholder="未定">${!r.assignee && me ? ' <button data-take>担当する</button>' : ''}</td>
-        <td><input type="date" data-k="due" value="${esc(due)}" class="${due && due < today && r.status !== 'done' ? 'overdue' : ''}"></td>
-        <td class="note"><input type="text" data-k="note" value="${esc(r.note)}"></td>
-        <td>${isLive(r) ? `<span class="live">${esc(r.editingBy)} が編集中</span>` : `<span class="dim" title="最終更新">${when}</span>`}</td>
-        <td><a class="open2" href="${editor}" title="${esc(r.part)} のエディタでこの譜面を開く（ドライブに保存されていればそれを、なければこの名前で新しく作る）">開く</a> <button class="x" data-del title="削除">✕</button></td></tr>`;
+      const dv = chartsErr ? '' : df
+        ? `<a class="dv${df.notes ? '' : ' zero'}" href="${esc(df.url)}" target="_blank" rel="noopener" title="ドライブで開く（${esc(df.path)}${esc(df.name)}）">☁ ${df.notes} ノーツ・${esc(DriveCharts.fmtDate(df.updated))}${df.savedBy ? ' ' + esc(df.savedBy) : ''}</a>`
+        : '<span class="dv" title="ノーツ保存フォルダにまだありません">☁ 未保存</span>';
+      const when = r.updatedAt ? `更新 ${esc(DriveCharts.fmtDate(r.updatedAt))}${r.updatedBy ? ' ' + esc(r.updatedBy) : ''}` : '';
+      return `<div class="crow ${esc(r.part)} ${esc(r.status)}" data-id="${esc(r.id)}">
+        <div class="c-main">
+          <div class="c-title">
+            <span class="part ${esc(r.part)}">${esc(r.part)}</span>
+            <input type="text" class="c-song" data-k="song" value="${esc(r.song)}" list="audioNames" title="曲名（クリックで編集）">
+            ${diffSelect(r.difficulty, 'data-k="difficulty"')}
+            ${DriveAudio.find(audio, r.song) ? '<span class="hasaudio" title="音源フォルダに同じ名前の音源があります（エディタで自動で読み込めます）">♪</span>' : ''}
+          </div>
+          <div class="c-meta">
+            <input type="text" class="c-asset" data-k="asset" value="${esc(r.asset)}" placeholder="アセット名（未定）" title="アセット名＝エディタの「名前」欄・ドライブのファイル名（クリックで編集）">
+            ${dv}
+            ${isLive(r) ? `<span class="live">${esc(r.editingBy)} が編集中</span>` : `<span class="upd">${when}</span>`}
+          </div>
+        </div>
+        <div class="c-status">${statusSeg(r.status)}</div>
+        <div class="c-fields">
+          <label class="fld"><span>担当</span><span class="who"><input type="text" data-k="assignee" value="${esc(r.assignee)}" placeholder="未定">${!r.assignee && me ? '<button data-take title="自分を担当にして作成中にする">担当する</button>' : ''}</span></label>
+          <label class="fld"><span>期限${due && due < today && r.status !== 'done' ? '<b style="color:#ff9aa8">期限切れ</b>' : ''}</span><input type="date" data-k="due" value="${esc(due)}" class="${due && due < today && r.status !== 'done' ? 'overdue' : ''}"></label>
+          <label class="fld note"><span>メモ</span><input type="text" data-k="note" value="${esc(r.note)}" placeholder="—"></label>
+        </div>
+        <div class="c-actions">
+          <a class="btn open" href="${editor}" title="${esc(r.part)} のエディタでこの譜面を開く（ドライブに保存されていればそれを、なければこの名前で新しく作る）">開く ▶</a>
+          <button class="icon danger" data-del title="ボードから削除（ドライブの譜面は消えません）">🗑</button>
+        </div>
+      </div>`;
     }).join('');
-    $('btable').hidden = !rows.length && !adding;
-    if (CFG.boardApiUrl && !rows.length && !adding && !$('bmsg').textContent) msg('まだ譜面が登録されていません。「＋ 作る譜面を追加」から登録してください。');
-    if (adding) $('nSong').focus();
+    if (CFG.boardApiUrl && !rows.length && !adding && !$('bmsg').textContent) msg('まだ譜面が登録されていません。「＋ 作る譜面を追加」か、下の「音源」から登録してください。');
+    else if (rows.length && !list.length && !adding) $('blist').innerHTML = '<div style="padding:18px 20px;color:var(--dim)">この条件に合う譜面はありません。上の絞り込みを変えてください。</div>';
+    if (adding && !$('nSong').value && document.activeElement?.closest?.('#addCard') == null) $('nSong').focus();
     renderAudio();
     renderCheck();
     // カードにも「いま編集中」を出す
@@ -103,33 +142,40 @@
     }
   }
 
-  const tbody = $('btable').querySelector('tbody');
-  tbody.addEventListener('change', e => {
-    const tr = e.target.closest('tr[data-id]'), k = e.target.dataset.k; if (!tr || !k) return;
-    update(tr.dataset.id, { [k]: e.target.value.trim() });
+  const blist = $('blist');
+  blist.addEventListener('change', e => {
+    if (e.target.id === 'nPart') { $('addCard').className = 'crow add ' + e.target.value; return; }
+    if (e.target.id === 'nDiff') { e.target.className = 'diff ' + e.target.value; return; }
+    const card = e.target.closest('.crow[data-id]'), k = e.target.dataset.k; if (!card || !k) return;
+    update(card.dataset.id, { [k]: e.target.value.trim() });
   });
-  tbody.addEventListener('click', e => {
-    const tr = e.target.closest('tr[data-id]');
-    if (tr && e.target.closest('[data-take]')) update(tr.dataset.id, { assignee: ls.get(USER_KEY), status: 'doing' });
-    if (tr && e.target.closest('[data-del]')) {
-      const r = rows.find(x => x.id === tr.dataset.id);
-      if (r && confirm(`「${r.song} ${r.difficulty}（${r.part}）」をボードから削除しますか？`)) { rows = rows.filter(x => x !== r); render(); api({ action: 'remove', id: r.id }); }
+  blist.addEventListener('click', e => {
+    const card = e.target.closest('.crow[data-id]');
+    const st = e.target.closest('[data-st]');
+    if (card && st) { const r = rows.find(x => x.id === card.dataset.id); if (r && r.status !== st.dataset.st) update(r.id, { status: st.dataset.st }); return; }
+    if (card && e.target.closest('[data-take]')) { e.preventDefault(); update(card.dataset.id, { assignee: ls.get(USER_KEY), status: 'doing' }); return; }
+    if (card && e.target.closest('[data-del]')) {
+      const r = rows.find(x => x.id === card.dataset.id);
+      if (r && confirm(`「${r.song} ${r.difficulty}（${r.part}）」をボードから削除しますか？\n（ドライブに保存された譜面は消えません）`)) { rows = rows.filter(x => x !== r); render(); api({ action: 'remove', id: r.id }); }
+      return;
     }
     if (e.target.id === 'nCancel') { adding = false; render(); }
     if (e.target.id === 'nOk') {
       const row = { part: $('nPart').value, song: $('nSong').value.trim(), difficulty: $('nDiff').value, asset: $('nAsset').value.trim(), assignee: $('nWho').value.trim(), due: $('nDue').value, note: $('nNote').value.trim() };
       if (!row.song) { $('nSong').focus(); return; }
       // アセット名を空にしたら「TechChart_曲名_Hard」の形で自動で付ける（エディタの名前欄と合わせる）
-      if (!row.asset) row.asset = `${row.part === 'TECH' ? 'TechChart' : 'PowerChart'}_${row.song.replace(/[^\w-]+/g, '')}_${row.difficulty}`;
+      if (!row.asset) row.asset = assetName(row.part, row.song, row.difficulty);
       adding = false; render(); api({ action: 'add', row });
     }
   });
-  tbody.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.target.closest('.addrow')) $('nOk').click();
+  blist.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.closest('#addCard')) $('nOk').click();
+    else if (e.key === 'Escape' && e.target.closest('#addCard')) $('nCancel').click();
     else if (e.key === 'Enter' && e.target.dataset.k) e.target.blur();
   });
+
   // ====== ドライブに保存された譜面と、ボードの状態のチェック ======
-  let charts = [], chartsErr = '';
+  let charts = [], chartsErr = '', trashing = false;
   async function loadCharts(force) {
     if (!DriveCharts.enabled()) return;
     try { charts = await DriveCharts.list(force); chartsErr = ''; }
@@ -142,37 +188,62 @@
     const a = m && audio.find(x => DriveAudio.norm(DriveAudio.songOf(x.name)) === DriveAudio.norm(m[1]));
     return { part: f.part || 'TECH', song: a ? DriveAudio.songOf(a.name) : m ? m[1] : f.asset, difficulty: m ? DIFFS.find(d => d.toLowerCase() === m[2].toLowerCase()) : 'Normal', asset: f.asset };
   }
+  const onBoard = f => rows.some(r => r.part === f.part && String(r.asset).toLowerCase() === f.asset.toLowerCase());
+  const orphans = () => chartsErr ? [] : charts.filter(f => !onBoard(f));
+  async function moveToTrash(files) {
+    if (trashing || !files.length) return;
+    const names = files.slice(0, 15).map(f => `・${f.path}${f.name}（${f.notes} ノーツ）`).join('\n') + (files.length > 15 ? `\n…ほか ${files.length - 15} 件` : '');
+    if (!confirm(`次の ${files.length} 件の譜面をドライブのゴミ箱フォルダへ移しますか？\n\n${names}\n\n（消えるわけではありません。ゴミ箱フォルダから元のフォルダに戻せます）`)) return;
+    trashing = true; renderCheck();
+    try {
+      const j = await DriveCharts.trash(files.map(f => f.id), ls.get(USER_KEY));
+      charts = j.files; msg('');
+      checkMsg = `${j.moved} 件をゴミ箱フォルダへ移しました。`;
+    } catch (e) { checkMsg = `ゴミ箱へ移せませんでした（${e.message}）。Apps Script で authorize を実行して承認し、デプロイを更新したか確認してください。`; }
+    trashing = false; render();
+  }
+  let checkMsg = '';
   function issues() {
     if (!DriveCharts.enabled() || chartsErr) return [];
     const out = [];
     for (const r of rows) {
       const f = DriveCharts.find(charts, r.part, r.asset), name = `${r.song} ${r.difficulty}（${r.part}）`;
-      if (!r.asset) out.push({ lv: 'warn', text: `${name}: アセット名が空なので、ドライブの譜面と結び付けられません` });
-      else if (!f && (r.status === 'done' || r.status === 'review')) out.push({ lv: 'warn', text: `${name}: ${r.status === 'done' ? '完成' : '確認待ち'}なのに、ドライブに「${r.asset}.asset」がありません`, fix: '作成中に戻す', act: () => update(r.id, { status: 'doing' }) });
-      else if (f && r.status === 'todo') out.push({ lv: 'info', text: `${name}: ドライブに保存済み（${f.notes} ノーツ）なのに未着手です`, fix: '作成中にする', act: () => update(r.id, { status: 'doing' }) });
-      else if (f && !f.notes && (r.status === 'done' || r.status === 'review')) out.push({ lv: 'warn', text: `${name}: ドライブの譜面にノーツが1つもありません` });
+      if (!r.asset) out.push({ lv: 'warn', tag: '注意', text: name, sub: 'アセット名が空なので、ドライブの譜面と結び付けられません' });
+      else if (!f && (r.status === 'done' || r.status === 'review')) out.push({ lv: 'warn', tag: '注意', text: name, sub: `${r.status === 'done' ? '完成' : '確認待ち'}なのに、ドライブに「${r.asset}.asset」がありません`, acts: [['作成中に戻す', () => update(r.id, { status: 'doing' })]] });
+      else if (f && r.status === 'todo') out.push({ lv: 'info', tag: '情報', text: name, sub: `ドライブに保存済み（${f.notes} ノーツ）なのに未着手です`, acts: [['作成中にする', () => update(r.id, { status: 'doing' })]] });
+      else if (f && !f.notes && (r.status === 'done' || r.status === 'review')) out.push({ lv: 'warn', tag: '注意', text: name, sub: 'ドライブの譜面にノーツが1つもありません' });
     }
-    for (const f of charts) {
-      if (rows.some(r => r.part === f.part && String(r.asset).toLowerCase() === f.asset.toLowerCase())) continue;
-      out.push({ lv: 'info', text: `ドライブの「${f.path}${f.name}」（${f.part || 'パート不明'}・${f.notes} ノーツ）がボードにありません`, fix: 'ボードに追加', act: () => { const g = guess(f); api({ action: 'add', row: { ...g, status: 'doing', assignee: f.savedBy } }); } });
+    for (const f of orphans()) {
+      out.push({
+        lv: 'orphan', tag: 'ボード外', text: `${f.path}${f.name}`, sub: `${f.part || 'パート不明'}・${f.notes} ノーツ・${DriveCharts.fmtDate(f.updated)}${f.savedBy ? ' ' + f.savedBy : ''}　— ボードにない譜面です`,
+        acts: [['ボードに追加', () => { const g = guess(f); api({ action: 'add', row: { ...g, status: 'doing', assignee: f.savedBy } }); }], ['🗑 ゴミ箱へ', () => moveToTrash([f]), 'danger']],
+      });
     }
     return out;
   }
   let checkOpen = false;
   function renderCheck() {
-    const el = $('bcheck'), list = issues();
-    el.hidden = !DriveCharts.enabled() || (!rows.length && !charts.length);
-    if (chartsErr) { el.innerHTML = `<details><summary>ノーツ保存フォルダを読めませんでした（${esc(chartsErr)}）。Apps Script で authorize を実行して承認し、デプロイを更新したか確認してください</summary></details>`; return; }
-    if (!list.length) { el.innerHTML = `<details><summary class="ok">✓ ボードとドライブの譜面（${charts.length} 件）は食い違いなし</summary></details>`; return; }
-    el.innerHTML = `<details${checkOpen ? ' open' : ''}><summary>⚠ ボードとドライブの譜面の食い違い ${list.length} 件</summary><ul>${list.map((x, i) =>
-      `<li><span class="lv ${x.lv}">${x.lv === 'warn' ? '注意' : '情報'}</span>${esc(x.text)}${x.fix ? `<button data-fix="${i}">${esc(x.fix)}</button>` : ''}</li>`).join('')}</ul></details>`;
-    el.querySelector('details').addEventListener('toggle', e => { checkOpen = e.target.open; });
-    el.querySelectorAll('[data-fix]').forEach(b => b.addEventListener('click', () => { b.disabled = true; list[+b.dataset.fix].act(); }));
+    const el = $('bcheck'), list = issues(), orph = orphans();
+    el.hidden = !DriveCharts.enabled() || (!rows.length && !charts.length && !chartsErr);
+    const trashLink = CFG.trashUrl ? `<a class="btn ghost" href="${esc(CFG.trashUrl)}" target="_blank" rel="noopener" title="ゴミ箱フォルダ（Google ドライブ）を開く">🗑 ゴミ箱フォルダ</a>` : '';
+    if (chartsErr) { el.innerHTML = `<div class="chead"><span class="ttl err">ノーツ保存フォルダを読めませんでした（${esc(chartsErr)}）。Apps Script で authorize を実行して承認し、デプロイを更新したか確認してください。</span></div>`; return; }
+    const note = checkMsg ? `<span class="dim">${esc(checkMsg)}</span>` : '';
+    if (!list.length) { el.innerHTML = `<div class="chead"><span class="ttl ok">✓ ボードとドライブの譜面（${charts.length} 件）は食い違いなし</span>${note}${trashLink}</div>`; return; }
+    el.innerHTML = `<div class="chead">
+        <span class="ttl ng">⚠ ボードとドライブの譜面の食い違い ${list.length} 件${orph.length ? `（ボードにない譜面 ${orph.length} 件）` : ''}</span>${note}
+        <button class="ghost" data-toggle>${checkOpen ? '閉じる ▲' : '詳しく見る ▼'}</button>
+        ${orph.length ? `<button class="danger" data-trashall ${trashing ? 'disabled' : ''} title="ボードにない譜面をすべてゴミ箱フォルダへ移す">${trashing ? '移動中…' : `🗑 ボードにない ${orph.length} 件をゴミ箱へ`}</button>` : ''}
+        ${trashLink}
+      </div>
+      ${checkOpen ? `<ul class="clist">${list.map((x, i) => `<li><span class="lv ${x.lv}">${esc(x.tag)}</span><span class="tx">${esc(x.text)}<small>${esc(x.sub)}</small></span>
+        <span class="acts">${(x.acts || []).map(([t, , cls], k) => `<button class="${cls || ''}" data-fix="${i}" data-k="${k}" ${trashing ? 'disabled' : ''}>${esc(t)}</button>`).join('')}</span></li>`).join('')}</ul>` : ''}`;
+    el.querySelector('[data-toggle]').addEventListener('click', () => { checkOpen = !checkOpen; renderCheck(); });
+    el.querySelector('[data-trashall]')?.addEventListener('click', () => moveToTrash(orphans()));
+    el.querySelectorAll('[data-fix]').forEach(b => b.addEventListener('click', () => { b.disabled = true; list[+b.dataset.fix].acts[+b.dataset.k][1](); }));
   }
 
   // ====== 音源（Google ドライブの音源フォルダ） ======
   let audio = [], audioErr = '', playing = null;
-  const assetName = (part, song, diff) => `${part === 'TECH' ? 'TechChart' : 'PowerChart'}_${String(song).replace(/[^\w-]+/g, '')}_${diff}`;
   const chosen = () => {
     const parts = [...document.querySelectorAll('.aopt[data-part]:checked')].map(x => x.dataset.part);
     const diffs = [...document.querySelectorAll('.aopt[data-diff]:checked')].map(x => x.dataset.diff);
@@ -253,7 +324,7 @@
   document.querySelectorAll('.aopt').forEach(x => x.addEventListener('change', renderAudio));
 
   $('bAdd').addEventListener('click', () => { adding = true; render(); });
-  $('bReload').addEventListener('click', () => { load(); loadCharts(true); });
+  $('bReload').addEventListener('click', () => { checkMsg = ''; load(); loadCharts(true); });
 
   if (!CFG.boardApiUrl) {
     msg('譜面ボードはまだ設定されていません。Google スプレッドシートを用意して <code>config.js</code> の <code>boardApiUrl</code> を設定してください（手順: <a href="https://github.com/YamadaSeigo/chart-editor/blob/main/BOARD_SETUP.md" target="_blank" rel="noopener">BOARD_SETUP.md</a>）。');

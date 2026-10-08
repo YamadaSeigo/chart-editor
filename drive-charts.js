@@ -2,6 +2,7 @@
 // ・list()  保存されている譜面の一覧（パート・アセット名・ノーツ数・保存した人・更新日時）
 // ・read()  譜面の中身
 // ・save()  保存（同じアセット名があれば上書き。ほかの人が先に保存していたら conflict を返す）
+// ・trash() ゴミ箱フォルダへ移す
 window.DriveCharts = (function () {
   'use strict';
   const CFG = window.CHART_EDITOR_CONFIG || {};
@@ -36,6 +37,15 @@ window.DriveCharts = (function () {
     return j;
   }
 
+  /** 譜面ファイルをゴミ箱フォルダへ移す → { ok, moved, files } */
+  async function trash(ids, user) {
+    const body = { key: CFG.boardKey, action: 'trashCharts', ids, user };
+    const j = await (await fetch(CFG.boardApiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })).json();
+    if (!j.ok) throw new Error(j.error || '失敗しました');
+    listCache = j.files; listAt = Date.now();
+    return j;
+  }
+
   const baseKey = (part, asset) => BASE_KEY + part + '.' + String(asset).toLowerCase();
   function getBase(part, asset) { try { return localStorage.getItem(baseKey(part, asset)) || ''; } catch (e) { return ''; } }
   function setBase(part, asset, updated) { try { localStorage.setItem(baseKey(part, asset), updated); } catch (e) { } }
@@ -44,5 +54,5 @@ window.DriveCharts = (function () {
   const find = (files, part, asset) => files.find(f => f.part === part && f.asset.toLowerCase() === String(asset).toLowerCase()) || null;
   const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
-  return { enabled, list, read, save, find, fmtDate };
+  return { enabled, list, read, save, trash, find, fmtDate };
 })();

@@ -4,6 +4,9 @@ window.CHART_EDITOR_CONFIG = {
   // ページからの保存・読み込みは Apps Script の NOTES_FOLDER_ID のフォルダに行う（ここはリンク用）
   driveUrl: 'https://drive.google.com/drive/folders/10ugDZ9dDHFa9-Q3CwKn8Z6v_aOJqW1xI?usp=drive_link',
 
+  // いらなくなった譜面を移すゴミ箱フォルダ（移すのは Apps Script の TRASH_FOLDER_ID。ここはリンク用）
+  trashUrl: 'https://drive.google.com/drive/folders/1zECm_gPsxV2vmoACMdmRhDINRZzx89m2?usp=drive_link',
+
   // 音源（曲の音声ファイル）を入れる Google ドライブのフォルダ。
   // ページからの読み込みは Apps Script の AUDIO_FOLDER_ID のフォルダから行う（ここはリンク用）
   audioDriveUrl: 'https://drive.google.com/drive/folders/12SSJ2qgAaitkxpuXNrYUMcT1_6AIrxLT?usp=drive_link',

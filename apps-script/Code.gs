@@ -5,6 +5,7 @@
  * chart-editor のページ（index.html / 各エディタ）から読み書きする。
  * 音源フォルダ（AUDIO_FOLDER_ID）の中の音声ファイルの一覧と中身も返す（ページから音源を直接読み込むため）。
  * ノーツ保存フォルダ（NOTES_FOLDER_ID）に、エディタで作った譜面（.asset）を保存・一覧・読み込みする。
+ * いらなくなった譜面はゴミ箱フォルダ（TRASH_FOLDER_ID）へ移す（Google ドライブのゴミ箱ではなく、普通のフォルダ。消えないので戻せる）。
  * 設定方法は BOARD_SETUP.md を参照。
  */
 // 音源を入れる Google ドライブのフォルダ（URL の folders/ の後ろ）。このフォルダ（とその中のフォルダ）以外のファイルは返さない
@@ -14,6 +15,8 @@ const AUDIO_CHUNK = 6 * 1024 * 1024; // 1回で返す大きさ（base64 にす�
 // ノーツ（.asset）を保存する Google ドライブのフォルダ。中に TECH / POWER のフォルダを作って分けて保存する
 const NOTES_FOLDER_ID = '10ugDZ9dDHFa9-Q3CwKn8Z6v_aOJqW1xI';
 const PARTS = ['TECH', 'POWER'];
+// いらなくなった譜面を移すフォルダ
+const TRASH_FOLDER_ID = '1zECm_gPsxV2vmoACMdmRhDINRZzx89m2';
 const SHEET_NAME = 'charts';
 const HEAD = ['id', 'part', 'song', 'difficulty', 'asset', 'status', 'assignee', 'due', 'note',
   'updatedAt', 'updatedBy', 'editingBy', 'editingAt'];
@@ -27,6 +30,7 @@ const EDITABLE = ['part', 'song', 'difficulty', 'asset', 'status', 'assignee', '
 function authorize() {
   const folder = DriveApp.getFolderById(AUDIO_FOLDER_ID);
   const notes = DriveApp.getFolderById(NOTES_FOLDER_ID);
+  DriveApp.getFolderById(TRASH_FOLDER_ID);
   PARTS.forEach(partFolder_); // 保存先のフォルダを作る（書き込みの権限もここで承認される）
   sheet_();
   Logger.log('OK: 音源フォルダ「' + folder.getName() + '」の音声ファイル ' + listAudio_().length + ' 件 / ' +
@@ -103,7 +107,7 @@ function listCharts_() {
     }
     if (depth >= 2) return;
     const subs = folder.getFolders();
-    while (subs.hasNext()) { const sub = subs.next(); walk(sub, path + sub.getName() + '/', depth + 1); }
+    while (subs.hasNext()) { const sub = subs.next(); if (sub.getId() !== TRASH_FOLDER_ID) walk(sub, path + sub.getName() + '/', depth + 1); }
   };
   walk(DriveApp.getFolderById(NOTES_FOLDER_ID), '', 0);
   return out.sort((a, b) => (a.path + a.name).localeCompare(b.path + b.name));
@@ -146,6 +150,22 @@ function saveChart_(req, user, rows, sh, now) {
     writeRow_(sh, r);
   });
   return { ok: true, file: fileInfo_(DriveApp.getFileById(file.getId()), part + '/') };
+}
+
+/** 譜面をゴミ箱フォルダへ移す（ノーツ保存フォルダの中のものだけ）。誰がいつ移したかを説明に残す */
+function trashCharts_(ids, user) {
+  const trash = DriveApp.getFolderById(TRASH_FOLDER_ID);
+  const stamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm');
+  let moved = 0;
+  (ids || []).slice(0, 100).forEach(id => {
+    const f = DriveApp.getFileById(String(id));
+    if (!inFolder_(f, NOTES_FOLDER_ID) || inFolder_(f, TRASH_FOLDER_ID)) return;
+    const parents = f.getParents(), from = parents.hasNext() ? parents.next().getName() + '/' : '';
+    f.setDescription(`${f.getDescription() || ''}（${stamp} に ${user || '?'} がゴミ箱へ。元の場所: ${from}）`.trim());
+    f.moveTo(trash);
+    moved++;
+  });
+  return moved;
 }
 
 /** フォルダ（rootId）の中にあるファイルか（親を数段さかのぼって確かめる） */
@@ -229,6 +249,10 @@ function doPost(e) {
         const r = find(req.id);
         if (r) sh.deleteRow(r._row);
         break;
+      }
+      case 'trashCharts': {
+        const moved = trashCharts_(req.ids, user);
+        return json_({ ok: true, moved, files: listCharts_(), rows, now });
       }
       case 'saveChart': {
         const res = saveChart_(req, user, rows, sh, now);
