@@ -7,6 +7,7 @@
   // ====== Google ドライブ ======
   for (const id of ['driveBtn', 'driveLink']) { const a = $(id); if (CFG.driveUrl) a.href = CFG.driveUrl; else a.hidden = true; }
   if (CFG.audioDriveUrl) $('audioDriveBtn').href = CFG.audioDriveUrl; else $('audioDriveBtn').hidden = true;
+  if (CFG.trashUrl) $('trashBtn').href = CFG.trashUrl; else $('trashBtn').hidden = true;
 
   // ====== 譜面ボード（Google スプレッドシート + Apps Script） ======
   const USER_KEY = 'ms2026.chartBoard.user', FILTER_KEY = 'ms2026.chartBoard.filter';

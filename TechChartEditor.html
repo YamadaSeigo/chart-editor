@@ -119,9 +119,9 @@ tbody tr.sel{background:#3a2a36}
 
 footer{display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--panel);border-top:1px solid var(--line);user-select:none}
 #playBtn{width:40px;height:40px;border-radius:50%;font-size:16px;padding:0;background:var(--accent);border-color:var(--accent);color:#1a0a12}
-#clock{min-width:110px;font-variant-numeric:tabular-nums}
+#clock{flex:none;width:178px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
 #tclock{font-size:18px;font-weight:600;letter-spacing:.02em}
-#bclock{color:var(--dim);font-size:11px}
+#bclock{color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis}
 .seekarea{flex:1;min-width:160px;display:flex;flex-direction:column;gap:4px}
 .ovwrap{position:relative;height:30px}
 #ov{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:pointer;border-radius:4px}
@@ -595,11 +595,16 @@ const rs = $('#rs'), rsx = rs.getContext('2d');
 let tlW = 0, tlH = 0, pfW = 0, pfH = 0, ovW = 0, ovH = 0, rsW = 0, rsH = 0;
 function fit(cv) {
   const r = cv.parentElement.getBoundingClientRect(), d = devicePixelRatio || 1;
-  cv.width = Math.max(1, Math.round(r.width * d)); cv.height = Math.max(1, Math.round(r.height * d));
-  cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+  const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+  // 同じ大きさなら作り直さない（width / height を代入するだけで中身が消えてチラつくため）
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0); }
   return [r.width, r.height];
 }
-function resize() { [tlW, tlH] = fit(tl); [pfW, pfH] = fit(pf); [ovW, ovH] = fit(ov); [rsW, rsH] = fit(rs); }
+let canvasReady = false;
+function resize() {
+  [tlW, tlH] = fit(tl); [pfW, pfH] = fit(pf); [ovW, ovH] = fit(ov); [rsW, rsH] = fit(rs);
+  if (canvasReady) { drawTimeline(); drawField(); drawOverview(); drawRangeSlider(); }
+}
 {
   const ro = new ResizeObserver(resize);
   ['#tlwrap', '#pfwrap', '.ovwrap', '.rswrap'].forEach(q => ro.observe(document.querySelector(q)));
@@ -1746,13 +1751,13 @@ function frame() {
     const [vs, ve] = viewRange();
     if (S.time > ve || S.time < vs) setView(S.time, S.time + (ve - vs));
   }
-  drawTimeline(); drawField(); drawOverview(); drawRangeSlider();
+  drawTimeline(); drawField(); drawOverview(); drawRangeSlider(); canvasReady = true;
   const bl = beatLen(), bi = Math.floor(S.time / bl + 1e-6);
   const clk = fmtTime(S.time) + '|' + bi;
   if (clk !== lastClock) {
     lastClock = clk;
     $('#tclock').textContent = fmtTime(S.time);
-    $('#bclock').textContent = `小節 ${Math.floor(bi / 4) + 1} : 拍 ${bi % 4 + 1}　(${r3(S.time / bl)} 拍)`;
+    $('#bclock').textContent = `小節 ${Math.floor(bi / 4) + 1} : 拍 ${bi % 4 + 1}　(${(S.time / bl).toFixed(2)} 拍)`;
   }
   requestAnimationFrame(frame);
 }
