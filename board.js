@@ -9,7 +9,7 @@
   const PART = document.currentScript.dataset.part;
   const CFG = window.CHART_EDITOR_CONFIG || {};
   const DA = window.DriveAudio, DC = window.DriveCharts;
-  const USER_KEY = 'ms2026.chartBoard.user';
+  const USER_KEY = 'ms2026.chartBoard.user', ROWS_KEY = 'ms2026.chartBoard.rows';
   const BEAT_MS = 60 * 1000;
   const STATUS_JP = { todo: '未着手', doing: '作成中', review: '確認待ち', done: '完成' };
 
@@ -119,6 +119,9 @@
   const hasAudio = () => typeof buffer !== 'undefined' && !!buffer;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let rows = [], files = [], loadedId = null, loading = null, autoTried = new Set(), boardAudioFor = '', filesReady = false;
+  // 前回の内容（ボードのページで読んだもの）をすぐ使い、裏で最新にする
+  try { rows = JSON.parse(localStorage.getItem(ROWS_KEY)) || []; } catch (e) { }
+  if (DA && DA.peek()) { files = DA.peek(); filesReady = true; }
 
   // ====== 音源の読み込み ======
   async function useDriveAudio(f, label) {
@@ -339,7 +342,8 @@
     if (DA && DA.enabled()) boardAudioFor = want.toLowerCase(); // 開いたら曲の音源も読み込む
     if (want.toLowerCase() === asset().toLowerCase()) { render(); return; } // もう開いている
     try {
-      const f = DC.find(await DC.list(true), PART, want);
+      // ボードのページで読んだ一覧に載っていれば、一覧を読み直さずにすぐ開く
+      const f = DC.find(DC.peek() || [], PART, want) || DC.find(await DC.list(true), PART, want);
       if (f) { await openFromDrive(f); return; }
     } catch (e) { toast('ドライブの譜面一覧を読めませんでした: ' + e.message); return; }
     if (!confirm(`「${want}」はまだドライブに保存されていません。この名前で新しい譜面を作りますか？\n（今の譜面は${dirty ? '未保存の変更ごと' : ''}閉じます）`)) boardAudioFor = '';
@@ -352,10 +356,11 @@
   addEventListener('hashchange', openFromHash);
 
   // ====== ボードとのやり取り ======
+  function setRows(r) { rows = r; try { localStorage.setItem(ROWS_KEY, JSON.stringify(r)); } catch (e) { } }
   async function post(body) {
     const res = await fetch(CFG.boardApiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: CFG.boardKey, ...body }) });
     const j = await res.json();
-    if (j.ok) rows = j.rows;
+    if (j.ok) setRows(j.rows);
     return j;
   }
   async function beat() {
@@ -363,7 +368,7 @@
     try {
       // 名前を設定していて、画面を見ているときだけ「作成中」を知らせる
       if (user() && asset() && document.visibilityState === 'visible') await post({ action: 'heartbeat', part: PART, asset: asset(), user: user() });
-      else { const j = await (await fetch(CFG.boardApiUrl)).json(); if (j.ok) rows = j.rows; }
+      else { const j = await (await fetch(CFG.boardApiUrl)).json(); if (j.ok) setRows(j.rows); }
     } catch (e) { /* オフラインなどは無視 */ }
     render();
   }

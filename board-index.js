@@ -10,7 +10,7 @@
   if (CFG.trashUrl) $('trashBtn').href = CFG.trashUrl; else $('trashBtn').hidden = true;
 
   // ====== 譜面ボード（Google スプレッドシート + Apps Script） ======
-  const USER_KEY = 'ms2026.chartBoard.user', FILTER_KEY = 'ms2026.chartBoard.filter';
+  const USER_KEY = 'ms2026.chartBoard.user', FILTER_KEY = 'ms2026.chartBoard.filter', ROWS_KEY = 'ms2026.chartBoard.rows';
   const STATUS = [['todo', '未着手'], ['doing', '作成中'], ['review', '確認待ち'], ['done', '完成']];
   const DIFFS = ['Easy', 'Normal', 'Hard', 'Extra'];
   const LIVE_MS = 3 * 60 * 1000; // エディタは1分ごとに知らせるので、3分以内なら「編集中」
@@ -53,6 +53,7 @@
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || '失敗しました');
       rows = j.rows; serverNow = Date.parse(j.now) || Date.now(); fetchedAt = Date.now();
+      ls.set(ROWS_KEY, JSON.stringify(rows));
       msg(''); render();
     } catch (e) { msg(`ボードと通信できませんでした（${esc(e.message)}）。少し待ってから「↻ 更新」を押してください。`); }
   }
@@ -264,7 +265,7 @@
   }
   async function loadAudioList(force) {
     if (!DriveAudio.enabled()) return;
-    $('amsg').textContent = '音源フォルダを読み込み中…';
+    if (!audio.length) $('amsg').textContent = '音源フォルダを読み込み中…';
     try { audio = await DriveAudio.list(force); audioErr = ''; }
     catch (e) { audioErr = e.message; }
     renderAudio();
@@ -335,7 +336,13 @@
     $('bAdd').disabled = true; $('bReload').disabled = true;
     $('aAddAll').disabled = true; $('aReload').disabled = true; renderAudio();
   } else {
-    msg('読み込み中…'); load(); loadAudioList(); loadCharts();
+    // 前回の内容をすぐ出してから、裏で最新にする
+    let saved = null;
+    try { saved = JSON.parse(ls.get(ROWS_KEY)); } catch (e) { }
+    audio = DriveAudio.peek() || []; charts = DriveCharts.peek() || [];
+    if (Array.isArray(saved) && saved.length) { rows = saved; render(); } else msg('読み込み中…');
+    if (audio.length) renderAudio();
+    load(); loadAudioList(); loadCharts();
     // ドライブの譜面は1分ごとに見直す
     setInterval(() => { if (document.visibilityState === 'visible') loadCharts(true); }, 60000);
     // 30秒ごとに最新にする（入力中は待つ）

@@ -5,6 +5,9 @@ window.DriveAudio = (function () {
   'use strict';
   const CFG = window.CHART_EDITOR_CONFIG || {};
   const DB = 'ms2026-drive-audio', STORE = 'files';
+  const LIST_KEY = 'ms2026.driveAudio.list'; // 前回の一覧（開いてすぐ出すため）
+  const CHUNK = 6 * 1024 * 1024; // Apps Script の AUDIO_CHUNK と同じ大きさ（違っていても読めるが、並行して読めるのは同じときだけ）
+  const PARALLEL = 4; // 同時に取りに行く数
   let listCache = null, listAt = 0;
 
   const enabled = () => !!CFG.boardApiUrl;
@@ -19,9 +22,16 @@ window.DriveAudio = (function () {
   async function list(force) {
     if (!enabled()) return [];
     if (!force && listCache && Date.now() - listAt < 60000) return listCache;
-    const j = await getJSON({ action: 'audioList' });
+    const j = await getJSON(force ? { action: 'audioList', force: 1 } : { action: 'audioList' });
     listCache = j.files; listAt = Date.now();
+    try { localStorage.setItem(LIST_KEY, JSON.stringify(listCache)); } catch (e) { }
     return listCache;
+  }
+  /** 前回読んだ一覧（ブラウザに残っているもの。なければ null）。最新は list() で読む */
+  function peek() {
+    if (!enabled()) return null;
+    if (listCache) return listCache;
+    try { return JSON.parse(localStorage.getItem(LIST_KEY)) || null; } catch (e) { return null; }
   }
 
   // ---- IndexedDB（ダウンロードした音源の置き場） ----
@@ -53,15 +63,35 @@ window.DriveAudio = (function () {
   async function load(f, onProgress = () => { }) {
     const hit = await cached(f);
     if (hit) { onProgress(1); return new File([hit.data], f.name, { type: hit.mime }); }
-    const parts = []; let offset = 0, size = f.size || 1, mime = f.mime;
-    for (; ;) {
+    // 大きさは一覧で分かっているので、分けた分を何個か同時に取りに行く
+    let size = f.size || 0, mime = f.mime, got = 0;
+    const parts = new Map(); // offset → { end, data }
+    const fetchAt = async offset => {
       const j = await getJSON({ action: 'audio', id: f.id, offset });
-      parts.push(b64(j.data)); size = j.size; mime = j.mime;
-      onProgress(Math.min(1, (j.next ?? size) / size));
-      if (j.next == null) break;
-      offset = j.next;
+      const data = b64(j.data);
+      size = j.size; mime = j.mime;
+      parts.set(offset, { end: j.next ?? j.size, data });
+      got += data.length; onProgress(Math.min(1, got / (size || 1)));
+      return j;
+    };
+    const offsets = [];
+    for (let o = 0; o < size; o += CHUNK) offsets.push(o);
+    if (!offsets.length) offsets.push(0);
+    let i = 0;
+    await Promise.all(Array.from({ length: Math.min(PARALLEL, offsets.length) }, async () => {
+      while (i < offsets.length) await fetchAt(offsets[i++]);
+    }));
+    // つなげる（Apps Script 側の分け方が違ったときは、足りないところを順に読む）
+    const out = [];
+    for (let pos = 0; pos < size;) {
+      if (!parts.has(pos)) await fetchAt(pos);
+      const p = parts.get(pos);
+      if (p.end <= pos) break;
+      out.push(p.end - pos < p.data.length ? p.data.subarray(0, p.end - pos) : p.data);
+      pos = p.end;
     }
-    const blob = new Blob(parts, { type: mime });
+    onProgress(1);
+    const blob = new Blob(out, { type: mime });
     try { await idb('readwrite', st => st.put({ updated: f.updated, mime, data: blob }, f.id)); } catch (e) { /* 容量不足などは無視 */ }
     return new File([blob], f.name, { type: mime });
   }
@@ -75,5 +105,5 @@ window.DriveAudio = (function () {
   const isCached = async f => !!(await cached(f));
   const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 
-  return { enabled, list, load, songOf, norm, find, isCached, fmtSize };
+  return { enabled, list, peek, load, songOf, norm, find, isCached, fmtSize };
 })();

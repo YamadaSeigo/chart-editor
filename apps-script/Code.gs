@@ -40,15 +40,29 @@ function authorize() {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   try {
-    if (p.action === 'audioList') return json_({ ok: true, files: listAudio_(), now: new Date().toISOString() });
+    if (p.action === 'audioList') return json_({ ok: true, files: cachedList_(AUDIO_LIST_KEY, 600, listAudio_, p.force), now: new Date().toISOString() });
     if (p.action === 'audio') return json_(audioChunk_(p.id, Number(p.offset) || 0));
-    if (p.action === 'charts') return json_({ ok: true, files: listCharts_(), now: new Date().toISOString() });
+    if (p.action === 'charts') return json_({ ok: true, files: cachedList_(CHARTS_LIST_KEY, 60, listCharts_, p.force), now: new Date().toISOString() });
     if (p.action === 'chart') return json_(readChart_(p.id));
     return json_({ ok: true, rows: readRows_(sheet_()), now: new Date().toISOString() });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
 }
+
+// ---------------- 一覧のキャッシュ ----------------
+// フォルダをたどるのは時間がかかるので、結果をしばらく取っておく（force=1 のときと、保存・ゴミ箱へ移したときは読み直す）
+const AUDIO_LIST_KEY = 'list_audio', CHARTS_LIST_KEY = 'list_charts';
+function cachedList_(key, seconds, build, force) {
+  const cache = CacheService.getScriptCache();
+  if (!force) {
+    try { const hit = cache.get(key); if (hit) return JSON.parse(hit); } catch (e) { }
+  }
+  const list = build();
+  try { cache.put(key, JSON.stringify(list), seconds); } catch (e) { /* 大きすぎるときは取っておかない */ }
+  return list;
+}
+function forgetList_(key) { try { CacheService.getScriptCache().remove(key); } catch (e) { } }
 
 /** 音源フォルダの音声ファイル一覧（中のフォルダも含む。path はフォルダ名/） */
 function listAudio_() {
@@ -83,33 +97,41 @@ function chartInfo_(text) {
   return { part, notes };
 }
 
-function fileInfo_(f, path) {
-  // ノーツ数は中身を読まないと分からないので、更新日時ごとにキャッシュする
-  const cache = CacheService.getScriptCache(), key = 'ci_' + f.getId() + '_' + f.getLastUpdated().getTime();
-  let info = null;
-  try { info = JSON.parse(cache.get(key)); } catch (e) { }
-  if (!info) { info = chartInfo_(f.getBlob().getDataAsString()); cache.put(key, JSON.stringify(info), 21600); }
+// ノーツ数は中身を読まないと分からないので、更新日時ごとにキャッシュする
+const infoKey_ = (id, updated) => 'ci_' + id + '_' + updated.getTime();
+function fileInfo_(f, path, known) {
+  const id = f.getId(), updated = f.getLastUpdated(), key = infoKey_(id, updated);
+  let info = known ? known[key] : null;
+  if (!info) {
+    try { info = JSON.parse(CacheService.getScriptCache().get(key)); } catch (e) { }
+  }
+  if (!info) { info = chartInfo_(f.getBlob().getDataAsString()); CacheService.getScriptCache().put(key, JSON.stringify(info), 21600); }
   return {
-    id: f.getId(), name: f.getName(), asset: f.getName().replace(/\.[^.]+$/, ''), path: path,
+    id: id, name: f.getName(), asset: f.getName().replace(/\.[^.]+$/, ''), path: path,
     part: info.part || (PARTS.indexOf(path.split('/')[0]) >= 0 ? path.split('/')[0] : ''), notes: info.notes,
-    size: f.getSize(), updated: f.getLastUpdated().toISOString(), savedBy: f.getDescription() || '', url: f.getUrl(),
+    size: f.getSize(), updated: updated.toISOString(), savedBy: f.getDescription() || '', url: f.getUrl(),
   };
 }
 
 /** ノーツ保存フォルダの譜面ファイル（.asset / .json）の一覧（中のフォルダも2段まで） */
 function listCharts_() {
-  const out = [];
+  // まずファイルを集めて、ノーツ数のキャッシュはまとめて読む（1件ずつ読むより速い）
+  const found = [];
   const walk = (folder, path, depth) => {
     const files = folder.getFiles();
     while (files.hasNext()) {
       const f = files.next();
-      if (/\.(asset|json)$/i.test(f.getName())) out.push(fileInfo_(f, path));
+      if (/\.(asset|json)$/i.test(f.getName())) found.push({ f: f, path: path });
     }
     if (depth >= 2) return;
     const subs = folder.getFolders();
     while (subs.hasNext()) { const sub = subs.next(); if (sub.getId() !== TRASH_FOLDER_ID) walk(sub, path + sub.getName() + '/', depth + 1); }
   };
   walk(DriveApp.getFolderById(NOTES_FOLDER_ID), '', 0);
+  let known = {};
+  try { known = CacheService.getScriptCache().getAll(found.map(x => infoKey_(x.f.getId(), x.f.getLastUpdated()))); } catch (e) { }
+  Object.keys(known).forEach(k => { try { known[k] = JSON.parse(known[k]); } catch (e) { delete known[k]; } });
+  const out = found.map(x => fileInfo_(x.f, x.path, known));
   return out.sort((a, b) => (a.path + a.name).localeCompare(b.path + b.name));
 }
 
@@ -252,11 +274,12 @@ function doPost(e) {
       }
       case 'trashCharts': {
         const moved = trashCharts_(req.ids, user);
-        return json_({ ok: true, moved, files: listCharts_(), rows, now });
+        return json_({ ok: true, moved, files: cachedList_(CHARTS_LIST_KEY, 60, listCharts_, true), rows, now });
       }
       case 'saveChart': {
         const res = saveChart_(req, user, rows, sh, now);
         if (!res.ok) return json_(res);
+        forgetList_(CHARTS_LIST_KEY);
         return json_({ ok: true, file: res.file, rows: readRows_(sh), now });
       }
       case 'heartbeat': {
