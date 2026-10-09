@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SHIFT / SYNC Editor</title>
+<style>
+:root{
+  --bg:#14141b;--panel:#1d1d27;--panel2:#262633;--line:#363648;--text:#e8e8f0;--dim:#9696ad;
+  --shift:#5ad1ff;--sync:#b98bff;--accent:#5ad1ff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+input,select,button{font:inherit;color:inherit}
+input[type=text],input[type=number],select{background:#12121a;border:1px solid var(--line);border-radius:6px;padding:3px 7px;min-height:28px}
+input[type=number]{width:74px}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:transparent}
+button{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 11px;min-height:28px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:#6a6a86;background:#30303f}
+button.primary{background:linear-gradient(90deg,var(--shift),var(--sync));border:0;color:#10101a;font-weight:700}
+button.primary:hover{filter:brightness(1.1)}
+button.on{border-color:var(--accent);background:#1f3340}
+input[type=checkbox],input[type=range]{accent-color:var(--accent)}
+
+header{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:15px;letter-spacing:.02em;white-space:nowrap}
+.brand b{background:linear-gradient(90deg,var(--shift),var(--sync));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand small{color:var(--dim);font-weight:400;margin-left:6px;font-size:11px}
+.edsw{display:inline-flex;background:#12121a;border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px}
+.edsw a{color:var(--dim);text-decoration:none;padding:2px 9px;border-radius:6px;font-size:12px;font-weight:600}
+.edsw a:hover{background:#262633;color:var(--text)}
+.edsw a.on{background:var(--accent);color:#10101a}
+.grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.grp label{display:inline-flex;align-items:center;gap:5px;color:var(--dim);font-size:12px}
+.spacer{flex:1}
+.savetarget{color:var(--dim);font-size:11.5px;display:inline-flex;align-items:center;gap:4px;max-width:260px}
+.savetarget b{color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.savetarget button{min-height:20px;padding:0 6px;font-size:11px}
+.dirty{color:#ffd24a}
+
+main{flex:1;display:grid;grid-template-columns:1fr 380px;min-height:0}
+#left{display:flex;flex-direction:column;min-width:0;min-height:0}
+#tlwrap{position:relative;flex:1;min-height:220px}
+#tl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+#transport{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-top:1px solid var(--line)}
+#time{font-family:Consolas,"Cascadia Mono",monospace;font-size:14px;font-variant-numeric:tabular-nums;min-width:200px}
+#audioName{color:var(--dim);font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#vol{width:80px}
+.hint{color:#6a6a82;font-size:11.5px}
+
+aside{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;min-height:0}
+aside section{padding:12px 14px;border-bottom:1px solid var(--line)}
+aside h3{margin:0 0 8px;font-size:13.5px;display:flex;align-items:center;gap:8px}
+aside h3 .dot{width:10px;height:10px;border-radius:3px}
+aside h3 .cnt{color:var(--dim);font-weight:400;font-size:12px}
+aside h3 button{margin-left:auto;min-height:24px;font-size:12px;padding:0 9px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{color:var(--dim);font-weight:500;font-size:11px;text-align:left;padding:2px 4px}
+td{padding:2px 4px;font-size:12px}
+td input[type=number]{width:72px;min-height:24px;padding:1px 5px}
+td.t{color:var(--dim);font-family:Consolas,monospace;font-size:11.5px}
+tr.sel td{background:#26324a}
+tr:hover td{background:#22222e}
+tr.sel:hover td{background:#2c3a55}
+td .x{min-height:22px;padding:0 7px;font-size:11px;background:none;color:#ff8a96;border-color:#5a2a33}
+.empty{color:#6a6a82;font-size:12px;padding:4px 0}
+.settings{display:grid;grid-template-columns:1fr auto;gap:5px 10px;align-items:center;font-size:12px;color:var(--dim)}
+#warn li{font-size:12px;color:#ffd97a;margin:3px 0}
+#warn ul{margin:0;padding-left:18px}
+#warn .ok{color:#8fd9a8;font-size:12px}
+
+#toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#2b2b3a;border:1px solid var(--line);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10}
+#toast.show{opacity:1}
+#drop{position:fixed;inset:0;background:rgba(90,209,255,.1);border:3px dashed var(--accent);display:none;place-items:center;font-size:20px;z-index:20;pointer-events:none}
+#drop.show{display:grid}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:680px;width:92vw;padding:20px 24px}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog h2{margin:0 0 10px;font-size:17px}
+dialog h4{margin:14px 0 6px;color:var(--accent)}
+dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
+dialog kbd{background:#12121a;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-family:inherit;font-size:12px}
+dialog td{white-space:normal;padding:2px 10px 2px 0}
+#dcList{max-height:50vh;overflow-y:auto;margin:10px 0;border:1px solid var(--line);border-radius:8px}
+#dcList button{display:flex;width:100%;justify-content:space-between;gap:10px;border:0;border-bottom:1px solid #26263a;border-radius:0;background:none;padding:7px 12px;min-height:38px;text-align:left}
+#dcList button:hover{background:#262633}
+#dcList small{color:var(--dim)}
+#driveFolderLink{text-decoration:none;font-size:15px}
+#daList{max-height:50vh;overflow-y:auto;margin:10px 0;border:1px solid var(--line);border-radius:8px}
+#daList button{display:flex;width:100%;justify-content:space-between;border:0;border-bottom:1px solid #26263a;border-radius:0;background:none;padding:7px 12px;min-height:34px}
+#daList button:hover{background:#262633}
+#daList small{color:var(--dim)}
+@media (max-width:900px){main{grid-template-columns:1fr;grid-template-rows:1fr 45%}aside{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">SHIFT / SYNC <b>Editor</b><small>MS2026</small></div>
+    <nav class="edsw" title="エディタを切り替え（未保存の変更があるときは確認が出ます）"><a href="index.html" title="ホーム（エディタ一覧）">⌂</a><a href="TechChartEditor.html">TECH</a><a href="PowerChartEditor.html">POWER</a><a class="on">SHIFT/SYNC</a></nav>
+    <div class="grp">
+      <button data-act="new">新規</button>
+      <button data-act="open" title="ShiftSyncChart の .asset / .json を開く (Ctrl+O)">開く</button>
+      <button data-act="audio" title="曲の音声ファイルを読み込む">♪ 音源</button>
+      <button data-act="driveAudio" id="driveAudioBtn" title="Google ドライブの音源フォルダから読み込む" hidden>♪ ドライブの音源</button>
+    </div>
+    <div class="grp">
+      <label>名前 <input id="name" type="text" size="14" spellcheck="false"></label>
+      <button class="primary" data-act="saveFile" title="保存先に上書き保存 (Ctrl+S)">保存</button>
+      <button data-act="saveAs" title="保存先を選んで新しく保存 (Ctrl+Shift+S)">名前を付けて保存</button>
+      <button data-act="copyYaml">YAMLコピー</button>
+      <span id="saveTarget" class="savetarget"></span>
+    </div>
+    <div class="grp" id="driveGrp" hidden>
+      <button class="primary" data-act="driveSave" id="driveSaveBtn" title="Google ドライブの Time Shift / Sync Action フォルダに「名前.asset」で保存（同じ名前があれば上書き）">☁ ドライブに保存</button>
+      <button data-act="driveOpen" title="Google ドライブの Time Shift / Sync Action フォルダから開く">☁ 開く</button>
+      <a id="driveFolderLink" class="hint" target="_blank" rel="noopener" title="Google ドライブのフォルダを開く" hidden>📁</a>
+    </div>
+    <div class="grp">
+      <label title="SongData.bpm（拍と秒の換算に使う。.asset には保存されない）">BPM <input id="bpm" type="number" step="0.01" min="1"></label>
+      <label title="SongData.offset（秒）。音源と拍のズレの調整。.asset には保存されない">Offset <input id="offset" type="number" step="0.001"></label>
+      <label>Snap
+        <select id="snap"><option value="1">1/1</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option></select>
+      </label>
+    </div>
+    <div class="spacer"></div>
+    <button data-act="undo" title="Ctrl+Z">↶</button>
+    <button data-act="redo" title="Ctrl+Y">↷</button>
+    <button data-act="help" title="ヘルプ">?</button>
+    <input type="file" id="fileChart" accept=".asset,.json,.yaml,.yml,.txt" hidden>
+    <input type="file" id="fileAudio" accept="audio/*,.ogg,.wav,.mp3" hidden>
+  </header>
+  <main>
+    <div id="left">
+      <div id="tlwrap"><canvas id="tl"></canvas></div>
+      <div id="transport">
+        <button data-act="play" id="playBtn" title="Space">▶ 再生</button>
+        <button data-act="toStart" title="Home">⏮</button>
+        <span id="time"></span>
+        <label class="hint"><input type="checkbox" id="metro"> メトロノーム</label>
+        <label class="hint"><input type="checkbox" id="cueSound" checked> 合図の音</label>
+        <label class="hint">音量 <input type="range" id="vol" min="0" max="1" step="0.05"></label>
+        <span id="audioName"></span>
+        <span class="spacer"></span>
+        <span class="hint">クリックで追加・ドラッグで移動・右クリックで削除　<kbd>T</kbd>/<kbd>Y</kbd> 再生位置に追加</span>
+      </div>
+    </div>
+    <aside>
+      <section>
+        <h3><span class="dot" style="background:var(--shift)"></span>Time Shift<span class="cnt" id="shiftCnt"></span><button data-act="addShift" title="再生位置に追加 (T)">＋ 追加</button></h3>
+        <div id="shiftList"></div>
+      </section>
+      <section>
+        <h3><span class="dot" style="background:var(--sync)"></span>Sync Action<span class="cnt" id="cueCnt"></span><button data-act="addCue" title="再生位置に追加 (Y)">＋ 追加</button></h3>
+        <div id="cueList"></div>
+      </section>
+      <section id="warn"><h3>チェック</h3><div id="warnBody"></div></section>
+      <section>
+        <h3>プレビューの設定 <span class="cnt">（ゲームのインスペクターの値に合わせる）</span></h3>
+        <div class="settings">
+          <span title="TimeShiftDirector.prepareSeconds">Time Shift の準備時間(秒)</span><input id="prepare" type="number" step="0.1" min="0">
+          <span title="TimeShiftDirector.shiftedSeconds">入れ替わった後の表示(秒)</span><input id="shifted" type="number" step="0.1" min="0">
+          <span title="TimeShiftDirector.breakAfterShift">入れ替わった後の休み(秒)</span><input id="breakAfter" type="number" step="0.1" min="0">
+          <span title="SyncAction.defaultCueLimit。Cue の制限時間が 0 のときに使われる">Sync Action 制限時間の初期値(秒)</span><input id="defLimit" type="number" step="0.5" min="0.5">
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+<div id="toast"></div>
+<div id="drop">ここにドロップ（音源 or .asset / .json）</div>
+<dialog id="helpDlg">
+  <h2>SHIFT / SYNC Editor</h2>
+  <p>曲ごとの Time Shift（POWER と TECH の担当ディスプレイの入れ替え）と Sync Action（二人で片腕を上げて保つ）の拍を編集し、
+    Unity の <code>ShiftSyncChart</code>（<code>Assets/WorkSpace/Scripts/InGame/SyncShift/ShiftSyncChart.cs</code>）の .asset として保存します。
+    難易度に関係なく1曲に1つで、<code>SongData</code> の「Time Shift / Sync Action」に割り当てます。</p>
+  <h4>タイムライン</h4>
+  <ul>
+    <li><b>Time Shift</b> の行をクリックで追加。線の手前の帯は準備時間（案内とカウントダウンが出て、ノーツが出ない時間）。</li>
+    <li><b>Sync Action</b> の行をクリックで追加。帯の長さは制限時間。帯の右端をドラッグすると制限時間を変えられます（0 にすると初期値）。</li>
+    <li>上のルーラー・波形をクリック／ドラッグで再生位置を移動。ホイールで横スクロール、Ctrl+ホイールで拡大縮小。</li>
+    <li>右クリックで削除。Shift+クリックで複数選択。</li>
+  </ul>
+  <h4>キー</h4>
+  <table>
+    <tr><td><kbd>Space</kbd></td><td>再生 / 停止</td></tr>
+    <tr><td><kbd>T</kbd></td><td>再生位置（スナップ）に Time Shift を追加</td></tr>
+    <tr><td><kbd>Y</kbd></td><td>再生位置（スナップ）に Sync Action を追加</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>選択を削除</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>選択を1スナップ動かす（選択がなければ再生位置）</td></tr>
+    <tr><td><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd></td><td>元に戻す / やり直し</td></tr>
+    <tr><td><kbd>Ctrl+S</kbd> / <kbd>Ctrl+Shift+S</kbd> / <kbd>Ctrl+O</kbd></td><td>保存 / 名前を付けて保存 / 開く</td></tr>
+  </table>
+  <h4>保存</h4>
+  <ul>
+    <li>BPM と Offset は拍と秒の換算・音源合わせのためだけに使い、.asset には入りません（曲の BPM は <code>SongData.bpm</code>）。</li>
+    <li>保存先は <code>Assets/WorkSpace/ScriptableObjects/Songs/</code> など。既存の .asset を開いて上書きすれば .meta の GUID は変わらないので参照は切れません。</li>
+    <li>ファイル名と <code>m_Name</code> は同じにします（名前を付けて保存すると自動で合わせます）。</li>
+  </ul>
+  <form method="dialog" style="text-align:right;margin-top:10px"><button>閉じる</button></form>
+</dialog>
+<dialog id="daDlg">
+  <h2>ドライブの音源</h2>
+  <input id="daFilter" type="text" placeholder="曲名で絞り込み" style="width:100%">
+  <div id="daList"></div>
+  <form method="dialog" style="display:flex;justify-content:space-between;align-items:center"><span class="hint" id="daMsg"></span><button>閉じる</button></form>
+</dialog>
+<dialog id="dcDlg">
+  <h2>ドライブの Time Shift / Sync Action</h2>
+  <input id="dcFilter" type="text" placeholder="名前で絞り込み" spellcheck="false" style="width:100%">
+  <div id="dcList"></div>
+  <form method="dialog" style="display:flex;gap:8px;justify-content:space-between;align-items:center"><span class="hint" id="dcMsg" style="flex:1"></span><button type="button" data-act="driveReload" title="一覧を読み直す">↻</button><button>閉じる</button></form>
+</dialog>
+<script src="config.js"></script>
+<script src="name-gate.js"></script>
+<script src="drive-audio.js"></script>
+<script src="drive-charts.js"></script>
+<script>
+'use strict';
+// ====== ゲーム側の定数（ShiftSyncChart / TimeShiftDirector / SyncAction に合わせる） ======
+const SHIFT_SYNC_GUID = '9fd1f2a1c73f4855bf9664ee0f719bc3'; // ShiftSyncChart.cs.meta
+const LS_KEY = 'ms2026.shiftSyncEditor.v1';
+const PEAK_RATE = 200, RULER = 24, LABEL_W = 92, WAVE_H = 56, ROW_H = 74, EDGE = 6;
+const SHIFT_COL = '#5ad1ff', SYNC_COL = '#b98bff';
+
+// ====== 状態 ======
+const S = {
+  shifts: [], cues: [], name: 'ShiftSyncChart', bpm: 120, offset: 0, snap: 1,
+  prepare: 4, shifted: 1, breakAfter: 0.5, defLimit: 10,
+  time: 0, playing: false, sel: new Set(), pps: 40, viewStart: -1, volume: 0.7, metronome: false, cueSound: true,
+};
+let nextId = 1, drag = null, dirty = false, saveHandle = null;
+
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const r3 = v => Math.round(v * 1000) / 1000;
+const r6 = v => Math.round(v * 1e6) / 1e6;
+const spb = () => 60 / S.bpm;
+const snapB = b => Math.max(0, r6(Math.round(b * S.snap) / S.snap));
+const tOfB = b => b * spb();
+const bOfT = t => t / spb();
+const limitOf = c => c.limit > 0 ? c.limit : S.defLimit;
+const all = () => [...S.shifts, ...S.cues];
+const byId = id => all().find(n => n.id === id);
+const isShift = n => S.shifts.includes(n);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function fmtTime(t) {
+  const neg = t < 0; t = Math.abs(t);
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return (neg ? '-' : '') + String(m).padStart(2, '0') + ':' + s.toFixed(3).padStart(6, '0');
+}
+const fmtBeat = b => { const bi = Math.floor(b + 1e-6); return `${Math.floor(bi / 4) + 1}:${bi % 4 + 1}` + (Math.abs(b - bi) > 1e-6 ? `+${r3(b - bi)}` : ''); };
+function sortAll() { S.shifts.sort((a, b) => a.b - b.b || a.id - b.id); S.cues.sort((a, b) => a.b - b.b || a.id - b.id); }
+
+// ====== Undo / 自動保存 ======
+let hist = [], hi = -1;
+const snapshot = () => JSON.stringify({ shifts: S.shifts, cues: S.cues });
+function commit(msg) {
+  sortAll();
+  const snap = snapshot();
+  if (hist[hi] !== snap) {
+    hist = hist.slice(0, hi + 1); hist.push(snap);
+    if (hist.length > 300) hist.shift();
+    hi = hist.length - 1;
+    markDirty();
+  }
+  save(); refreshPanels();
+  if (msg) toast(msg);
+}
+function restore(snap) {
+  const o = JSON.parse(snap);
+  S.shifts = o.shifts; S.cues = o.cues;
+  nextId = all().reduce((m, n) => Math.max(m, n.id), 0) + 1;
+  S.sel = new Set([...S.sel].filter(id => byId(id)));
+  markDirty(); save(); refreshPanels();
+}
+function undo() { if (hi > 0) { restore(hist[--hi]); toast('元に戻す'); } }
+function redo() { if (hi < hist.length - 1) { restore(hist[++hi]); toast('やり直し'); } }
+function resetHistory() { hist = [snapshot()]; hi = 0; }
+
+function toJSONObj() {
+  return {
+    format: 'ms2026-shift-sync-chart', version: 1, name: S.name, bpm: S.bpm, offset: S.offset,
+    timeShiftBeats: S.shifts.map(n => n.b),
+    syncCues: S.cues.map(c => ({ beat: c.b, limitSeconds: c.limit })),
+  };
+}
+function save() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ chart: toJSONObj(), ui: {
+      snap: S.snap, prepare: S.prepare, shifted: S.shifted, breakAfter: S.breakAfter, defLimit: S.defLimit,
+      pps: S.pps, viewStart: S.viewStart, time: S.time, volume: S.volume, metronome: S.metronome, cueSound: S.cueSound } }));
+  } catch (e) { /* ストレージが使えない環境では何もしない */ }
+}
+function loadChartObj(o) {
+  if (o.name) S.name = String(o.name);
+  if (o.bpm > 0) S.bpm = +o.bpm;
+  if (o.offset != null && isFinite(+o.offset)) S.offset = +o.offset;
+  nextId = 1;
+  S.shifts = (o.timeShiftBeats || []).map(b => ({ id: nextId++, b: Math.max(0, +b || 0) }));
+  S.cues = (o.syncCues || []).map(c => ({ id: nextId++, b: Math.max(0, +c.beat || 0), limit: Math.max(0, +c.limitSeconds || 0) }));
+  S.sel.clear(); sortAll(); resetHistory(); syncHeader(); save(); refreshPanels();
+  dirty = false; updateSaveUI();
+}
+
+// ====== Unity .asset 入出力 ======
+function num(v) { v = r6(v); return String(Object.is(v, -0) ? 0 : v); }
+function toAsset() {
+  const out = ['%YAML 1.1', '%TAG !u! tag:unity3d.com,2011:', '--- !u!114 &11400000', 'MonoBehaviour:',
+    '  m_ObjectHideFlags: 0', '  m_CorrespondingSourceObject: {fileID: 0}', '  m_PrefabInstance: {fileID: 0}',
+    '  m_PrefabAsset: {fileID: 0}', '  m_GameObject: {fileID: 0}', '  m_Enabled: 1', '  m_EditorHideFlags: 0',
+    `  m_Script: {fileID: 11500000, guid: ${SHIFT_SYNC_GUID}, type: 3}`, `  m_Name: ${S.name}`,
+    '  m_EditorClassIdentifier: Assembly-CSharp::App.ShiftSyncChart'];
+  if (!S.shifts.length) out.push('  timeShiftBeats: []');
+  else { out.push('  timeShiftBeats:'); for (const n of S.shifts) out.push(`  - ${num(n.b)}`); }
+  if (!S.cues.length) out.push('  syncCues: []');
+  else { out.push('  syncCues:'); for (const c of S.cues) out.push(`  - beat: ${num(c.b)}`, `    limitSeconds: ${num(c.limit)}`); }
+  return out.join('\n') + '\n';
+}
+function parseAsset(text) {
+  if (/App\.PowerChart/.test(text)) throw new Error('POWER の譜面（PowerChart）です。ShiftSyncChart の .asset を開いてください');
+  if (/App\.NotesRecord/.test(text) || /notesList:/.test(text)) throw new Error('TECH の譜面（NotesRecord）です。ShiftSyncChart の .asset を開いてください');
+  if (!/^\s*(timeShiftBeats|syncCues):/m.test(text)) throw new Error('timeShiftBeats / syncCues が見つかりません');
+  const o = { name: null, timeShiftBeats: [], syncCues: [] };
+  let sec = null, cur = null, m;
+  for (const line of text.split(/\r?\n/)) {
+    if ((m = line.match(/^\s*m_Name:\s*(.*)$/))) { o.name = m[1].trim(); sec = null; }
+    else if ((m = line.match(/^  (\w+):(.*)$/))) { sec = m[1]; cur = null; }
+    else if (sec === 'timeShiftBeats' && (m = line.match(/^\s*-\s*([-\d.eE+]+)\s*$/))) o.timeShiftBeats.push(+m[1]);
+    else if (sec === 'syncCues' && (m = line.match(/^\s*-\s*beat:\s*([-\d.eE+]+)/))) { cur = { beat: +m[1], limitSeconds: 0 }; o.syncCues.push(cur); }
+    else if (sec === 'syncCues' && cur && (m = line.match(/^\s+limitSeconds:\s*([-\d.eE+]+)/))) cur.limitSeconds = +m[1];
+  }
+  return o;
+}
+function importText(text, fileName) {
+  try {
+    const trimmed = text.trim();
+    let obj;
+    if (trimmed.startsWith('{')) {
+      obj = JSON.parse(trimmed);
+      if (obj.format && obj.format !== 'ms2026-shift-sync-chart') throw new Error('ShiftSyncChart の JSON ではありません');
+    } else obj = parseAsset(text);
+    if (!obj.name && fileName) obj.name = fileName.replace(/\.[^.]+$/, '');
+    loadChartObj(obj); seek(0);
+    toast(`Time Shift ${S.shifts.length} 回 / Sync Action ${S.cues.length} 回を読み込みました`);
+    return true;
+  } catch (e) { toast('読み込み失敗: ' + e.message, 4000); return false; }
+}
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.append(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
+}
+
+// ====== 保存先（File System Access API） ======
+const FS_OK = 'showSaveFilePicker' in window;
+const PICK_TYPES = [
+  { description: 'Unity ShiftSyncChart (.asset)', accept: { 'text/plain': ['.asset'] } },
+  { description: 'JSON (.json)', accept: { 'application/json': ['.json'] } },
+];
+// 保存先のハンドルは IndexedDB に覚えておく（次に開いたときも「保存」で上書きできる）
+function hdb(mode, fn) {
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open('ms2026-shift-sync-editor', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+    rq.onerror = () => rej(rq.error);
+    rq.onsuccess = () => {
+      const tx = rq.result.transaction('kv', mode), r = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error);
+    };
+  });
+}
+async function rememberHandle(h) {
+  saveHandle = h; updateSaveUI();
+  try { await hdb('readwrite', st => h ? st.put(h, 'saveHandle') : st.delete('saveHandle')); } catch (e) { }
+}
+async function restoreHandle() {
+  try { saveHandle = (await hdb('readonly', st => st.get('saveHandle'))) || null; } catch (e) { saveHandle = null; }
+  updateSaveUI();
+}
+function markDirty() { if (!dirty) { dirty = true; updateSaveUI(); } }
+function updateSaveUI() {
+  const el = $('#saveTarget'), mark = dirty ? '<span class="dirty" title="未保存の変更があります">●</span>' : '';
+  el.innerHTML = saveHandle
+    ? `保存先 <b title="${esc(saveHandle.name)}">${esc(saveHandle.name)}</b>${mark}<button data-act="forgetTarget" title="保存先を解除">×</button>`
+    : `保存先なし${mark}`;
+  document.title = `${dirty ? '● ' : ''}${saveHandle ? saveHandle.name + ' - ' : ''}SHIFT / SYNC Editor`;
+}
+async function writeChart(h) {
+  const isJson = /\.json$/i.test(h.name);
+  if (!isJson) { S.name = h.name.replace(/\.[^.]+$/, ''); syncHeader(); } // Unity は m_Name とファイル名の一致が必要
+  const w = await h.createWritable();
+  await w.write(isJson ? JSON.stringify(toJSONObj(), null, 2) : toAsset());
+  await w.close();
+  dirty = false; save(); updateSaveUI();
+  toast(`${h.name} に保存しました`);
+}
+async function saveAs() {
+  if (!FS_OK) {
+    download(`${S.name}.asset`, toAsset(), 'text/plain'); dirty = false; updateSaveUI();
+    toast(`${S.name}.asset をダウンロードしました`); return;
+  }
+  try {
+    const h = await showSaveFilePicker({ id: 'shift-sync-chart', suggestedName: `${S.name}.asset`, types: PICK_TYPES, ...(saveHandle ? { startIn: saveHandle } : {}) });
+    await writeChart(h); await rememberHandle(h);
+  } catch (e) { if (e.name !== 'AbortError') toast('保存に失敗しました: ' + e.message); }
+}
+async function saveFile() {
+  if (!saveHandle) return saveAs();
+  try {
+    const opt = { mode: 'readwrite' };
+    if ((await saveHandle.queryPermission(opt)) !== 'granted' && (await saveHandle.requestPermission(opt)) !== 'granted') {
+      toast('書き込みが許可されませんでした'); return;
+    }
+    await writeChart(saveHandle);
+  } catch (e) {
+    if (e.name === 'NotFoundError') { toast('保存先が見つかりません。保存先を選び直してください'); return saveAs(); }
+    toast('保存に失敗しました: ' + e.message);
+  }
+}
+async function openChart() {
+  if (!('showOpenFilePicker' in window)) { $('#fileChart').click(); return; }
+  try {
+    const [h] = await showOpenFilePicker({ id: 'shift-sync-chart', types: [{ description: 'ShiftSyncChart (.asset / .json)', accept: { 'text/plain': ['.asset', '.json', '.yaml', '.yml', '.txt'] } }] });
+    const file = await h.getFile();
+    if (importText(await file.text(), file.name)) await rememberHandle(/\.(asset|json)$/i.test(h.name) ? h : null);
+  } catch (e) { if (e.name !== 'AbortError') toast('開けませんでした: ' + e.message); }
+}
+
+// ====== オーディオ ======
+let actx = null, master = null, buffer = null, peaks = null, src = null, startCtx = 0, startT = 0, audioName = '';
+function ac() {
+  if (!actx) { actx = new AudioContext(); master = actx.createGain(); master.connect(actx.destination); }
+  master.gain.value = S.volume;
+  return actx;
+}
+function lastMarkT() {
+  return Math.max(0, ...S.shifts.map(n => tOfB(n.b)), ...S.cues.map(c => tOfB(c.b) + limitOf(c)));
+}
+function duration() { return buffer ? Math.max(1, buffer.duration - S.offset) : Math.max(60, lastMarkT() + 16); }
+function curTime() { return S.playing ? startT + Math.max(0, actx.currentTime - startCtx) : S.time; }
+function startPlayback() {
+  const c = ac();
+  if (c.state === 'suspended') c.resume();
+  startT = S.time; startCtx = c.currentTime + 0.03;
+  if (buffer) {
+    const pos = S.time + S.offset;
+    src = c.createBufferSource(); src.buffer = buffer; src.connect(master);
+    if (pos >= 0) src.start(startCtx, pos); else src.start(startCtx - pos, 0);
+  }
+  S.playing = true; lastTick = S.time; $('#playBtn').textContent = '❚❚ 停止';
+}
+function stopPlayback() {
+  if (!S.playing) return;
+  S.time = curTime(); S.playing = false;
+  if (src) { try { src.stop(); } catch (e) { } src.disconnect(); src = null; }
+  $('#playBtn').textContent = '▶ 再生'; save();
+}
+function togglePlay() { S.playing ? stopPlayback() : startPlayback(); }
+function seek(t) {
+  const was = S.playing; stopPlayback();
+  S.time = clamp(t, 0, duration()); if (was) startPlayback();
+}
+function beep(freq, len = 0.06, gain = 0.25, type = 'square') {
+  const c = ac(), o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + len + 0.02);
+}
+// 再生中に通り過ぎた拍・合図で音を鳴らす
+let lastTick = 0;
+function tickSounds(t) {
+  if (t < lastTick) { lastTick = t; return; }
+  const from = lastTick; lastTick = t;
+  const crossed = x => x > from && x <= t;
+  if (S.metronome) {
+    for (let b = Math.floor(bOfT(from)) + 1; tOfB(b) <= t; b++) beep(b % 4 === 0 ? 1500 : 1000, 0.04, 0.18);
+  }
+  if (!S.cueSound) return;
+  for (const n of S.shifts) {
+    const at = tOfB(n.b);
+    if (crossed(at)) beep(660, 0.35, 0.3, 'sawtooth');
+    for (let k = 1; k <= 3; k++) if (crossed(at - k)) beep(440, 0.08, 0.2); // カウントダウン
+  }
+  for (const c of S.cues) {
+    const at = tOfB(c.b);
+    if (crossed(at)) { beep(880, 0.12, 0.3, 'triangle'); setTimeout(() => beep(1320, 0.18, 0.3, 'triangle'), 110); }
+    if (crossed(at + limitOf(c))) beep(220, 0.25, 0.25, 'sawtooth');
+  }
+}
+async function loadAudioFile(file) {
+  try {
+    const data = await file.arrayBuffer();
+    stopPlayback();
+    buffer = await ac().decodeAudioData(data);
+    audioName = file.name; computePeaks();
+    $('#audioName').textContent = '♪ ' + audioName; $('#audioName').title = audioName;
+    if (S.name === 'ShiftSyncChart' && !S.shifts.length && !S.cues.length) {
+      S.name = 'ShiftSync_' + file.name.replace(/\.[^.]+$/, '').replace(/\s+/g, ''); syncHeader(); save();
+    }
+    toast(`${file.name} を読み込みました（${fmtTime(buffer.duration)}）`);
+  } catch (e) { toast('音源を読み込めませんでした: ' + e.message, 4000); }
+}
+function computePeaks() {
+  const ch = [...Array(buffer.numberOfChannels).keys()].slice(0, 2).map(i => buffer.getChannelData(i));
+  const per = Math.max(1, Math.floor(buffer.sampleRate / PEAK_RATE)), n = Math.ceil(ch[0].length / per);
+  peaks = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let m = 0;
+    for (const d of ch) for (let j = i * per, e = Math.min(d.length, j + per); j < e; j += 4) { const v = Math.abs(d[j]); if (v > m) m = v; }
+    peaks[i] = m;
+  }
+}
+
+// ====== タイムライン ======
+const cv = $('#tl');
+let ctx, W = 0, H = 0;
+function resize() {
+  const d = devicePixelRatio || 1, r = cv.getBoundingClientRect();
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * d); cv.height = Math.round(H * d);
+  ctx = cv.getContext('2d'); ctx.setTransform(d, 0, 0, d, 0, 0);
+}
+const xOf = t => LABEL_W + (t - S.viewStart) * S.pps;
+const tOfX = x => S.viewStart + (x - LABEL_W) / S.pps;
+const rows = () => {
+  const top = RULER + WAVE_H, h = Math.max(ROW_H, (H - top) / 2);
+  return { shift: [top, h], cue: [top + h, h] };
+};
+function rowAt(y) {
+  const R = rows();
+  if (y < RULER + WAVE_H) return 'ruler';
+  if (y < R.cue[0]) return 'shift';
+  return 'cue';
+}
+function hexA(hex, a) {
+  const v = parseInt(hex.slice(1), 16);
+  return `rgba(${v >> 16 & 255},${v >> 8 & 255},${v & 255},${a})`;
+}
+function draw() {
+  const t = curTime();
+  if (S.playing) {
+    tickSounds(t);
+    // 再生位置が右端に近づいたら追いかける
+    const span = (W - LABEL_W) / S.pps;
+    if (t > S.viewStart + span * 0.8 || t < S.viewStart) S.viewStart = t - span * 0.2;
+    if (t >= duration()) { stopPlayback(); S.time = duration(); }
+  }
+  const c = ctx, R = rows(), t0 = S.viewStart, t1 = tOfX(W);
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = '#101017'; c.fillRect(0, 0, W, H);
+
+  // 行の背景
+  c.fillStyle = '#15151d'; c.fillRect(LABEL_W, RULER, W, WAVE_H);
+  c.fillStyle = hexA(SHIFT_COL, 0.04); c.fillRect(LABEL_W, R.shift[0], W, R.shift[1]);
+  c.fillStyle = hexA(SYNC_COL, 0.04); c.fillRect(LABEL_W, R.cue[0], W, R.cue[1]);
+
+  // 波形
+  if (peaks) {
+    const mid = RULER + WAVE_H / 2;
+    c.fillStyle = '#3d4f63';
+    for (let x = LABEL_W; x < W; x++) {
+      const a = (tOfX(x) + S.offset) * PEAK_RATE, b = (tOfX(x + 1) + S.offset) * PEAK_RATE;
+      let m = 0;
+      for (let i = Math.max(0, Math.floor(a)); i < Math.min(peaks.length, Math.ceil(b) + 1); i++) if (peaks[i] > m) m = peaks[i];
+      const hh = m * (WAVE_H / 2 - 3);
+      if (hh > 0.3) c.fillRect(x, mid - hh, 1, hh * 2);
+    }
+  }
+
+  // 拍のグリッド
+  const bpx = spb() * S.pps, sub = bpx / S.snap > 7 ? S.snap : 1;
+  const bStart = Math.max(0, Math.floor(bOfT(t0) * sub) / sub);
+  c.font = '11px Segoe UI, sans-serif'; c.textBaseline = 'middle';
+  for (let b = bStart; tOfB(b) <= t1; b = r6(b + 1 / sub)) {
+    const x = Math.round(xOf(tOfB(b))) + 0.5;
+    if (x < LABEL_W) continue;
+    const isBeat = Math.abs(b - Math.round(b)) < 1e-6, isBar = isBeat && Math.round(b) % 4 === 0;
+    if (!isBeat && bpx < 14) continue;
+    c.strokeStyle = isBar ? '#4a4a62' : isBeat ? '#2c2c3c' : '#21212c';
+    c.beginPath(); c.moveTo(x, RULER); c.lineTo(x, H); c.stroke();
+    if (isBar && (bpx * 4 > 34)) { c.fillStyle = '#9696ad'; c.fillText(String(Math.round(b) / 4 + 1), x + 3, RULER / 2); }
+    else if (isBeat && bpx > 30) { c.fillStyle = '#5a5a72'; c.fillText(String(Math.round(b)), x + 3, RULER / 2); }
+  }
+  c.strokeStyle = '#363648'; c.beginPath();
+  c.moveTo(0, RULER + 0.5); c.lineTo(W, RULER + 0.5);
+  c.moveTo(0, R.shift[0] + 0.5); c.lineTo(W, R.shift[0] + 0.5);
+  c.moveTo(0, R.cue[0] + 0.5); c.lineTo(W, R.cue[0] + 0.5); c.stroke();
+
+  // 曲の終わり
+  if (buffer) {
+    const xe = xOf(buffer.duration - S.offset);
+    if (xe < W) { c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(Math.max(LABEL_W, xe), RULER, W, H); }
+  }
+
+  // Time Shift
+  const [sy, sh] = R.shift;
+  for (const n of S.shifts) {
+    const at = tOfB(n.b), x = xOf(at), sel = S.sel.has(n.id);
+    const xp = xOf(at - S.prepare), xa = xOf(at + Math.max(S.shifted, S.breakAfter));
+    if (xa < LABEL_W || xp > W) continue;
+    const g = c.createLinearGradient(xp, 0, x, 0);
+    g.addColorStop(0, hexA(SHIFT_COL, 0.05)); g.addColorStop(1, hexA(SHIFT_COL, 0.32));
+    c.fillStyle = g; c.fillRect(xp, sy + 8, x - xp, sh - 16);
+    c.fillStyle = hexA(SHIFT_COL, 0.14); c.fillRect(x, sy + 8, xa - x, sh - 16);
+    // カウントダウンの目盛り
+    c.fillStyle = hexA(SHIFT_COL, 0.7); c.font = '10px Segoe UI, sans-serif';
+    for (let k = 1; k <= Math.floor(S.prepare); k++) { const xk = xOf(at - k); if (S.pps > 18) c.fillText(String(k), xk - 3, sy + sh - 14); c.fillRect(xk, sy + sh - 8, 1, 4); }
+    c.strokeStyle = sel ? '#fff' : SHIFT_COL; c.lineWidth = sel ? 3 : 2;
+    c.beginPath(); c.moveTo(x, sy + 4); c.lineTo(x, sy + sh - 4); c.stroke(); c.lineWidth = 1;
+    c.fillStyle = sel ? '#fff' : SHIFT_COL;
+    c.beginPath(); c.moveTo(x - 7, sy + 4); c.lineTo(x + 7, sy + 4); c.lineTo(x, sy + 13); c.fill();
+    c.font = '600 11px Segoe UI, sans-serif'; c.fillText('⇄ ' + fmtBeat(n.b), x + 6, sy + 22);
+  }
+
+  // Sync Action
+  const [cy, ch] = R.cue;
+  for (const cue of S.cues) {
+    const at = tOfB(cue.b), x = xOf(at), xe = xOf(at + limitOf(cue)), sel = S.sel.has(cue.id);
+    if (xe < LABEL_W || x > W) continue;
+    c.fillStyle = hexA(SYNC_COL, sel ? 0.42 : 0.26);
+    roundRect(c, x, cy + 12, Math.max(4, xe - x), ch - 24, 6); c.fill();
+    c.strokeStyle = sel ? '#fff' : SYNC_COL; c.lineWidth = sel ? 2 : 1.5;
+    roundRect(c, x, cy + 12, Math.max(4, xe - x), ch - 24, 6); c.stroke(); c.lineWidth = 1;
+    c.fillStyle = sel ? '#fff' : SYNC_COL; c.fillRect(xe - 3, cy + ch / 2 - 9, 2, 18);
+    c.fillStyle = '#fff'; c.font = '600 11px Segoe UI, sans-serif';
+    c.fillText(`✋ ${fmtBeat(cue.b)}  ${r3(limitOf(cue))}秒${cue.limit > 0 ? '' : '(初期値)'}`, x + 7, cy + 24);
+  }
+
+  // ラベル列
+  c.fillStyle = '#191922'; c.fillRect(0, 0, LABEL_W, H);
+  c.strokeStyle = '#363648'; c.beginPath(); c.moveTo(LABEL_W + 0.5, 0); c.lineTo(LABEL_W + 0.5, H); c.stroke();
+  c.font = '600 12px Segoe UI, sans-serif'; c.textBaseline = 'middle';
+  c.fillStyle = '#9696ad'; c.fillText(peaks ? '音源' : '音源なし', 10, RULER + WAVE_H / 2);
+  c.fillStyle = SHIFT_COL; c.fillText('Time Shift', 10, sy + sh / 2);
+  c.fillStyle = SYNC_COL; c.fillText('Sync Action', 10, cy + ch / 2);
+  c.fillStyle = '#6a6a82'; c.font = '10px Segoe UI, sans-serif'; c.fillText('小節', 10, RULER / 2);
+
+  // 再生位置
+  const xp = xOf(t);
+  if (xp >= LABEL_W) {
+    c.strokeStyle = '#ffd24a'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(xp, 0); c.lineTo(xp, H); c.stroke(); c.lineWidth = 1;
+    c.fillStyle = '#ffd24a'; c.beginPath(); c.moveTo(xp - 6, 0); c.lineTo(xp + 6, 0); c.lineTo(xp, 8); c.fill();
+  }
+
+  // ゲームで今出ている案内
+  const msg = noticeAt(t);
+  if (msg) {
+    c.font = '700 14px Segoe UI, sans-serif'; const w = c.measureText(msg.text).width + 24;
+    c.fillStyle = hexA(msg.col, 0.18); roundRect(c, W - w - 12, RULER + 8, w, 30, 8); c.fill();
+    c.strokeStyle = msg.col; roundRect(c, W - w - 12, RULER + 8, w, 30, 8); c.stroke();
+    c.fillStyle = '#fff'; c.fillText(msg.text, W - w, RULER + 23);
+  }
+
+  $('#time').textContent = `${fmtTime(t)}  ${fmtBeat(bOfT(t))}  (${r3(bOfT(t))} 拍)`;
+  requestAnimationFrame(draw);
+}
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+/** その時刻にゲームで出ている案内（TimeShiftDirector / SyncAction の表示のまね） */
+function noticeAt(t) {
+  for (const n of S.shifts) {
+    const at = tOfB(n.b);
+    if (t >= at - S.prepare && t < at) return { text: `TIME CHANGE  ${Math.ceil(at - t)}`, col: SHIFT_COL };
+    if (t >= at && t < at + S.shifted) return { text: 'TIME SHIFT!', col: SHIFT_COL };
+  }
+  for (const c of S.cues) {
+    const at = tOfB(c.b);
+    if (t >= at && t < at + limitOf(c)) return { text: `SYNC ACTION  残り ${(at + limitOf(c) - t).toFixed(1)}秒`, col: SYNC_COL };
+  }
+  return null;
+}
+
+// ---- マウス ----
+function hitTest(x, y) {
+  const row = rowAt(y);
+  if (row === 'shift') {
+    let best = null, bd = EDGE + 2;
+    for (const n of S.shifts) { const d = Math.abs(xOf(tOfB(n.b)) - x); if (d < bd) { bd = d; best = n; } }
+    return best ? { n: best, part: 'move' } : null;
+  }
+  if (row === 'cue') {
+    // 後ろにあるもの（後から描いたもの）を優先
+    for (let i = S.cues.length - 1; i >= 0; i--) {
+      const cue = S.cues[i], xs = xOf(tOfB(cue.b)), xe = xOf(tOfB(cue.b) + limitOf(cue));
+      if (Math.abs(x - xe) <= EDGE) return { n: cue, part: 'limit' };
+      if (x >= xs - EDGE && x <= xe) return { n: cue, part: 'move' };
+    }
+  }
+  return null;
+}
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('mousedown', e => {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (x < LABEL_W) return;
+  const row = rowAt(y), hit = hitTest(x, y);
+  if (e.button === 2) {
+    if (hit) { removeItems([hit.n.id]); }
+    return;
+  }
+  if (e.button !== 0) return;
+  if (row === 'ruler') { drag = { kind: 'seek' }; seek(tOfX(x)); return; }
+  if (hit) {
+    if (e.shiftKey) { S.sel.has(hit.n.id) ? S.sel.delete(hit.n.id) : S.sel.add(hit.n.id); refreshPanels(); return; }
+    if (!S.sel.has(hit.n.id)) { S.sel = new Set([hit.n.id]); refreshPanels(); }
+    if (hit.part === 'limit') drag = { kind: 'limit', n: hit.n, moved: false };
+    else drag = { kind: 'move', startB: bOfT(tOfX(x)), orig: new Map(selected().map(n => [n.id, n.b])), moved: false };
+    return;
+  }
+  // 空いているところ → 追加
+  const b = snapB(bOfT(tOfX(x)));
+  const n = row === 'shift' ? addShift(b) : addCue(b);
+  drag = { kind: 'move', startB: b, orig: new Map([[n.id, n.b]]), moved: true, added: true };
+});
+addEventListener('mousemove', e => {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (!drag) {
+    const hit = x > LABEL_W && y >= 0 && y < H ? hitTest(x, y) : null;
+    cv.style.cursor = hit ? (hit.part === 'limit' ? 'ew-resize' : 'grab') : rowAt(y) === 'ruler' ? 'text' : 'crosshair';
+    return;
+  }
+  if (drag.kind === 'seek') { seek(tOfX(x)); return; }
+  if (drag.kind === 'limit') {
+    const end = tOfX(x) - tOfB(drag.n.b);
+    // 制限時間はスナップの刻み（秒）に合わせる。初期値の近くは初期値（0）に戻す
+    let lim = Math.max(0.5, Math.round(end * 2) / 2);
+    if (Math.abs(lim - S.defLimit) < 1e-6) lim = 0;
+    if (lim !== drag.n.limit) { drag.n.limit = lim; drag.moved = true; }
+    return;
+  }
+  if (drag.kind === 'move') {
+    const d = snapB(bOfT(tOfX(x))) - snapB(drag.startB);
+    const minB = Math.min(...drag.orig.values());
+    const dd = Math.max(d, -minB);
+    for (const [id, b0] of drag.orig) { const n = byId(id); if (n) n.b = r6(b0 + dd); }
+    if (dd) drag.moved = true;
+  }
+});
+addEventListener('mouseup', () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.kind === 'seek') { save(); return; }
+  if (d.moved) commit(d.added ? null : d.kind === 'limit' ? '制限時間を変えました' : null);
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left;
+  if (e.ctrlKey || e.metaKey) {
+    const t = tOfX(Math.max(LABEL_W, x));
+    S.pps = clamp(S.pps * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 4, 600);
+    S.viewStart = t - (Math.max(LABEL_W, x) - LABEL_W) / S.pps;
+  } else {
+    const dx = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+    S.viewStart += dx / S.pps;
+  }
+  S.viewStart = clamp(S.viewStart, -2, duration());
+  save();
+}, { passive: false });
+
+// ====== 編集 ======
+const selected = () => all().filter(n => S.sel.has(n.id));
+function addShift(b, msg) {
+  const n = { id: nextId++, b };
+  S.shifts.push(n); S.sel = new Set([n.id]); commit(msg); return n;
+}
+function addCue(b, msg) {
+  const n = { id: nextId++, b, limit: 0 };
+  S.cues.push(n); S.sel = new Set([n.id]); commit(msg); return n;
+}
+function removeItems(ids) {
+  const set = new Set(ids);
+  if (!set.size) return;
+  S.shifts = S.shifts.filter(n => !set.has(n.id));
+  S.cues = S.cues.filter(n => !set.has(n.id));
+  ids.forEach(id => S.sel.delete(id));
+  commit(`${set.size} 個を削除しました`);
+}
+function nudge(dir) {
+  const sel = selected();
+  if (!sel.length) { seek(tOfB(snapB(bOfT(curTime()) + dir / S.snap))); return; }
+  if (dir < 0 && sel.some(n => n.b - 1 / S.snap < -1e-6)) return;
+  sel.forEach(n => { n.b = r6(n.b + dir / S.snap); });
+  commit();
+}
+function scrollToItem(n) {
+  const t = tOfB(n.b), span = (W - LABEL_W) / S.pps;
+  if (t < S.viewStart || t > S.viewStart + span) S.viewStart = t - span * 0.3;
+}
+
+// ====== サイドパネル ======
+function refreshPanels() {
+  $('#shiftCnt').textContent = `${S.shifts.length} 回`;
+  $('#cueCnt').textContent = `${S.cues.length} 回`;
+  $('#shiftList').innerHTML = S.shifts.length
+    ? `<table><tr><th>拍</th><th>小節:拍</th><th>時刻</th><th></th></tr>${S.shifts.map(n => `
+      <tr data-id="${n.id}" class="${S.sel.has(n.id) ? 'sel' : ''}">
+        <td><input type="number" step="${1 / S.snap}" min="0" data-f="b" value="${r6(n.b)}"></td>
+        <td class="t">${fmtBeat(n.b)}</td><td class="t">${fmtTime(tOfB(n.b))}</td>
+        <td><button class="x" data-del="${n.id}" title="削除">×</button></td></tr>`).join('')}</table>`
+    : '<div class="empty">まだありません。タイムラインの Time Shift の行をクリックするか <kbd>T</kbd> で追加</div>';
+  $('#cueList').innerHTML = S.cues.length
+    ? `<table><tr><th>拍</th><th>制限時間(秒)</th><th>開始</th><th>終了</th><th></th></tr>${S.cues.map(c => `
+      <tr data-id="${c.id}" class="${S.sel.has(c.id) ? 'sel' : ''}">
+        <td><input type="number" step="${1 / S.snap}" min="0" data-f="b" value="${r6(c.b)}"></td>
+        <td><input type="number" step="0.5" min="0" data-f="limit" value="${r6(c.limit)}" title="0 なら初期値（${S.defLimit}秒）"></td>
+        <td class="t">${fmtTime(tOfB(c.b))}</td><td class="t">${fmtTime(tOfB(c.b) + limitOf(c))}</td>
+        <td><button class="x" data-del="${c.id}" title="削除">×</button></td></tr>`).join('')}</table>`
+    : '<div class="empty">まだありません。タイムラインの Sync Action の行をクリックするか <kbd>Y</kbd> で追加</div>';
+  refreshWarnings();
+}
+for (const id of ['#shiftList', '#cueList']) {
+  const el = $(id);
+  el.addEventListener('change', e => {
+    const inp = e.target.closest('input[data-f]'); if (!inp) return;
+    const n = byId(+inp.closest('tr').dataset.id); if (!n) return;
+    const v = Math.max(0, +inp.value || 0);
+    n[inp.dataset.f] = r6(v); commit();
+  });
+  el.addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (del) { removeItems([+del.dataset.del]); return; }
+    const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+    const n = byId(+tr.dataset.id); if (!n) return;
+    if (e.shiftKey) S.sel.has(n.id) ? S.sel.delete(n.id) : S.sel.add(n.id);
+    else S.sel = new Set([n.id]);
+    if (!e.target.closest('input')) { scrollToItem(n); seek(tOfB(n.b) - (isShift(n) ? S.prepare + 1 : 1)); }
+    document.querySelectorAll('aside tr[data-id]').forEach(r => r.classList.toggle('sel', S.sel.has(+r.dataset.id)));
+  });
+}
+/** ゲームで困ること（TimeShiftDirector / SyncAction / DifficultyDirector の動きから） */
+function refreshWarnings() {
+  const out = [];
+  const shiftWin = S.shifts.map(n => { const at = tOfB(n.b); return { n, from: at - S.prepare, to: at + Math.max(S.shifted, S.breakAfter) }; });
+  const cueWin = S.cues.map(c => { const at = tOfB(c.b); return { n: c, from: at, to: at + limitOf(c) }; });
+  for (let i = 0; i < shiftWin.length; i++) {
+    const w = shiftWin[i];
+    if (w.from < 0) out.push(`Time Shift ${fmtBeat(w.n.b)}：準備時間（${S.prepare}秒）が曲の頭より前に始まります`);
+    if (i > 0 && w.from < shiftWin[i - 1].to) out.push(`Time Shift ${fmtBeat(shiftWin[i - 1].n.b)} と ${fmtBeat(w.n.b)} が近すぎます（準備時間が重なる）`);
+  }
+  for (let i = 0; i < cueWin.length; i++) {
+    const w = cueWin[i];
+    if (i > 0 && w.from < cueWin[i - 1].to) out.push(`Sync Action ${fmtBeat(cueWin[i - 1].n.b)} の制限時間中に ${fmtBeat(w.n.b)} が始まります（前のものは取り消される）`);
+    for (const s of shiftWin) if (w.from < s.to && w.to > s.from) out.push(`Sync Action ${fmtBeat(w.n.b)} が Time Shift ${fmtBeat(s.n.b)} の準備時間と重なっています`);
+  }
+  if (buffer) {
+    const end = buffer.duration - S.offset;
+    for (const w of [...shiftWin, ...cueWin]) if (tOfB(w.n.b) > end) out.push(`${isShift(w.n) ? 'Time Shift' : 'Sync Action'} ${fmtBeat(w.n.b)} が曲の終わり（${fmtTime(end)}）より後にあります`);
+  }
+  $('#warnBody').innerHTML = out.length ? `<ul>${out.map(s => `<li>${esc(s)}</li>`).join('')}</ul>`
+    : `<div class="ok">問題は見つかりませんでした${buffer ? '' : '（音源を読み込むと曲の長さもチェックします）'}</div>`;
+}
+
+// ====== ヘッダー ======
+function syncHeader() {
+  $('#name').value = S.name; $('#bpm').value = S.bpm; $('#offset').value = S.offset; $('#snap').value = S.snap;
+  $('#prepare').value = S.prepare; $('#shifted').value = S.shifted; $('#breakAfter').value = S.breakAfter; $('#defLimit').value = S.defLimit;
+  $('#metro').checked = S.metronome; $('#cueSound').checked = S.cueSound; $('#vol').value = S.volume;
+}
+$('#name').addEventListener('change', e => {
+  const v = e.target.value.trim().replace(/[\\/:*?"<>|]/g, '');
+  if (v) { S.name = v; markDirty(); save(); } syncHeader();
+});
+$('#bpm').addEventListener('change', e => { const v = +e.target.value; if (v > 0) { S.bpm = v; save(); refreshPanels(); } syncHeader(); });
+$('#offset').addEventListener('change', e => { const v = +e.target.value; if (isFinite(v)) { S.offset = v; save(); } syncHeader(); });
+$('#snap').addEventListener('change', e => { S.snap = +e.target.value; save(); refreshPanels(); });
+for (const [id, key, min] of [['#prepare', 'prepare', 0], ['#shifted', 'shifted', 0], ['#breakAfter', 'breakAfter', 0], ['#defLimit', 'defLimit', 0.5]]) {
+  $(id).addEventListener('change', e => { const v = +e.target.value; if (isFinite(v) && v >= min) { S[key] = v; save(); refreshPanels(); } syncHeader(); });
+}
+$('#metro').addEventListener('change', e => { S.metronome = e.target.checked; save(); });
+$('#cueSound').addEventListener('change', e => { S.cueSound = e.target.checked; save(); });
+$('#vol').addEventListener('input', e => { S.volume = +e.target.value; if (master) master.gain.value = S.volume; save(); });
+
+// ====== ボタン・キー ======
+const ACTS = {
+  new() {
+    if ((S.shifts.length || S.cues.length) && !confirm('今の内容を消して新しく作りますか？')) return;
+    stopPlayback(); loadChartObj({ name: 'ShiftSyncChart' }); rememberHandle(null); seek(0); markDirty();
+  },
+  open: openChart,
+  audio() { $('#fileAudio').click(); },
+  driveAudio: openDriveAudio,
+  saveFile, saveAs,
+  async copyYaml() { await copyText(toAsset()); toast('YAML をクリップボードにコピーしました'); },
+  forgetTarget() { rememberHandle(null); toast('保存先を解除しました'); },
+  undo, redo,
+  help() { $('#helpDlg').showModal(); },
+  driveSave() { saveToDrive(false); },
+  driveOpen: openDriveCharts,
+  driveReload() { loadDriveCharts(true); },
+  play: togglePlay,
+  toStart() { seek(0); S.viewStart = -1; },
+  addShift() { addShift(snapB(bOfT(curTime())), 'Time Shift を追加しました'); },
+  addCue() { addCue(snapB(bOfT(curTime())), 'Sync Action を追加しました'); },
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (b && ACTS[b.dataset.act]) ACTS[b.dataset.act]();
+});
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea') && !(e.ctrlKey && /^[sSo]$/.test(e.key))) return;
+  if (document.querySelector('dialog[open]')) return;
+  const k = e.key, ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && (k === 's' || k === 'S')) { e.preventDefault(); e.shiftKey ? saveAs() : saveFile(); }
+  else if (ctrl && k === 'o') { e.preventDefault(); openChart(); }
+  else if (ctrl && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  else if (ctrl && k === 'y') { e.preventDefault(); redo(); }
+  else if (ctrl && k === 'a') { e.preventDefault(); S.sel = new Set(all().map(n => n.id)); refreshPanels(); }
+  else if (ctrl) return;
+  else if (k === ' ') { e.preventDefault(); togglePlay(); }
+  else if (k === 't' || k === 'T') ACTS.addShift();
+  else if (k === 'y' || k === 'Y') ACTS.addCue();
+  else if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); removeItems([...S.sel]); }
+  else if (k === 'ArrowLeft') { e.preventDefault(); nudge(-1); }
+  else if (k === 'ArrowRight') { e.preventDefault(); nudge(1); }
+  else if (k === 'Home') ACTS.toStart();
+  else if (k === 'Escape') { S.sel.clear(); refreshPanels(); }
+});
+$('#fileChart').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (f && importText(await f.text(), f.name)) rememberHandle(null);
+});
+$('#fileAudio').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) loadAudioFile(f); });
+// ドロップ
+let dropDepth = 0;
+addEventListener('dragenter', e => { e.preventDefault(); dropDepth++; $('#drop').classList.add('show'); });
+addEventListener('dragleave', () => { if (--dropDepth <= 0) { dropDepth = 0; $('#drop').classList.remove('show'); } });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', async e => {
+  e.preventDefault(); dropDepth = 0; $('#drop').classList.remove('show');
+  for (const f of e.dataTransfer.files) {
+    if (/\.(asset|json|ya?ml|txt)$/i.test(f.name)) { if (importText(await f.text(), f.name)) rememberHandle(null); }
+    else loadAudioFile(f);
+  }
+});
+addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+document.querySelectorAll('.edsw a[href]').forEach(a => a.addEventListener('click', e => {
+  if (dirty && !confirm('保存していない変更があります。移動しますか？（内容はこのブラウザに自動保存されています）')) e.preventDefault();
+  else dirty = false;
+}));
+
+// ====== ドライブの音源 ======
+let daFiles = [];
+async function openDriveAudio() {
+  const dlg = $('#daDlg'); dlg.showModal(); $('#daFilter').value = ''; $('#daFilter').focus();
+  daFiles = DriveAudio.peek() || []; renderDriveAudio();
+  $('#daMsg').textContent = '読み込み中…';
+  try { daFiles = await DriveAudio.list(); $('#daMsg').textContent = `${daFiles.length} 曲`; renderDriveAudio(); }
+  catch (e) { $('#daMsg').textContent = '一覧を読めませんでした: ' + e.message; }
+}
+function renderDriveAudio() {
+  const q = DriveAudio.norm($('#daFilter').value);
+  const list = daFiles.filter(f => !q || DriveAudio.norm(f.name).includes(q));
+  $('#daList').innerHTML = list.map(f => `<button data-id="${esc(f.id)}"><span>${esc(DriveAudio.songOf(f.name))}</span><small>${DriveAudio.fmtSize(f.size || 0)}</small></button>`).join('')
+    || '<div class="empty" style="padding:10px 12px">音源がありません</div>';
+}
+$('#daFilter').addEventListener('input', renderDriveAudio);
+$('#daList').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-id]'); if (!b) return;
+  const f = daFiles.find(x => x.id === b.dataset.id); if (!f) return;
+  try {
+    const file = await DriveAudio.load(f, p => { $('#daMsg').textContent = `${f.name} を読み込み中… ${Math.round(p * 100)}%`; });
+    $('#daDlg').close(); await loadAudioFile(file);
+  } catch (err) { $('#daMsg').textContent = '読み込めませんでした: ' + err.message; }
+});
+
+// ====== ドライブに保存する・開く（Apps Script の SHIFTSYNC_FOLDER_ID のフォルダ） ======
+const PART = 'SHIFTSYNC';
+let driveSaving = false, dcFiles = [];
+async function saveToDrive(force) {
+  if (driveSaving) return false;
+  const user = NameGate.get();
+  if (!user) { NameGate.ask(); return false; }
+  if (!/^[\w\-. ]{1,80}$/.test(S.name)) { alert('名前（アセット名）は英数字・_・-・. で 80 文字までにしてください'); return false; }
+  const btn = $('#driveSaveBtn');
+  driveSaving = true; btn.disabled = true; btn.textContent = '☁ 保存中…';
+  let ok = false, retry = false;
+  try {
+    const j = await DriveCharts.save({ part: PART, asset: S.name, content: toAsset(), user, force: !!force });
+    if (j.conflict) {
+      const f = j.file;
+      retry = confirm(`ドライブの「${f.name}」は ${DriveCharts.fmtDate(f.updated)} に${f.savedBy ? ` ${f.savedBy} が` : ''}保存した版（Time Shift ${f.shifts ?? '?'} / Sync Action ${f.cues ?? '?'}）に更新されています。
+
+あなたの内容で上書きしますか？
+（キャンセルして「☁ 開く」で向こうの版を確かめることもできます）`);
+    } else {
+      if (!j.ok) throw new Error(j.error);
+      dirty = false; updateSaveUI();
+      toast(`ドライブに保存しました（${j.file.path}${j.file.name}・Time Shift ${S.shifts.length} / Sync Action ${S.cues.length}）`, 3000);
+      ok = true;
+    }
+  } catch (e) { toast('ドライブに保存できませんでした: ' + e.message + '（Apps Script を更新してデプロイし直したか確認してください）', 5000); }
+  finally { driveSaving = false; btn.disabled = false; btn.textContent = '☁ ドライブに保存'; }
+  if (retry) return saveToDrive(true);
+  return ok;
+}
+async function openDriveCharts() {
+  $('#dcDlg').showModal(); $('#dcFilter').value = ''; $('#dcFilter').focus();
+  dcFiles = (DriveCharts.peek() || []).filter(f => f.part === PART); renderDriveCharts();
+  await loadDriveCharts(false);
+}
+async function loadDriveCharts(force) {
+  $('#dcMsg').textContent = '読み込み中…';
+  try {
+    dcFiles = (await DriveCharts.list(force)).filter(f => f.part === PART);
+    $('#dcMsg').textContent = `${dcFiles.length} 件。開いたものは「☁ ドライブに保存」で同じファイルに上書きされます`;
+    renderDriveCharts();
+  } catch (e) { $('#dcMsg').textContent = '一覧を読めませんでした: ' + e.message; }
+}
+function renderDriveCharts() {
+  const q = $('#dcFilter').value.trim().toLowerCase();
+  const list = dcFiles.filter(f => !q || f.name.toLowerCase().includes(q));
+  $('#dcList').innerHTML = list.map(f => `<button data-id="${esc(f.id)}"><span>${esc(f.asset)}<br><small>Time Shift ${f.shifts ?? '?'} / Sync Action ${f.cues ?? '?'}</small></span>
+    <small>${esc(DriveCharts.fmtDate(f.updated))}${f.savedBy ? ' ' + esc(f.savedBy) : ''}</small></button>`).join('')
+    || '<div class="empty" style="padding:10px 12px">まだ保存されたものがありません</div>';
+}
+$('#dcFilter').addEventListener('input', renderDriveCharts);
+$('#dcList').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-id]'); if (!b) return;
+  const f = dcFiles.find(x => x.id === b.dataset.id); if (!f) return;
+  if (dirty && !confirm('今の内容に未保存の変更があります。破棄してドライブのものを開きますか？')) return;
+  $('#dcMsg').textContent = `「${f.name}」を読み込み中…`;
+  try {
+    const j = await DriveCharts.read(f.id);
+    if (!importText(j.content, j.file.name)) return;
+    rememberHandle(null); // ローカルの保存先は外す（Ctrl+S で別のファイルを上書きしないように）
+    $('#dcDlg').close();
+    toast(`ドライブの「${j.file.name}」を開きました`);
+  } catch (err) { $('#dcMsg').textContent = '開けませんでした: ' + err.message; }
+});
+
+// ====== トースト ======
+let toastTimer = 0;
+function toast(msg, ms = 2200) {
+  const el = $('#toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ====== 起動 ======
+(function init() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) { }
+  if (d && d.ui) {
+    const u = d.ui;
+    for (const k of ['snap', 'prepare', 'shifted', 'breakAfter', 'defLimit', 'pps', 'viewStart', 'time', 'volume']) if (isFinite(+u[k]) && u[k] != null) S[k] = +u[k];
+    S.metronome = !!u.metronome; S.cueSound = u.cueSound !== false;
+  }
+  loadChartObj(d && d.chart ? d.chart : { name: 'ShiftSyncChart' });
+  if (d && d.chart && (S.shifts.length || S.cues.length)) toast('前回の内容を読み込みました');
+  if (window.DriveAudio && DriveAudio.enabled()) $('#driveAudioBtn').hidden = false;
+  if (window.DriveCharts && DriveCharts.enabled()) {
+    $('#driveGrp').hidden = false;
+    const url = (window.CHART_EDITOR_CONFIG || {}).shiftSyncUrl;
+    if (url) { $('#driveFolderLink').href = url; $('#driveFolderLink').hidden = false; }
+  }
+  restoreHandle();
+  resize(); addEventListener('resize', resize);
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

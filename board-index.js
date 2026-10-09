@@ -194,7 +194,8 @@
     return { part: f.part || 'TECH', song: a ? DriveAudio.songOf(a.name) : m ? m[1] : f.asset, difficulty: m ? DIFFS.find(d => d.toLowerCase() === m[2].toLowerCase()) : 'Normal', asset: f.asset };
   }
   const onBoard = f => rows.some(r => r.part === f.part && String(r.asset).toLowerCase() === f.asset.toLowerCase());
-  const orphans = () => chartsErr ? [] : charts.filter(f => !onBoard(f));
+  // Time Shift / Sync Action（SHIFTSYNC）は曲ごとに1つでボードでは管理しないので、ボード外として出さない
+  const orphans = () => chartsErr ? [] : charts.filter(f => f.part !== 'SHIFTSYNC' && !onBoard(f));
   async function moveToTrash(files) {
     if (trashing || !files.length) return;
     const names = files.slice(0, 15).map(f => `・${f.path}${f.name}（${f.notes} ノーツ）`).join('\n') + (files.length > 15 ? `\n…ほか ${files.length - 15} 件` : '');

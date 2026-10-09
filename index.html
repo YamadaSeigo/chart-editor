@@ -7,7 +7,7 @@
 <style>
 :root{
   --bg:#14141b;--panel:#1d1d27;--panel2:#262633;--line:#363648;--text:#e8e8f0;--dim:#9696ad;
-  --tech:#ff66aa;--power:#ff8a3d;
+  --tech:#ff66aa;--power:#ff8a3d;--sync:#b98bff;
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif}
@@ -178,6 +178,13 @@ th{color:var(--dim);font-weight:500;font-size:12px;background:#191922}
     <ul><li>ジャブ / アッパー / フック / 連打</li><li>時刻は拍（beat / rushBeats）</li></ul>
     <div class="recent" id="recentPower"></div>
   </a>
+  <a class="card" href="ShiftSyncEditor.html" style="--c:var(--sync)" data-key="3">
+    <div class="ttl"><h2>SHIFT / SYNC <b>Editor</b></h2><kbd>3</kbd></div>
+    <canvas id="cvSync"></canvas>
+    <p>曲ごとの Time Shift（担当ディスプレイの入れ替え）と Sync Action（二人で腕を上げる）の拍（<code>ShiftSyncChart</code>）。難易度に関係なく1曲に1つ。</p>
+    <ul><li>Time Shift の拍 / Sync Action の拍と制限時間</li><li>時刻は拍（SongData の BPM で秒に換算）</li></ul>
+    <div class="recent" id="recentSync"></div>
+  </a>
 </main>
 <section id="board">
   <div class="bhead">
@@ -229,6 +236,12 @@ function recent(key, el, fmt) {
 }
 recent('ms2026.techChartEditor.v1', document.getElementById('recentTech'), c => `BPM ${c.bpm}`);
 recent('ms2026.powerChartEditor.v1', document.getElementById('recentPower'), c => `BPM ${c.bpm}`);
+(function () {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('ms2026.shiftSyncEditor.v1')); } catch (e) { }
+  const c = d && d.chart;
+  document.getElementById('recentSync').innerHTML = (c ? `前回 <b>${(c.name || '').replace(/[<>&]/g, '')}</b>　Time Shift ${(c.timeShiftBeats || []).length} / Sync ${(c.syncCues || []).length}` : '前回の内容なし') + '<span class="open">開く →</span>';
+})();
 document.addEventListener('keydown', e => {
   const a = document.querySelector(`.card[data-key="${e.key}"]`);
   if (a && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest('input,select,textarea')) location.href = a.href;
@@ -279,7 +292,30 @@ function drawPower(c, w, h, t) {
     }
   });
 }
-const cards = [[document.getElementById('cvTech'), drawTech], [document.getElementById('cvPower'), drawPower]];
+function drawSync(c, w, h, t) {
+  c.clearRect(0, 0, w, h);
+  const span = 16, pps = (w - 20) / span, head = (t * 2) % span, x = s => 10 + s * pps;
+  const ty = h * .3, sy = h * .68;
+  c.fillStyle = 'rgba(255,255,255,.06)';
+  for (let s = 0; s <= span; s++) c.fillRect(x(s), 8, 1, h - 16);
+  // Time Shift（準備の帯 + 線）
+  const at = 9, g = c.createLinearGradient(x(at - 4), 0, x(at), 0);
+  g.addColorStop(0, 'rgba(90,209,255,.05)'); g.addColorStop(1, 'rgba(90,209,255,.4)');
+  c.fillStyle = g; c.fillRect(x(at - 4), ty - 18, 4 * pps, 36);
+  c.fillStyle = '#5ad1ff'; c.fillRect(x(at) - 1, ty - 24, 3, 48);
+  // Sync Action（制限時間の帯）
+  c.fillStyle = 'rgba(185,139,255,.3)'; c.strokeStyle = '#b98bff'; c.lineWidth = 1.5;
+  c.beginPath(); c.roundRect ? c.roundRect(x(2), sy - 16, 4 * pps, 32, 6) : c.rect(x(2), sy - 16, 4 * pps, 32); c.fill(); c.stroke();
+  c.beginPath(); c.roundRect ? c.roundRect(x(12), sy - 16, 3 * pps, 32, 6) : c.rect(x(12), sy - 16, 3 * pps, 32); c.fill(); c.stroke();
+  // 再生位置
+  c.fillStyle = '#ffd24a'; c.fillRect(x(head), 6, 2, h - 12);
+  const inShift = head >= at - 4 && head < at, inSync = (head >= 2 && head < 6) || (head >= 12 && head < 15);
+  c.font = '700 13px Segoe UI, sans-serif'; c.textAlign = 'right';
+  if (inShift) { c.fillStyle = '#5ad1ff'; c.fillText(`TIME CHANGE ${Math.ceil(at - head)}`, w - 12, 22); }
+  else if (inSync) { c.fillStyle = '#b98bff'; c.fillText('SYNC ACTION', w - 12, 22); }
+  c.textAlign = 'left';
+}
+const cards = [[document.getElementById('cvTech'), drawTech], [document.getElementById('cvPower'), drawPower], [document.getElementById('cvSync'), drawSync]];
 let ctxs = [];
 function resize() { ctxs = cards.map(([cv]) => setup(cv)); }
 addEventListener('resize', resize); resize();

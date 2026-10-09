@@ -5,6 +5,7 @@
  * chart-editor のページ（index.html / 各エディタ）から読み書きする。
  * 音源フォルダ（AUDIO_FOLDER_ID）の中の音声ファイルの一覧と中身も返す（ページから音源を直接読み込むため）。
  * ノーツ保存フォルダ（NOTES_FOLDER_ID）に、エディタで作った譜面（.asset）を保存・一覧・読み込みする。
+ * Time Shift / Sync Action の拍（ShiftSyncChart の .asset）は専用のフォルダ（SHIFTSYNC_FOLDER_ID）に保存する（パート名は SHIFTSYNC）。
  * いらなくなった譜面はゴミ箱フォルダ（TRASH_FOLDER_ID）へ移す（Google ドライブのゴミ箱ではなく、普通のフォルダ。消えないので戻せる）。
  * 設定方法は BOARD_SETUP.md を参照。
  */
@@ -15,6 +16,10 @@ const AUDIO_CHUNK = 6 * 1024 * 1024; // 1回で返す大きさ（base64 にす�
 // ノーツ（.asset）を保存する Google ドライブのフォルダ。中に TECH / POWER のフォルダを作って分けて保存する
 const NOTES_FOLDER_ID = '10ugDZ9dDHFa9-Q3CwKn8Z6v_aOJqW1xI';
 const PARTS = ['TECH', 'POWER'];
+// Time Shift / Sync Action（ShiftSyncChart）を保存する Google ドライブのフォルダ。パート名は SHIFTSYNC
+const SHIFTSYNC_FOLDER_ID = '1q7bq6uNX7Kvt0WWNdnjr8Wm3RXxGkgLY';
+const SHIFTSYNC = 'SHIFTSYNC';
+const SAVE_PARTS = PARTS.concat([SHIFTSYNC]);
 // いらなくなった譜面を移すフォルダ
 const TRASH_FOLDER_ID = '1zECm_gPsxV2vmoACMdmRhDINRZzx89m2';
 const SHEET_NAME = 'charts';
@@ -31,10 +36,11 @@ function authorize() {
   const folder = DriveApp.getFolderById(AUDIO_FOLDER_ID);
   const notes = DriveApp.getFolderById(NOTES_FOLDER_ID);
   DriveApp.getFolderById(TRASH_FOLDER_ID);
+  const shiftSync = DriveApp.getFolderById(SHIFTSYNC_FOLDER_ID);
   PARTS.forEach(partFolder_); // 保存先のフォルダを作る（書き込みの権限もここで承認される）
   sheet_();
   Logger.log('OK: 音源フォルダ「' + folder.getName() + '」の音声ファイル ' + listAudio_().length + ' 件 / ' +
-    'ノーツ保存フォルダ「' + notes.getName() + '」の譜面 ' + listCharts_().length + ' 件');
+    'ノーツ保存フォルダ「' + notes.getName() + '」の譜面 ' + listCharts_().length + ' 件（Time Shift / Sync Action のフォルダ「' + shiftSync.getName() + '」を含む）');
 }
 
 function doGet(e) {
@@ -85,16 +91,34 @@ function listAudio_() {
 // ---------------- ノーツ（譜面ファイル） ----------------
 
 function partFolder_(part) {
+  if (part === SHIFTSYNC) return DriveApp.getFolderById(SHIFTSYNC_FOLDER_ID);
   const root = DriveApp.getFolderById(NOTES_FOLDER_ID);
   const it = root.getFoldersByName(part);
   return it.hasNext() ? it.next() : root.createFolder(part);
 }
 
-/** 中身からパートとノーツ数を調べる */
+/** 中身からパートとノーツ数を調べる（SHIFTSYNC は Time Shift と Sync Action の数の合計） */
 function chartInfo_(text) {
+  if (/App\.ShiftSyncChart/.test(text)) {
+    const shifts = shiftBeatCount_(text), cues = (text.match(/^\s*-\s*beat:/gm) || []).length;
+    return { part: SHIFTSYNC, notes: shifts + cues, shifts: shifts, cues: cues };
+  }
   const part = /App\.PowerChart/.test(text) ? 'POWER' : /App\.NotesRecord/.test(text) ? 'TECH' : '';
   const notes = (text.match(part === 'POWER' ? /^\s*-\s*beat:/gm : /^\s*-\s*spawnTime:/gm) || []).length;
   return { part, notes };
+}
+/** ShiftSyncChart の timeShiftBeats の数（「  - 45」の行） */
+function shiftBeatCount_(text) {
+  let inList = false, n = 0;
+  text.split(/\r?\n/).forEach(line => {
+    if (/^  \w+:/.test(line)) inList = /^  timeShiftBeats:\s*$/.test(line);
+    else if (inList && /^\s*-\s*[-\d.eE+]+\s*$/.test(line)) n++;
+  });
+  return n;
+}
+/** 保存先のどれかのフォルダ（ノーツ保存フォルダ・Time Shift / Sync Action のフォルダ）の中のファイルか */
+function inChartFolders_(f) {
+  return inFolder_(f, NOTES_FOLDER_ID) || inFolder_(f, SHIFTSYNC_FOLDER_ID);
 }
 
 // ノーツ数は中身を読まないと分からないので、更新日時ごとにキャッシュする
@@ -108,26 +132,31 @@ function fileInfo_(f, path, known) {
   if (!info) { info = chartInfo_(f.getBlob().getDataAsString()); CacheService.getScriptCache().put(key, JSON.stringify(info), 21600); }
   return {
     id: id, name: f.getName(), asset: f.getName().replace(/\.[^.]+$/, ''), path: path,
-    part: info.part || (PARTS.indexOf(path.split('/')[0]) >= 0 ? path.split('/')[0] : ''), notes: info.notes,
+    part: info.part || (SAVE_PARTS.indexOf(path.split('/')[0]) >= 0 ? path.split('/')[0] : ''), notes: info.notes,
+    shifts: info.shifts, cues: info.cues,
     size: f.getSize(), updated: updated.toISOString(), savedBy: f.getDescription() || '', url: f.getUrl(),
   };
 }
 
-/** ノーツ保存フォルダの譜面ファイル（.asset / .json）の一覧（中のフォルダも2段まで） */
+/** ノーツ保存フォルダと Time Shift / Sync Action のフォルダの譜面ファイル（.asset / .json）の一覧（中のフォルダも2段まで） */
 function listCharts_() {
   // まずファイルを集めて、ノーツ数のキャッシュはまとめて読む（1件ずつ読むより速い）
-  const found = [];
+  const found = [], seen = {};
   const walk = (folder, path, depth) => {
     const files = folder.getFiles();
     while (files.hasNext()) {
       const f = files.next();
-      if (/\.(asset|json)$/i.test(f.getName())) found.push({ f: f, path: path });
+      if (/\.(asset|json)$/i.test(f.getName()) && !seen[f.getId()]) { seen[f.getId()] = true; found.push({ f: f, path: path }); }
     }
     if (depth >= 2) return;
     const subs = folder.getFolders();
-    while (subs.hasNext()) { const sub = subs.next(); if (sub.getId() !== TRASH_FOLDER_ID) walk(sub, path + sub.getName() + '/', depth + 1); }
+    while (subs.hasNext()) {
+      const sub = subs.next();
+      if (sub.getId() !== TRASH_FOLDER_ID && sub.getId() !== SHIFTSYNC_FOLDER_ID) walk(sub, path + sub.getName() + '/', depth + 1);
+    }
   };
   walk(DriveApp.getFolderById(NOTES_FOLDER_ID), '', 0);
+  walk(DriveApp.getFolderById(SHIFTSYNC_FOLDER_ID), SHIFTSYNC + '/', 1);
   let known = {};
   try { known = CacheService.getScriptCache().getAll(found.map(x => infoKey_(x.f.getId(), x.f.getLastUpdated()))); } catch (e) { }
   Object.keys(known).forEach(k => { try { known[k] = JSON.parse(known[k]); } catch (e) { delete known[k]; } });
@@ -137,8 +166,8 @@ function listCharts_() {
 
 function readChart_(id) {
   const f = DriveApp.getFileById(String(id));
-  if (!inFolder_(f, NOTES_FOLDER_ID)) return { ok: false, error: 'ノーツ保存フォルダの外のファイルです' };
-  const parents = f.getParents(), path = parents.hasNext() ? parents.next().getName() + '/' : '';
+  if (!inChartFolders_(f)) return { ok: false, error: 'ノーツ保存フォルダの外のファイルです' };
+  const parents = f.getParents(), path = inFolder_(f, SHIFTSYNC_FOLDER_ID) ? SHIFTSYNC + '/' : parents.hasNext() ? parents.next().getName() + '/' : '';
   return { ok: true, file: fileInfo_(f, path), content: f.getBlob().getDataAsString() };
 }
 
@@ -148,7 +177,7 @@ function readChart_(id) {
  */
 function saveChart_(req, user, rows, sh, now) {
   const part = String(req.part || ''), asset = String(req.asset || '').trim(), content = String(req.content || '');
-  if (PARTS.indexOf(part) < 0) return { ok: false, error: 'パートが不正です' };
+  if (SAVE_PARTS.indexOf(part) < 0) return { ok: false, error: 'パートが不正です' };
   if (!/^[\w\-. ]{1,80}$/.test(asset)) return { ok: false, error: 'アセット名は英数字・_・-・. で 80 文字までにしてください' };
   if (!/MonoBehaviour:/.test(content) || content.length > 5 * 1024 * 1024) return { ok: false, error: '譜面の中身が不正です' };
   const info = chartInfo_(content);
@@ -181,7 +210,7 @@ function trashCharts_(ids, user) {
   let moved = 0;
   (ids || []).slice(0, 100).forEach(id => {
     const f = DriveApp.getFileById(String(id));
-    if (!inFolder_(f, NOTES_FOLDER_ID) || inFolder_(f, TRASH_FOLDER_ID)) return;
+    if (!inChartFolders_(f) || inFolder_(f, TRASH_FOLDER_ID)) return;
     const parents = f.getParents(), from = parents.hasNext() ? parents.next().getName() + '/' : '';
     f.setDescription(`${f.getDescription() || ''}（${stamp} に ${user || '?'} がゴミ箱へ。元の場所: ${from}）`.trim());
     f.moveTo(trash);
