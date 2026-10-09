@@ -7,6 +7,9 @@ window.CHART_EDITOR_CONFIG = {
   // Time Shift / Sync Action（ShiftSyncChart の .asset）を保存するフォルダ（保存するのは Apps Script の SHIFTSYNC_FOLDER_ID。ここはリンク用）
   shiftSyncUrl: 'https://drive.google.com/drive/folders/1q7bq6uNX7Kvt0WWNdnjr8Wm3RXxGkgLY?usp=drive_link',
 
+  // 曲（SongData の組み合わせの JSON）を保存するフォルダ（保存するのは Apps Script の SONG_FOLDER_ID。ここはリンク用）
+  songUrl: 'https://drive.google.com/drive/folders/1sTwoT5fBbZ-SyAMueKsQWn9-Jx9quE24?usp=drive_link',
+
   // いらなくなった譜面を移すゴミ箱フォルダ（移すのは Apps Script の TRASH_FOLDER_ID。ここはリンク用）
   trashUrl: 'https://drive.google.com/drive/folders/1zECm_gPsxV2vmoACMdmRhDINRZzx89m2?usp=drive_link',
 

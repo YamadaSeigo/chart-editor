@@ -7,7 +7,7 @@
 <style>
 :root{
   --bg:#14141b;--panel:#1d1d27;--panel2:#262633;--line:#363648;--text:#e8e8f0;--dim:#9696ad;
-  --tech:#ff66aa;--power:#ff8a3d;--sync:#b98bff;
+  --tech:#ff66aa;--power:#ff8a3d;--sync:#b98bff;--song:#7fd6a0;
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif}
@@ -185,6 +185,13 @@ th{color:var(--dim);font-weight:500;font-size:12px;background:#191922}
     <ul><li>Time Shift の拍 / Sync Action の拍と制限時間</li><li>時刻は拍（SongData の BPM で秒に換算）</li></ul>
     <div class="recent" id="recentSync"></div>
   </a>
+  <a class="card" href="SongEditor.html" style="--c:var(--song)" data-key="4">
+    <div class="ttl"><h2>SONG <b>Editor</b></h2><kbd>4</kbd></div>
+    <canvas id="cvSong"></canvas>
+    <p>ドライブにある難易度ごとの譜面（POWER / TECH × 4）と SHIFT / SYNC、音源を選んで1曲（<code>SongData</code>）にまとめます。</p>
+    <ul><li>曲名・アーティスト・色・BPM・Offset</li><li>Unity の Drive Chart Sync で SongData に取り込む</li></ul>
+    <div class="recent" id="recentSong"></div>
+  </a>
 </main>
 <section id="board">
   <div class="bhead">
@@ -240,6 +247,10 @@ recent('ms2026.powerChartEditor.v1', document.getElementById('recentPower'), c =
   let d = null;
   try { d = JSON.parse(localStorage.getItem('ms2026.shiftSyncEditor.v1')); } catch (e) { }
   const c = d && d.chart;
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem('ms2026.songEditor.v1')); } catch (e) { }
+  const g = s && s.song;
+  document.getElementById('recentSong').innerHTML = (g && (g.name || g.title) ? `前回 <b>${(g.title || g.name).replace(/[<>&]/g, '')}</b>　譜面 ${[...(g.powerCharts || []), ...(g.techCharts || [])].filter(Boolean).length}/8` : '前回の内容なし') + '<span class="open">開く →</span>';
   document.getElementById('recentSync').innerHTML = (c ? `前回 <b>${(c.name || '').replace(/[<>&]/g, '')}</b>　Time Shift ${(c.timeShiftBeats || []).length} / Sync ${(c.syncCues || []).length}` : '前回の内容なし') + '<span class="open">開く →</span>';
 })();
 document.addEventListener('keydown', e => {
@@ -315,7 +326,27 @@ function drawSync(c, w, h, t) {
   else if (inSync) { c.fillStyle = '#b98bff'; c.fillText('SYNC ACTION', w - 12, 22); }
   c.textAlign = 'left';
 }
-const cards = [[document.getElementById('cvTech'), drawTech], [document.getElementById('cvPower'), drawPower], [document.getElementById('cvSync'), drawSync]];
+function drawSong(c, w, h, t) {
+  c.clearRect(0, 0, w, h);
+  const cols = ['#7CF29A', '#6CC8FF', '#FFB347', '#FF5C8A'], parts = [['POWER', '#ff8a3d'], ['TECH', '#ff66aa']];
+  const x0 = 64, cw = (w - x0 - 14) / 4, ch = 30, k = Math.floor(t * 1.5) % 9;
+  c.font = '700 10px Segoe UI, sans-serif'; c.textBaseline = 'middle';
+  parts.forEach(([p, col], r) => {
+    const y = 18 + r * (ch + 10);
+    c.fillStyle = col; c.fillText(p, 12, y + ch / 2);
+    cols.forEach((dc, i) => {
+      const on = r * 4 + i < k;
+      c.fillStyle = on ? dc + '55' : 'rgba(255,255,255,.05)'; c.strokeStyle = on ? dc : 'rgba(255,255,255,.12)';
+      c.beginPath(); c.roundRect ? c.roundRect(x0 + i * cw + 3, y, cw - 6, ch, 6) : c.rect(x0 + i * cw + 3, y, cw - 6, ch); c.fill(); c.stroke();
+      if (on) { c.fillStyle = '#fff'; c.fillText('✓', x0 + i * cw + cw / 2 - 4, y + ch / 2); }
+    });
+  });
+  const y = 18 + 2 * (ch + 10), on = k >= 8;
+  c.fillStyle = '#b98bff'; c.fillText('SHIFT/SYNC', 12, y + ch / 2);
+  c.fillStyle = on ? 'rgba(185,139,255,.35)' : 'rgba(255,255,255,.05)'; c.strokeStyle = on ? '#b98bff' : 'rgba(255,255,255,.12)';
+  c.beginPath(); c.roundRect ? c.roundRect(x0 + 3, y, cw * 4 - 6, ch, 6) : c.rect(x0 + 3, y, cw * 4 - 6, ch); c.fill(); c.stroke();
+}
+const cards = [[document.getElementById('cvTech'), drawTech], [document.getElementById('cvPower'), drawPower], [document.getElementById('cvSync'), drawSync], [document.getElementById('cvSong'), drawSong]];
 let ctxs = [];
 function resize() { ctxs = cards.map(([cv]) => setup(cv)); }
 addEventListener('resize', resize); resize();

@@ -110,3 +110,11 @@ SHIFT / SYNC Editor の「☁ ドライブに保存」は、`Code.gs` の `SHIFT
 - フォルダを追加・変更したら **Code.gs を貼り直して新しいバージョンでデプロイ** し、エディタ上部で `authorize` を **実行** して承認してください
 - デプロイした人がこのフォルダを編集できる必要があります
 - 曲ごとに1つなので譜面ボードには載せません（トップページのチェックでも「ボード外」に出しません）
+
+## 曲（SongData）の保存フォルダ
+
+SONG Editor の「☁ ドライブに保存」は、`Code.gs` の `SONG_FOLDER_ID` のフォルダに `アセット名.json` を保存します（パート名は `SONG`）。
+中身は SongData そのものではなく、使う譜面・SHIFT/SYNC・音源を **アセット名（ファイル名）** で持つ JSON です。
+Unity の **Tools > SyncShift > Drive Chart Sync** で取り込むと、同じ名前の PowerChart / NotesRecord / ShiftSyncChart / AudioClip を探して SongData を作ります。
+
+- フォルダを追加したら Code.gs を貼り直して新しいバージョンでデプロイし、`authorize` を実行してください

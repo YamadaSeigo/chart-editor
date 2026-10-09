@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SONG Editor</title>
+<style>
+:root{
+  --bg:#14141b;--panel:#1d1d27;--panel2:#262633;--line:#363648;--text:#e8e8f0;--dim:#9696ad;
+  --tech:#ff66aa;--power:#ff8a3d;--sync:#b98bff;--song:#7fd6a0;--accent:#7fd6a0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif}
+body{display:flex;flex-direction:column;min-height:100vh}
+input,select,button{font:inherit;color:inherit}
+input[type=text],input[type=number],select{background:#12121a;border:1px solid var(--line);border-radius:6px;padding:4px 8px;min-height:32px;min-width:0}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:transparent}
+input[type=color]{width:46px;height:32px;padding:2px;background:#12121a;border:1px solid var(--line);border-radius:6px}
+button,.btn{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 12px;min-height:32px;cursor:pointer;white-space:nowrap;color:var(--text);text-decoration:none}
+button:hover,.btn:hover{border-color:#6a6a86;background:#30303f}
+button:disabled{opacity:.4;cursor:default}
+button.primary{background:linear-gradient(90deg,var(--song),#5ad1ff);border:0;color:#10101a;font-weight:700}
+button.primary:hover{filter:brightness(1.1)}
+button.ghost{background:none}
+
+header{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:15px;white-space:nowrap}
+.brand b{color:var(--song)}
+.brand small{color:var(--dim);font-weight:400;margin-left:6px;font-size:11px}
+.edsw{display:inline-flex;background:#12121a;border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px}
+.edsw a{color:var(--dim);text-decoration:none;padding:2px 9px;border-radius:6px;font-size:12px;font-weight:600}
+.edsw a:hover{background:#262633;color:var(--text)}
+.edsw a.on{background:var(--accent);color:#10101a}
+.grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.spacer{flex:1}
+.hint{color:#6a6a82;font-size:11.5px}
+.dirty{color:#ffd24a}
+#me{background:none;font-weight:600}
+
+main{flex:1;display:grid;grid-template-columns:280px 1fr;min-height:0}
+#songs{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+#songs .head{display:flex;align-items:center;gap:6px;padding:12px 12px 8px}
+#songs h2{margin:0;font-size:14px;flex:1}
+#songFilter{margin:0 12px 8px}
+#songList{flex:1;overflow-y:auto}
+#songList button{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:100%;border:0;border-left:4px solid transparent;border-radius:0;background:none;padding:8px 12px;min-height:48px;text-align:left}
+#songList button:hover{background:#262633}
+#songList button.on{background:#203028;border-left-color:var(--song)}
+#songList b{font-weight:600}
+#songList small{color:var(--dim);font-size:11.5px}
+#songMsg{padding:8px 12px;color:var(--dim);font-size:12px}
+
+#form{overflow-y:auto;padding:18px 24px 40px;min-width:0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:16px;max-width:1100px}
+section h3{margin:0 0 12px;font-size:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+section h3 .sub{color:var(--dim);font-weight:400;font-size:12px}
+section h3 button{margin-left:auto}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px 16px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld>span{font-size:11.5px;color:var(--dim)}
+.fld.wide{grid-column:1/-1}
+.row{display:flex;gap:6px;align-items:center}
+.row>select,.row>input[type=text]{flex:1}
+.mono{font-family:Consolas,"Cascadia Mono",monospace}
+
+table.grid{width:100%;border-collapse:separate;border-spacing:8px 6px;margin:-6px -8px}
+.grid th{font-size:12px;font-weight:700;text-align:left;padding:0 2px}
+.grid th.part{width:80px}
+.grid th.d-Easy{color:#7CF29A}.grid th.d-Normal{color:#6CC8FF}.grid th.d-Hard{color:#FFB347}.grid th.d-Extra{color:#FF5C8A}
+.grid td{vertical-align:top}
+.ptag{display:inline-block;font-weight:800;font-size:11.5px;letter-spacing:.05em;padding:3px 9px;border-radius:6px;color:#1a0a12}
+.ptag.TECH{background:var(--tech)}.ptag.POWER{background:var(--power)}.ptag.SHIFTSYNC{background:var(--sync)}
+.cell select{width:100%}
+.cell .info{font-size:11px;color:var(--dim);margin-top:3px;min-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell .info a{color:inherit}
+.cell.missing select{border-color:#5a2a33;color:#ff9aa8}
+.st{font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 6px;color:#14141b;margin-right:4px}
+.st.todo{background:#a0a0b8}.st.doing{background:#ffd24a}.st.review{background:#9fcaff}.st.done{background:#8fd9a8}
+
+#checks ul{margin:0;padding-left:18px}
+#checks li{margin:3px 0;font-size:12.5px}
+#checks li.warn{color:#ffd97a}
+#checks li.info{color:#9fcaff}
+#checks .ok{color:#8fd9a8}
+details summary{cursor:pointer;color:var(--dim);font-size:12px}
+pre{background:#12121a;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12px;overflow:auto;max-height:300px}
+
+#toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#2b2b3a;border:1px solid var(--line);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10;max-width:90vw}
+#toast.show{opacity:1}
+#offline{margin:40px auto;max-width:560px;color:var(--dim);text-align:center}
+@media (max-width:800px){main{grid-template-columns:1fr}#songs{max-height:220px;border-right:0;border-bottom:1px solid var(--line)}#form{padding:14px 12px 30px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">SONG <b>Editor</b><small>MS2026</small></div>
+  <nav class="edsw" title="エディタを切り替え（未保存の変更があるときは確認が出ます）"><a href="index.html" title="ホーム（エディタ一覧）">⌂</a><a href="TechChartEditor.html">TECH</a><a href="PowerChartEditor.html">POWER</a><a href="ShiftSyncEditor.html">SHIFT/SYNC</a><a class="on">SONG</a></nav>
+  <div class="grp">
+    <button data-act="new">＋ 新しい曲</button>
+    <button class="primary" data-act="save" id="saveBtn" title="Google ドライブの曲フォルダに「アセット名.json」で保存 (Ctrl+S)">☁ ドライブに保存</button>
+    <span id="saveState" class="hint"></span>
+  </div>
+  <span class="spacer"></span>
+  <button class="ghost" data-act="reload" title="ドライブの譜面・音源・ボードを読み直す">↻ 更新</button>
+  <a class="btn ghost" id="folderLink" target="_blank" rel="noopener" title="曲を保存する Google ドライブのフォルダ" hidden>📁 曲フォルダ</a>
+  <button id="me" title="保存した人として記録する名前。クリックで変更">👤 <span id="meName"></span></button>
+</header>
+<main>
+  <div id="songs">
+    <div class="head"><h2>ドライブの曲</h2><span class="hint" id="songCount"></span></div>
+    <input id="songFilter" type="text" placeholder="曲名で絞り込み" spellcheck="false">
+    <div id="songList"></div>
+    <div id="songMsg"></div>
+  </div>
+  <div id="form">
+    <section>
+      <h3>曲 <span class="sub">SongData の「曲」</span></h3>
+      <div class="fields">
+        <label class="fld wide"><span>音源（ドライブの音源フォルダ）— Unity では同じ名前の AudioClip を探して入れる。なければ BPM の仮のビート</span>
+          <div class="row"><select id="audio"></select><button id="playBtn" title="試聴">▶</button></div></label>
+        <label class="fld"><span>アセット名（SongData のファイル名）</span><input id="name" type="text" class="mono" spellcheck="false" placeholder="SongData_曲名"></label>
+        <label class="fld"><span>曲名（title）</span><input id="title" type="text" spellcheck="false"></label>
+        <label class="fld"><span>アーティスト（artist）</span><input id="artist" type="text" spellcheck="false"></label>
+        <label class="fld"><span>セレクトで使う色（color）</span><input id="color" type="color"></label>
+        <label class="fld"><span>BPM</span><input id="bpm" type="number" step="0.01" min="1"></label>
+        <label class="fld"><span>Offset（秒）— 譜面と音のズレ</span><input id="offset" type="number" step="0.001"></label>
+      </div>
+    </section>
+    <section>
+      <h3>譜面 <span class="sub">ドライブのノーツ保存フォルダから難易度ごとに選ぶ（Easy・Normal・Hard・Extra の順）</span>
+        <button id="autoBtn" title="譜面ボードで曲名が同じ行のアセット名（なければ「TechChart_曲名_Hard」の形の名前）から選ぶ">⚡ 曲名から自動で選ぶ</button></h3>
+      <table class="grid" id="grid"></table>
+    </section>
+    <section>
+      <h3>Time Shift / Sync Action <span class="sub">SHIFT / SYNC Editor でドライブに保存したもの（難易度に関係なく共通）</span></h3>
+      <div class="cell" id="ssCell" style="max-width:420px"></div>
+    </section>
+    <section id="checks"><h3>チェック</h3><div id="checkBody"></div></section>
+    <section>
+      <details><summary>保存される中身（JSON）と Unity での使い方</summary>
+        <p class="hint" style="font-size:12px;line-height:1.7">ドライブの曲は Unity の SongData そのものではなく、どの譜面を使うかを<b>アセット名</b>で持つ JSON です。
+          Unity の <code>Tools &gt; SyncShift &gt; Drive Chart Sync</code> で取り込むと、同じ名前の PowerChart / NotesRecord / ShiftSyncChart（なければドライブから先に取り込む）と
+          AudioClip を探して SongData を作ります（既にあれば中身を更新。GUID は変わらないので SongSelect などからの参照はそのまま）。</p>
+        <pre id="jsonPreview"></pre>
+      </details>
+    </section>
+  </div>
+</main>
+<div id="toast"></div>
+<script src="config.js"></script>
+<script src="name-gate.js"></script>
+<script src="drive-audio.js"></script>
+<script src="drive-charts.js"></script>
+<script>
+'use strict';
+const CFG = window.CHART_EDITOR_CONFIG || {};
+const DIFFS = ['Easy', 'Normal', 'Hard', 'Extra'];
+const PARTS = [['POWER', 'powerCharts', 'PowerChart'], ['TECH', 'techCharts', 'TechChart']];
+const LS_KEY = 'ms2026.songEditor.v1';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const lc = s => String(s || '').toLowerCase();
+
+const blank = () => ({ name: '', title: '', artist: '', color: '#ffffff', bpm: 120, offset: 0, audio: '',
+  powerCharts: ['', '', '', ''], techCharts: ['', '', '', ''], shiftSync: '' });
+let S = blank();
+let charts = [], audios = [], rows = [], openedId = null, dirty = false, saving = false;
+
+// ====== 保存する形 ======
+function toJSONObj() {
+  return {
+    format: 'ms2026-song', version: 1, name: S.name, title: S.title, artist: S.artist, color: S.color,
+    bpm: S.bpm, offset: S.offset, audio: S.audio,
+    powerCharts: S.powerCharts.slice(0, 4), techCharts: S.techCharts.slice(0, 4), shiftSync: S.shiftSync,
+  };
+}
+function loadObj(o) {
+  S = blank();
+  for (const k of ['name', 'title', 'artist', 'audio', 'shiftSync']) if (o[k] != null) S[k] = String(o[k]);
+  if (/^#[0-9a-f]{6}$/i.test(o.color)) S.color = o.color;
+  if (o.bpm > 0) S.bpm = +o.bpm;
+  if (isFinite(+o.offset)) S.offset = +o.offset;
+  for (const [, key] of PARTS) S[key] = DIFFS.map((_, i) => String((o[key] || [])[i] || ''));
+}
+function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify({ song: toJSONObj(), openedId })); } catch (e) { } }
+function markDirty() { dirty = true; persist(); updateSaveState(); render(); }
+function updateSaveState() {
+  const f = openedId && charts.find(x => x.id === openedId);
+  $('#saveState').innerHTML = (f ? `ドライブの <b>${esc(f.name)}</b>` : 'ドライブに未保存') + (dirty ? ' <span class="dirty" title="未保存の変更があります">●</span>' : '');
+  document.title = `${dirty ? '● ' : ''}${S.name ? S.name + ' - ' : ''}SONG Editor`;
+}
+
+// ====== ドライブ・ボードを読む ======
+async function loadAll(force) {
+  $('#songMsg').textContent = '読み込み中…';
+  const tasks = [
+    DriveCharts.list(force).then(x => { charts = x; }),
+    DriveAudio.list(force).then(x => { audios = x; }),
+    fetch(CFG.boardApiUrl).then(r => r.json()).then(j => { rows = j.rows || []; }).catch(() => { }),
+  ];
+  const res = await Promise.allSettled(tasks);
+  const err = res.find(r => r.status === 'rejected');
+  $('#songMsg').textContent = err ? 'ドライブを読めませんでした: ' + err.reason.message : '';
+  render(); renderSongs(); updateSaveState();
+}
+
+// ====== 曲の一覧 ======
+const songFiles = () => charts.filter(f => f.part === 'SONG');
+function renderSongs() {
+  const q = lc($('#songFilter').value).trim();
+  const list = songFiles().filter(f => !q || lc(f.asset + ' ' + (f.title || '')).includes(q));
+  $('#songCount').textContent = `${songFiles().length} 曲`;
+  $('#songList').innerHTML = list.map(f => `<button data-id="${esc(f.id)}" class="${f.id === openedId ? 'on' : ''}">
+      <b>${esc(f.title || f.asset)}</b><small class="mono">${esc(f.asset)}</small>
+      <small>譜面 ${f.charts ?? '?'}/8${f.hasShiftSync ? '・SHIFT/SYNC' : ''}・${esc(DriveCharts.fmtDate(f.updated))}${f.savedBy ? ' ' + esc(f.savedBy) : ''}</small></button>`).join('')
+    || '<div class="hint" style="padding:8px 12px">まだ曲がありません。「＋ 新しい曲」から作ってください</div>';
+}
+$('#songFilter').addEventListener('input', renderSongs);
+$('#songList').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-id]'); if (!b) return;
+  const f = songFiles().find(x => x.id === b.dataset.id); if (!f) return;
+  if (dirty && !confirm('今の曲に未保存の変更があります。破棄して開きますか？')) return;
+  toast(`「${f.asset}」を読み込み中…`);
+  try {
+    const j = await DriveCharts.read(f.id);
+    loadObj(JSON.parse(j.content));
+    if (!S.name) S.name = j.file.asset;
+    openedId = f.id; dirty = false; persist();
+    syncForm(); render(); renderSongs(); updateSaveState();
+    toast(`「${j.file.name}」を開きました`);
+  } catch (err) { toast('開けませんでした: ' + err.message, 4000); }
+});
+
+// ====== フォーム ======
+function syncForm() {
+  for (const k of ['name', 'title', 'artist', 'color', 'bpm', 'offset']) $('#' + k).value = S[k];
+}
+for (const k of ['name', 'title', 'artist', 'color']) {
+  $('#' + k).addEventListener('input', e => { S[k] = e.target.value; if (k === 'name') { openedId = null; } markDirty(); });
+}
+$('#name').addEventListener('change', e => { S.name = e.target.value.trim(); e.target.value = S.name; markDirty(); });
+$('#bpm').addEventListener('change', e => { const v = +e.target.value; if (v > 0) S.bpm = v; syncForm(); markDirty(); });
+$('#offset').addEventListener('change', e => { const v = +e.target.value; if (isFinite(v)) S.offset = v; syncForm(); markDirty(); });
+$('#audio').addEventListener('change', e => {
+  S.audio = e.target.value;
+  const song = DriveAudio.songOf(S.audio);
+  // 音源を選んだら、空いているところは曲名から埋める。ファイル名の最後の「_150」は BPM
+  if (S.audio) {
+    const m = song.match(/^(.*?)[\s_]*_(\d{2,3}(?:\.\d+)?)$/);
+    if (m && +m[2] >= 40 && +m[2] <= 400) S.bpm = +m[2];
+    if (!S.title) S.title = (m ? m[1] : song).trim();
+    if (!S.name) S.name = 'SongData_' + song.replace(/[^\w\-.]+/g, '');
+    syncForm();
+  }
+  stopPreview(); markDirty();
+});
+
+// ドライブの譜面を選ぶ <select>
+const filesOf = part => charts.filter(f => f.part === part);
+function chartOption(f, cur) { return `<option value="${esc(f.asset)}"${lc(f.asset) === lc(cur) ? ' selected' : ''}>${esc(f.asset)}</option>`; }
+function chartSelect(part, cur, attrs, hint) {
+  const files = filesOf(part);
+  // 曲名・難易度に合うものを上に
+  const key = lc(DriveAudio.norm(DriveAudio.songOf(S.audio) || S.title));
+  const score = f => (key && DriveAudio.norm(f.asset).includes(key) ? 2 : 0) + (hint && lc(f.asset).includes(lc(hint)) ? 1 : 0);
+  const sorted = files.slice().sort((a, b) => score(b) - score(a) || a.asset.localeCompare(b.asset));
+  const known = !cur || files.some(f => lc(f.asset) === lc(cur));
+  return `<select ${attrs}><option value="">（なし）</option>${!known ? `<option value="${esc(cur)}" selected>⚠ ${esc(cur)}（ドライブにない）</option>` : ''}${sorted.map(f => chartOption(f, cur)).join('')}</select>`;
+}
+function boardRow(part, asset) { return rows.find(r => r.part === part && lc(r.asset) === lc(asset)); }
+const ST_JP = { todo: '未着手', doing: '作成中', review: '確認待ち', done: '完成' };
+function chartInfo(part, asset) {
+  if (!asset) return '';
+  const f = filesOf(part).find(x => lc(x.asset) === lc(asset));
+  if (!f) return '<span style="color:#ff9aa8">ドライブにありません</span>';
+  const r = boardRow(part, asset);
+  const what = part === 'SHIFTSYNC' ? `Time Shift ${f.shifts ?? '?'} / Sync ${f.cues ?? '?'}` : `${f.notes} ノーツ`;
+  return `${r ? `<span class="st ${esc(r.status)}">${esc(ST_JP[r.status] || r.status)}</span>` : ''}<a href="${esc(f.url)}" target="_blank" rel="noopener" title="ドライブで開く">${what}</a> · ${esc(DriveCharts.fmtDate(f.updated))}${f.savedBy ? ' ' + esc(f.savedBy) : ''}`;
+}
+function render() {
+  // 音源
+  const cur = S.audio, has = !cur || audios.some(a => a.name === cur);
+  $('#audio').innerHTML = `<option value="">（なし）</option>${!has ? `<option selected>${esc(cur)}</option>` : ''}`
+    + audios.map(a => `<option value="${esc(a.name)}"${a.name === cur ? ' selected' : ''}>${esc(a.path || '')}${esc(a.name)}</option>`).join('');
+  // 譜面
+  $('#grid').innerHTML = `<tr><th class="part"></th>${DIFFS.map(d => `<th class="d-${d}">${d}</th>`).join('')}</tr>`
+    + PARTS.map(([part, key]) => `<tr><th class="part"><span class="ptag ${part}">${part}</span></th>${DIFFS.map((d, i) => {
+      const v = S[key][i], missing = v && !filesOf(part).some(f => lc(f.asset) === lc(v));
+      return `<td class="cell${missing || !v ? ' missing' : ''}">${chartSelect(part, v, `data-key="${key}" data-i="${i}"`, d)}<div class="info">${chartInfo(part, v)}</div></td>`;
+    }).join('')}</tr>`).join('');
+  const ssMissing = S.shiftSync && !filesOf('SHIFTSYNC').some(f => lc(f.asset) === lc(S.shiftSync));
+  $('#ssCell').className = 'cell' + (ssMissing ? ' missing' : '');
+  $('#ssCell').innerHTML = chartSelect('SHIFTSYNC', S.shiftSync, 'id="ssSelect"', '') + `<div class="info">${chartInfo('SHIFTSYNC', S.shiftSync)}</div>`;
+  renderChecks();
+  $('#jsonPreview').textContent = JSON.stringify(toJSONObj(), null, 2);
+}
+$('#grid').addEventListener('change', e => {
+  const s = e.target.closest('select[data-key]'); if (!s) return;
+  S[s.dataset.key][+s.dataset.i] = s.value; markDirty();
+});
+$('#ssCell').addEventListener('change', e => { if (e.target.id === 'ssSelect') { S.shiftSync = e.target.value; markDirty(); } });
+
+// ボードの行（曲名が同じ）→ なければ「TechChart_曲名_Hard」の形の名前で、ドライブにある譜面を選ぶ
+function autoPick() {
+  const song = DriveAudio.songOf(S.audio) || S.title;
+  if (!song) { toast('先に音源か曲名を選んでください'); return; }
+  const key = DriveAudio.norm(song);
+  let picked = 0, kept = 0;
+  for (const [part, k, prefix] of PARTS) {
+    DIFFS.forEach((d, i) => {
+      if (S[k][i]) { kept++; return; }
+      const exists = a => filesOf(part).find(f => lc(f.asset) === lc(a));
+      const r = rows.find(r => r.part === part && r.difficulty === d && DriveAudio.norm(r.song) === key && r.asset && exists(r.asset));
+      const f = r ? exists(r.asset) : exists(`${prefix}_${song}_${d}`) || filesOf(part).find(f => DriveAudio.norm(f.asset).includes(key) && lc(f.asset).endsWith('_' + lc(d)));
+      if (f) { S[k][i] = f.asset; picked++; }
+    });
+  }
+  if (!S.shiftSync) {
+    const keys = [key, DriveAudio.norm(S.title)].filter(Boolean);
+    const f = filesOf('SHIFTSYNC').find(f => keys.some(k => DriveAudio.norm(f.asset).includes(k)));
+    if (f) { S.shiftSync = f.asset; picked++; }
+  }
+  markDirty();
+  toast(picked ? `${picked} 個を選びました${kept ? `（選んであった ${kept} 個はそのまま）` : ''}` : `「${song}」に合う譜面がドライブに見つかりませんでした`, 3500);
+}
+$('#autoBtn').addEventListener('click', autoPick);
+
+function renderChecks() {
+  const out = [];
+  if (!S.name) out.push(['warn', 'アセット名が空です']);
+  else if (!/^[\w\-. ]{1,80}$/.test(S.name)) out.push(['warn', 'アセット名は英数字・_・-・. で 80 文字までにしてください']);
+  else {
+    const same = songFiles().find(f => lc(f.asset) === lc(S.name) && f.id !== openedId);
+    if (same) out.push(['warn', `ドライブに同じ名前の曲「${same.name}」があります。保存すると上書きになります`]);
+  }
+  if (!S.title) out.push(['warn', '曲名（title）が空です']);
+  if (!S.audio) out.push(['info', '音源が選ばれていません（Unity では BPM の仮のビートが流れます）']);
+  for (const [part, key] of PARTS) DIFFS.forEach((d, i) => {
+    const v = S[key][i];
+    if (!v) out.push(['warn', `${part} ${d} の譜面が選ばれていません（その難易度になると ${part} のノーツが出ません）`]);
+    else if (!filesOf(part).some(f => lc(f.asset) === lc(v))) out.push(['warn', `${part} ${d}「${v}」がドライブにありません`]);
+    else { const r = boardRow(part, v); if (r && r.status !== 'done') out.push(['info', `${part} ${d}「${v}」はボードで「${ST_JP[r.status] || r.status}」です`]); }
+  });
+  if (!S.shiftSync) out.push(['info', 'Time Shift / Sync Action が選ばれていません（この曲ではどちらも出ません）']);
+  else if (!filesOf('SHIFTSYNC').some(f => lc(f.asset) === lc(S.shiftSync))) out.push(['warn', `Time Shift / Sync Action「${S.shiftSync}」がドライブにありません`]);
+  $('#checkBody').innerHTML = out.length ? `<ul>${out.map(([lv, t]) => `<li class="${lv}">${esc(t)}</li>`).join('')}</ul>` : '<div class="ok">✓ 問題は見つかりませんでした</div>';
+}
+
+// ====== 保存 ======
+async function save(force) {
+  if (saving) return;
+  const user = NameGate.get();
+  if (!user) { NameGate.ask(); return; }
+  if (!/^[\w\-. ]{1,80}$/.test(S.name)) { alert('アセット名は英数字・_・-・. で 80 文字までにしてください'); $('#name').focus(); return; }
+  saving = true; $('#saveBtn').disabled = true; $('#saveBtn').textContent = '☁ 保存中…';
+  let retry = false;
+  try {
+    const j = await DriveCharts.save({ part: 'SONG', asset: S.name, content: JSON.stringify(toJSONObj(), null, 2) + '\n', user, force: !!force });
+    if (j.conflict) {
+      const f = j.file;
+      retry = confirm(`ドライブの「${f.name}」は ${DriveCharts.fmtDate(f.updated)} に${f.savedBy ? ` ${f.savedBy} が` : ''}保存した版に更新されています。\n\nあなたの内容で上書きしますか？`);
+    } else {
+      if (!j.ok) throw new Error(j.error);
+      openedId = j.file.id; dirty = false; persist();
+      charts = await DriveCharts.list(true).catch(() => charts);
+      renderSongs(); updateSaveState(); render();
+      toast(`ドライブに保存しました（${j.file.path}${j.file.name}）`, 3000);
+    }
+  } catch (e) { toast('ドライブに保存できませんでした: ' + e.message + '（Apps Script を更新してデプロイし直したか確認してください）', 5000); }
+  finally { saving = false; $('#saveBtn').disabled = false; $('#saveBtn').textContent = '☁ ドライブに保存'; }
+  if (retry) return save(true);
+}
+
+// ====== 試聴 ======
+let audioEl = null;
+function stopPreview() { if (audioEl) { audioEl.pause(); URL.revokeObjectURL(audioEl.src); audioEl = null; } $('#playBtn').textContent = '▶'; }
+$('#playBtn').addEventListener('click', async e => {
+  e.preventDefault();
+  if (audioEl) { stopPreview(); return; }
+  const f = audios.find(a => a.name === S.audio);
+  if (!f) { toast('音源を選んでください'); return; }
+  $('#playBtn').textContent = '…';
+  try {
+    const file = await DriveAudio.load(f, p => { $('#playBtn').textContent = Math.round(p * 100) + '%'; });
+    audioEl = new Audio(URL.createObjectURL(file)); audioEl.volume = 0.7; audioEl.play();
+    audioEl.onended = stopPreview;
+    $('#playBtn').textContent = '■';
+  } catch (err) { stopPreview(); toast('音源を読めませんでした: ' + err.message, 4000); }
+});
+
+// ====== ボタン・キー ======
+const ACTS = {
+  new() {
+    if (dirty && !confirm('今の曲に未保存の変更があります。破棄して新しい曲を作りますか？')) return;
+    S = blank(); openedId = null; dirty = false; persist(); stopPreview();
+    syncForm(); render(); renderSongs(); updateSaveState(); $('#audio').focus();
+  },
+  save() { save(false); },
+  reload() { loadAll(true); },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && ACTS[b.dataset.act]) ACTS[b.dataset.act](); });
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); save(false); }
+});
+addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+document.querySelectorAll('.edsw a[href]').forEach(a => a.addEventListener('click', e => {
+  if (dirty && !confirm('保存していない変更があります。移動しますか？（内容はこのブラウザに残っています）')) e.preventDefault();
+  else dirty = false;
+}));
+const showMe = () => { $('#meName').textContent = NameGate.get() || '名前未設定'; };
+$('#me').addEventListener('click', () => NameGate.ask(true));
+NameGate.onChange(showMe);
+
+let toastTimer = 0;
+function toast(msg, ms = 2200) {
+  const el = $('#toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ====== 起動 ======
+(function init() {
+  showMe();
+  if (CFG.songUrl) { $('#folderLink').href = CFG.songUrl; $('#folderLink').hidden = false; }
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) { }
+  if (d && d.song) { loadObj(d.song); openedId = d.openedId || null; }
+  if (!DriveCharts.enabled()) {
+    $('#form').innerHTML = '<p id="offline">譜面ボードの Apps Script（config.js の boardApiUrl）が設定されていないので、ドライブの譜面を選べません。BOARD_SETUP.md を見て設定してください。</p>';
+    return;
+  }
+  charts = DriveCharts.peek() || []; audios = DriveAudio.peek() || [];
+  syncForm(); render(); renderSongs(); updateSaveState();
+  loadAll(false);
+})();
+</script>
+</body>
+</html>
