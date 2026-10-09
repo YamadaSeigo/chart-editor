@@ -63,33 +63,70 @@ button.icon{width:38px;padding:0;font-size:16px}
 .chips{display:inline-flex;gap:5px;flex-wrap:wrap}
 .chips button,button.chip{min-height:32px;padding:5px 13px;border-radius:16px;background:none;font-size:12.5px;color:#c8c8d8}
 .chips button.on,button.chip.on{background:#3b2c30;border-color:var(--power);color:#fff;font-weight:600}
+.chips button[data-v].st-todo.on,.chips button[data-v].st-doing.on,.chips button[data-v].st-review.on,.chips button[data-v].st-done.on{background:var(--st);border-color:var(--st);color:#14141b}
 #bmsg{padding:14px 20px;color:var(--dim);font-size:13px}
 #bmsg a{color:var(--power)}
-/* ---- ボードの行（カード） ---- */
-#blist{display:flex;flex-direction:column}
-.crow{--c:var(--line);position:relative;display:grid;grid-template-columns:minmax(250px,1.25fr) auto minmax(330px,1.75fr) auto;grid-template-areas:"main status fields actions";gap:12px 20px;align-items:center;padding:14px 20px 14px 26px;border-bottom:1px solid #26263a}
-.crow::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:5px;border-radius:0 4px 4px 0;background:var(--c)}
-.crow.TECH{--c:var(--tech)}.crow.POWER{--c:var(--power)}
-.crow:hover{background:#20202b}
-.crow.done .c-main{opacity:.7}
-.crow.add{background:#1b1b26;grid-template-areas:"main status fields actions"}
-.c-main{grid-area:main;min-width:0}
-.c-status{grid-area:status}
-.c-fields{grid-area:fields;display:grid;grid-template-columns:minmax(185px,1.1fr) 150px minmax(140px,1.3fr);gap:10px;align-items:end}
-.c-actions{grid-area:actions;display:flex;gap:8px;align-items:center;justify-content:flex-end}
-.c-title{display:flex;align-items:center;gap:8px;min-width:0}
-.part{flex:none;font-weight:800;font-size:11.5px;letter-spacing:.05em;padding:3px 9px;border-radius:6px;color:#1a0a12;background:var(--c)}
-.part.TECH{background:var(--tech)}.part.POWER{background:var(--power)}
-select.part{border:0;min-height:30px;padding:3px 6px;font-size:12px}
-.c-song{flex:1;min-width:80px;font-size:15.5px;font-weight:600;background:transparent!important;border-color:transparent!important}
-.c-song:hover{border-color:var(--line)!important;background:#12121a!important}
-.c-song:focus{background:#12121a!important}
-select.diff{flex:none;min-height:30px;padding:3px 8px;border:0;border-radius:6px;font-size:12px;font-weight:700;color:#14141b;cursor:pointer}
-select.diff.Easy{background:#7fd6a0}select.diff.Normal{background:#7fb4ff}select.diff.Hard{background:#ffb070}select.diff.Extra{background:#d79bff}
+/* ---- ボード（曲ごとのカード） ---- */
+.st-todo{--st:#a0a0b8}.st-doing{--st:#ffd24a}.st-review{--st:#9fcaff}.st-done{--st:#8fd9a8}
+#bprog{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line)}
+.pbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#12121a;flex:1;min-width:160px}
+.pbar i{display:block;height:100%;background:var(--st)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend span::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--st)}
+.legend b{color:var(--text);font-weight:600}
+#fSearch{width:200px}
+.bfilter .sp{flex:1}
+#blist{display:flex;flex-direction:column;gap:12px;padding:14px 16px 18px}
+.song{background:#191922;border:1px solid #2c2c3c;border-radius:12px;overflow:hidden}
+.song.complete{border-color:#2f4a3a}
+.shead{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding:10px 14px;cursor:pointer;user-select:none}
+.shead:hover{background:#1e1e29}
+.fold{flex:none;width:18px;color:var(--dim);font-size:12px;transition:transform .15s}
+.song.expanded .fold{transform:rotate(90deg)}
+.sname{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1 1 220px}
+.sname h3{margin:0;font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sname .hasaudio{color:#8fd9a8;font-size:13px}
+.sname .noaudio{color:#6a6a82;font-size:11.5px}
+.sprog{display:flex;align-items:center;gap:10px;flex:0 1 300px;min-width:160px}
+.sprog .pbar{height:8px}
+.sprog .cnt{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sprog .cnt b{color:var(--text)}
+.song.complete .sprog .cnt b{color:#8fd9a8}
+.sact{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sact .btn,.sact button{min-height:30px;padding:4px 11px;font-size:12px}
+.mini{display:flex;gap:3px}
+.mini i{width:9px;height:9px;border-radius:2px;background:var(--st,#2a2a38)}
+.mini i.none{background:none;border:1px dashed #3a3a4c}
+.sbody{padding:2px 14px 14px}
+.mx{display:grid;grid-template-columns:86px repeat(4,minmax(0,1fr));gap:6px}
+.mx .h{font-size:11.5px;font-weight:700;padding:0 2px 2px}
+.mx .h.Easy{color:#7CF29A}.mx .h.Normal{color:#6CC8FF}.mx .h.Hard{color:#FFB347}.mx .h.Extra{color:#FF5C8A}
+.mx .lab{display:flex;align-items:center}
+.ptag{display:inline-block;font-weight:800;font-size:11px;letter-spacing:.04em;padding:3px 8px;border-radius:6px;color:#1a0a12;white-space:nowrap}
+.ptag.TECH{background:var(--tech)}.ptag.POWER{background:var(--power)}.ptag.SHIFTSYNC{background:var(--sync)}.ptag.SONG{background:var(--song)}
+.mx .wide{grid-column:span 2}
+.tile{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:left;min-height:64px;padding:7px 10px 7px 13px;border-radius:9px;border:1px solid #30303f;background:#1f1f2a;color:var(--text);cursor:pointer;overflow:hidden;transition:transform .1s,border-color .1s,opacity .15s,background .1s}
+.tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--st)}
+.tile:hover{border-color:#6a6a86;background:#262633;transform:translateY(-1px)}
+.tile.st-done{background:#1b2a22}.tile.st-review{background:#1b2533}.tile.st-doing{background:#2c2818}
+.tile .t1{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--st)}
+.tile .t1 .cl{margin-left:auto;font-weight:500;color:#8fd9a8;font-size:11px}
+.tile .t1 .cl.no{color:#6a6a82}
+.tile .t1 .cl.zero{color:#ff9aa8}
+.tile .t2{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .t2.none{color:#6a6a82}
+.tile .t3{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .t3.over{color:#ff9aa8;font-weight:600}
+.tile.editing{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a inset}
+.tile.editing .t3{color:#ffd24a;font-weight:600}
+.tile.mine .t2::after{content:" ★";color:#ffd24a}
+.tile.add{border-style:dashed;background:none;align-items:center;justify-content:center;color:#6a6a82;font-size:12px}
+.tile.add::before{display:none}
+.tile.add:hover{color:var(--text)}
+.tile.dim{opacity:.28}
+.empty{padding:22px 20px;color:var(--dim)}
 .hasaudio{flex:none;color:#8fd9a8;font-size:14px;cursor:default}
-.c-meta{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;min-width:0}
-.c-asset{font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;width:250px;max-width:100%;min-height:30px!important;color:var(--dim);background:transparent!important;border-color:transparent!important}
-.c-asset:hover,.c-asset:focus{border-color:var(--line)!important;background:#12121a!important;color:var(--text)}
 .dv{display:inline-flex;align-items:center;gap:5px;font-size:12px;border-radius:12px;padding:3px 10px;text-decoration:none;white-space:nowrap}
 a.dv{color:#8fd9a8;background:#1d3328}
 a.dv:hover{background:#25402f}
@@ -98,8 +135,7 @@ span.dv{color:#6a6a82;background:#1a1a24}
 .seg{display:inline-flex;background:#12121a;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
 .seg button{min-height:34px;padding:5px 12px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12.5px;font-weight:600}
 .seg button:hover{background:#262633;color:var(--text)}
-.seg button.on{color:#14141b}
-.seg button.on.todo{background:#a0a0b8}.seg button.on.doing{background:#ffd24a}.seg button.on.review{background:#9fcaff}.seg button.on.done{background:#8fd9a8}
+.seg button.on{color:#14141b;background:var(--st)}
 .fld{display:flex;flex-direction:column;gap:3px;min-width:0}
 .fld>span{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px}
 .fld input{width:100%}
@@ -114,6 +150,22 @@ span.dv{color:#6a6a82;background:#1a1a24}
 .upd{color:#6a6a82;font-size:11.5px;white-space:nowrap}
 .dim{color:#6a6a82;font-size:12px}
 .recent .live{margin-left:4px}
+/* ---- 詳細・追加のダイアログ ---- */
+dialog.bd{width:560px;max-width:94vw;padding:0;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+dialog.bd::backdrop{background:rgba(8,8,14,.7)}
+.bd .dh{display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+.bd .dh h3{margin:0;font-size:16px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd .db{display:flex;flex-direction:column;gap:14px;padding:16px 20px}
+.bd .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bd .df{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 20px 16px;border-top:1px solid var(--line)}
+.bd .df .sp{flex:1}
+.bd .info{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bd .mono{font-family:Consolas,"Cascadia Mono",monospace;font-size:12.5px}
+.pick{display:grid;grid-template-columns:86px repeat(4,1fr);gap:6px;align-items:center}
+.pick label{display:flex;align-items:center;justify-content:center;gap:5px;min-height:34px;border:1px solid var(--line);border-radius:8px;font-size:12px;cursor:pointer}
+.pick label:has(input:checked){background:#25402f;border-color:#8fd9a8}
+.pick label.have{opacity:.45;cursor:default;border-style:dashed}
+.pick .wide{grid-column:span 2}
 /* ---- ボードとドライブのチェック ---- */
 #bcheck{border-bottom:1px solid var(--line);background:#1a1a22}
 .chead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 20px}
@@ -143,16 +195,14 @@ th{color:var(--dim);font-weight:500;font-size:12px;background:#191922}
 .au-stat .todo{background:#a0a0b8}.au-stat .doing{background:#ffd24a}.au-stat .review{background:#9fcaff}.au-stat .done{background:#8fd9a8}
 .au-new{color:#ffb38a;font-size:12px;font-weight:700}
 .au-play{width:40px;padding:0}
-@media (max-width:1250px){
-  .crow{grid-template-columns:1fr auto;grid-template-areas:"main actions" "status status" "fields fields"}
-  .crow.add{grid-template-areas:"main main" "status status" "fields fields" "actions actions"}
-}
-@media (max-width:640px){
-  .c-fields{grid-template-columns:1fr 1fr}
-  .c-fields .fld.note{grid-column:1/-1}
+@media (max-width:760px){
+  .mx,.pick{grid-template-columns:62px repeat(4,minmax(0,1fr))}
+  .tile{padding:6px 7px 6px 10px;min-height:52px}.tile .t3,.tile .t1 .cl{display:none}
+  .shead{gap:8px 10px}.sprog{flex-basis:100%}
   .seg{display:flex}.seg button{flex:1;padding:5px 6px}
+  .bd .grid2{grid-template-columns:1fr}
 }
-@media (max-width:600px){header,.lead,main,footer{padding-left:16px;padding-right:16px}#board,#audio{margin:0 12px 20px}.bhead,.bfilter{padding-left:14px;padding-right:14px}.crow{padding-left:18px;padding-right:14px}}
+@media (max-width:600px){header,.lead,main,footer{padding-left:16px;padding-right:16px}#board,#audio{margin:0 12px 20px}.bhead,.bfilter,#bprog{padding-left:14px;padding-right:14px}#blist{padding:12px 8px}.sbody{padding:2px 8px 10px}#fSearch{width:100%}}
 </style>
 </head>
 <body>
@@ -197,17 +247,23 @@ th{color:var(--dim);font-weight:500;font-size:12px;background:#191922}
   <div class="bhead">
     <div class="btitle"><h2>譜面ボード</h2><span class="sum" id="bsum"></span></div>
     <button class="ghost" id="bReload" title="ボードとドライブの最新の状態を読み込む">↻ 更新</button>
-    <button class="primary" id="bAdd">＋ 作る譜面を追加</button>
+    <button class="primary" id="bAdd" title="曲と、作る譜面（POWER / TECH の難易度・SHIFT/SYNC・SONG）をまとめて追加">＋ 曲・譜面を追加</button>
   </div>
+  <div id="bprog" hidden></div>
   <div class="bfilter">
-    <div class="fgroup"><span>パート</span><div class="chips" id="fPart"><button data-v="">すべて</button><button data-v="TECH">TECH</button><button data-v="POWER">POWER</button></div></div>
-    <div class="fgroup"><span>状態</span><div class="chips" id="fStatus"><button data-v="open">未完成</button><button data-v="todo">未着手</button><button data-v="doing">作成中</button><button data-v="review">確認待ち</button><button data-v="done">完成</button><button data-v="">すべて</button></div></div>
-    <button class="chip" id="fMine" title="担当が「あなたの名前」の譜面だけ">自分の担当だけ</button>
+    <input type="search" id="fSearch" placeholder="曲名・担当で絞り込み" spellcheck="false">
+    <div class="fgroup"><span>曲</span><div class="chips" id="fSong"><button data-v="open">未完成</button><button data-v="done">完成</button><button data-v="">すべて</button></div></div>
+    <div class="fgroup" title="選んだ状態のマスだけを目立たせる"><span>強調</span><div class="chips" id="fStatus"><button data-v="">なし</button><button data-v="todo" class="st-todo">未着手</button><button data-v="doing" class="st-doing">作成中</button><button data-v="review" class="st-review">確認待ち</button><button data-v="done" class="st-done">完成</button></div></div>
+    <button class="chip" id="fMine" title="担当が「あなたの名前」の譜面がある曲だけ（自分のマスに ★）">自分の担当</button>
+    <span class="sp"></span>
+    <button class="ghost" id="bFold" title="すべての曲を折りたたむ / 広げる">すべて広げる</button>
   </div>
   <div id="bmsg"></div>
   <div id="bcheck" hidden></div>
   <div id="blist"></div>
 </section>
+<dialog class="bd" id="rowDlg"></dialog>
+<dialog class="bd" id="addDlg"></dialog>
 <section id="audio">
   <div class="bhead">
     <div class="btitle"><h2>音源</h2><span class="sum" id="asum"></span></div>
@@ -219,6 +275,9 @@ th{color:var(--dim);font-weight:500;font-size:12px;background:#191922}
       <label><input type="checkbox" class="aopt" data-diff="Normal" checked>Normal</label>
       <label><input type="checkbox" class="aopt" data-diff="Hard" checked>Hard</label>
       <label><input type="checkbox" class="aopt" data-diff="Extra" checked>Extra</label>
+      <span class="dim">/</span>
+      <label><input type="checkbox" class="aopt" data-part="SHIFTSYNC" checked>SHIFT/SYNC</label>
+      <label><input type="checkbox" class="aopt" data-part="SONG" checked>SONG</label>
     </span>
     <button class="ghost" id="aReload" title="音源フォルダを読み直す">↻ 更新</button>
     <button class="primary" id="aAddAll">未登録をすべてボードに追加</button>

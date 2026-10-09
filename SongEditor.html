@@ -151,6 +151,7 @@ pre{background:#12121a;border:1px solid var(--line);border-radius:8px;padding:10
 <script src="name-gate.js"></script>
 <script src="drive-audio.js"></script>
 <script src="drive-charts.js"></script>
+<script src="board-beat.js"></script>
 <script>
 'use strict';
 const CFG = window.CHART_EDITOR_CONFIG || {};
@@ -219,6 +220,9 @@ $('#songFilter').addEventListener('input', renderSongs);
 $('#songList').addEventListener('click', async e => {
   const b = e.target.closest('button[data-id]'); if (!b) return;
   const f = songFiles().find(x => x.id === b.dataset.id); if (!f) return;
+  openSong(f);
+});
+async function openSong(f) {
   if (dirty && !confirm('今の曲に未保存の変更があります。破棄して開きますか？')) return;
   toast(`「${f.asset}」を読み込み中…`);
   try {
@@ -229,7 +233,29 @@ $('#songList').addEventListener('click', async e => {
     syncForm(); render(); renderSongs(); updateSaveState();
     toast(`「${j.file.name}」を開きました`);
   } catch (err) { toast('開けませんでした: ' + err.message, 4000); }
-});
+}
+
+// ボードの「開く」から来たとき（#open=アセット名）：ドライブにあれば開き、なければボードの曲名から新しく作る
+async function openFromHash() {
+  const m = location.hash.match(/^#open=(.+)$/); if (!m) return;
+  const want = decodeURIComponent(m[1]);
+  history.replaceState(null, '', location.pathname + location.search);
+  if (lc(want) === lc(S.name)) return;
+  const f = songFiles().find(x => lc(x.asset) === lc(want));
+  if (f) { openSong(f); return; }
+  if (dirty && !confirm('今の曲に未保存の変更があります。破棄して新しい曲を作りますか？')) return;
+  const row = rows.find(r => r.part === 'SONG' && lc(r.asset) === lc(want));
+  S = blank(); S.name = want; openedId = null; stopPreview();
+  if (row) {
+    const a = DriveAudio.find(audios, row.song);
+    if (a) { S.audio = a.name; const m2 = DriveAudio.songOf(a.name).match(/_(\d{2,3}(?:\.\d+)?)$/); if (m2) S.bpm = +m2[1]; }
+    S.title = row.song.replace(/[\s_]*_\d{2,3}(?:\.\d+)?$/, '').trim() || row.song;
+  }
+  syncForm(); markDirty(); renderSongs();
+  autoPick();
+  toast(`新しい曲「${want}」を作りました。譜面を選んで「☁ ドライブに保存」してください`, 4000);
+}
+addEventListener('hashchange', openFromHash);
 
 // ====== フォーム ======
 function syncForm() {
@@ -430,7 +456,8 @@ function toast(msg, ms = 2200) {
   }
   charts = DriveCharts.peek() || []; audios = DriveAudio.peek() || [];
   syncForm(); render(); renderSongs(); updateSaveState();
-  loadAll(false);
+  loadAll(false).then(openFromHash);
+  if (window.BoardBeat) BoardBeat({ part: 'SONG', asset: () => S.name });
 })();
 </script>
 </body>

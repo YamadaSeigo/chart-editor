@@ -215,6 +215,7 @@ dialog td{white-space:normal;padding:2px 10px 2px 0}
 <script src="name-gate.js"></script>
 <script src="drive-audio.js"></script>
 <script src="drive-charts.js"></script>
+<script src="board-beat.js"></script>
 <script>
 'use strict';
 // ====== ゲーム側の定数（ShiftSyncChart / TimeShiftDirector / SyncAction に合わせる） ======
@@ -1065,7 +1066,40 @@ function toast(msg, ms = 2200) {
   restoreHandle();
   resize(); addEventListener('resize', resize);
   requestAnimationFrame(draw);
+  if (window.BoardBeat) BoardBeat({ part: PART, asset: () => S.name });
+  setTimeout(openFromHash, 300);
 })();
+
+// ボードの「開く」から来たとき（#open=アセット名）：ドライブにあれば開き、なければその名前で新しく作る。曲の音源も読み込む
+async function openFromHash() {
+  const m = location.hash.match(/^#open=(.+)$/); if (!m) return;
+  const want = decodeURIComponent(m[1]);
+  history.replaceState(null, '', location.pathname + location.search);
+  if (want.toLowerCase() !== S.name.toLowerCase() && window.DriveCharts && DriveCharts.enabled()) {
+    try {
+      const find = list => (list || []).find(f => f.part === PART && f.asset.toLowerCase() === want.toLowerCase());
+      const f = find(DriveCharts.peek()) || find(await DriveCharts.list(true));
+      if (f && (!dirty || confirm('今の内容に未保存の変更があります。破棄してドライブのものを開きますか？'))) {
+        const j = await DriveCharts.read(f.id);
+        if (importText(j.content, j.file.name)) rememberHandle(null);
+      } else if (!f && confirm(`「${want}」はまだドライブに保存されていません。この名前で新しく作りますか？${dirty ? '\n（今の内容は未保存の変更ごと閉じます）' : ''}`)) {
+        stopPlayback(); loadChartObj({ name: want }); rememberHandle(null); seek(0); markDirty();
+        toast(`「${want}」を作りました。できたら「☁ ドライブに保存」で保存してください`, 3500);
+      }
+    } catch (e) { toast('ドライブを読めませんでした: ' + e.message, 4000); }
+  }
+  // ボードの行の曲名から音源を探して読み込む
+  if (buffer || !window.DriveAudio || !DriveAudio.enabled()) return;
+  let rows = [];
+  try { rows = JSON.parse(localStorage.getItem('ms2026.chartBoard.rows')) || []; } catch (e) { }
+  const row = rows.find(r => r.part === PART && String(r.asset).toLowerCase() === want.toLowerCase());
+  if (!row) return;
+  try {
+    const a = DriveAudio.find(DriveAudio.peek() || await DriveAudio.list(), row.song);
+    if (a) loadAudioFile(await DriveAudio.load(a, p => { $('#audioName').textContent = `♪ ${a.name} を読み込み中… ${Math.round(p * 100)}%`; }));
+  } catch (e) { /* 音源は手で選べる */ }
+}
+addEventListener('hashchange', openFromHash);
 </script>
 </body>
 </html>
