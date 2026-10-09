@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>使い方 - MS2026 Chart Editor</title>
+<style>
+:root{
+  --bg:#14141b;--panel:#1d1d27;--panel2:#262633;--line:#363648;--text:#e8e8f0;--dim:#9696ad;
+  --tech:#ff66aa;--power:#ff8a3d;--sync:#b98bff;--song:#7fd6a0;--accent:#5ad1ff;
+  --todo:#a0a0b8;--doing:#ffd24a;--review:#9fcaff;--done:#8fd9a8;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.8 "Segoe UI","Yu Gothic UI",Meiryo,sans-serif}
+a{color:var(--accent)}
+code{font-family:Consolas,"Cascadia Mono",monospace;font-size:.88em;background:#12121a;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#d8d8e8}
+kbd{font-family:inherit;font-size:.85em;background:#12121a;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 7px;color:#d8d8e8;white-space:nowrap}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:26px 18px 30px 24px;border-right:1px solid var(--line)}
+nav.toc .home{display:inline-flex;align-items:center;gap:6px;color:var(--dim);text-decoration:none;font-size:13px;margin-bottom:14px}
+nav.toc .home:hover{color:var(--text)}
+nav.toc h1{margin:0 0 16px;font-size:18px;line-height:1.4}
+nav.toc h1 b{background:linear-gradient(90deg,var(--tech),var(--power));-webkit-background-clip:text;background-clip:text;color:transparent}
+nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:t}
+nav.toc li a{display:block;padding:5px 10px;margin:1px 0;border-radius:7px;color:#c8c8d8;text-decoration:none;font-size:13.5px;line-height:1.5}
+nav.toc li a:hover{background:var(--panel2);color:#fff}
+nav.toc li a.on{background:#203040;color:#fff}
+nav.toc li.sub a{padding-left:24px;font-size:13px;color:var(--dim)}
+nav.toc li.sub a.on{color:#fff}
+main{padding:30px 44px 80px;min-width:0}
+section{padding-bottom:18px;margin-bottom:34px;border-bottom:1px solid #26263a}
+section:last-child{border-bottom:0}
+h2{font-size:24px;margin:8px 0 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h2 .tag{font-size:12px;font-weight:800;letter-spacing:.05em;padding:3px 10px;border-radius:7px;color:#14141b}
+h3{font-size:17px;margin:26px 0 8px;color:#fff}
+p,li{color:#d4d4e2}
+.lead{font-size:16px;color:#c8c8d8}
+.note,.warn,.tip{border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px}
+.note{background:#1a2533;border:1px solid #2c4560}
+.warn{background:#33291a;border:1px solid #5c4a24}
+.tip{background:#1d3328;border:1px solid #2f5a42}
+.note b:first-child,.warn b:first-child,.tip b:first-child{margin-right:6px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
+th,td{padding:8px 12px;border-bottom:1px solid #2a2a38;text-align:left;vertical-align:top}
+th{color:var(--dim);font-weight:500;font-size:12.5px;background:#191922}
+td:first-child{white-space:nowrap}
+.tw{overflow-x:auto}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+ol.steps>li{position:relative;padding:4px 0 10px 44px;counter-increment:s}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:4px;width:30px;height:30px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff}
+
+/* 全体の流れ */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}
+.flow div{position:relative;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--c);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.6}
+.flow div>b:first-of-type{display:block;font-size:14.5px;color:#fff;margin-bottom:4px}
+.flow div>b+b,.flow div>b~b{color:#fff}
+.flow small{color:var(--dim)}
+.flow .n{position:absolute;top:8px;right:10px;color:var(--c);font-weight:800;font-size:13px}
+
+/* エディタのカード */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}
+.cards a{display:block;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;padding:12px 16px;text-decoration:none;color:inherit}
+.cards a:hover{border-color:var(--c);background:#22222e}
+.cards b{color:var(--c);font-size:15px}
+.cards span{display:block;color:var(--dim);font-size:13px;line-height:1.6;margin-top:2px}
+
+/* 状態の色・マスの見本（ボードと同じ見た目） */
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.legend span{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 12px}
+.legend span::before{content:"";width:12px;height:12px;border-radius:3px;background:var(--st)}
+.st-todo{--st:var(--todo)}.st-doing{--st:var(--doing)}.st-review{--st:var(--review)}.st-done{--st:var(--done)}
+.demo{background:#191922;border:1px solid #2c2c3c;border-radius:12px;padding:12px 14px;margin:14px 0;overflow-x:auto}
+.demo .sh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.demo .sh h4{margin:0;font-size:16px}
+.demo .sh .ok{color:#8fd9a8;font-size:13px}
+.pbar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:#12121a;width:220px}
+.pbar i{display:block;height:100%;background:var(--st)}
+.mx{display:grid;grid-template-columns:80px repeat(4,minmax(110px,1fr));gap:6px;min-width:560px}
+.mx .h{font-size:12px;font-weight:700}
+.mx .h.Easy{color:#7CF29A}.mx .h.Normal{color:#6CC8FF}.mx .h.Hard{color:#FFB347}.mx .h.Extra{color:#FF5C8A}
+.mx .wide{grid-column:span 2}
+.ptag{display:inline-block;font-weight:800;font-size:11px;letter-spacing:.04em;padding:2px 8px;border-radius:6px;color:#1a0a12;white-space:nowrap;line-height:1.6}
+.ptag.TECH{background:var(--tech)}.ptag.POWER{background:var(--power)}.ptag.SHIFTSYNC{background:var(--sync)}.ptag.SONG{background:var(--song)}
+.lab{display:flex;align-items:center;font-size:12px;color:var(--dim)}
+.tile{position:relative;display:flex;flex-direction:column;gap:1px;min-height:60px;padding:6px 10px 6px 13px;border-radius:9px;border:1px solid #30303f;background:#1f1f2a;overflow:hidden;line-height:1.45}
+.tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--st)}
+.tile.st-done{background:#1b2a22}.tile.st-review{background:#1b2533}.tile.st-doing{background:#2c2818}
+.tile .t1{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--st)}
+.tile .t1 .cl{margin-left:auto;font-weight:500;color:#8fd9a8;font-size:11px}
+.tile .t1 .cl.no{color:#6a6a82}
+.tile .t2{font-size:12.5px}
+.tile .t2.none{color:#6a6a82}
+.tile .t3{font-size:11px;color:var(--dim)}
+.tile .t3.over{color:#ff9aa8;font-weight:600}
+.tile.editing{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a inset}
+.tile.editing .t3{color:#ffd24a;font-weight:600}
+.tile.add{border-style:dashed;background:none;align-items:center;justify-content:center;color:#6a6a82;font-size:12px}
+.tile.add::before{display:none}
+.callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px 18px;margin:8px 0 0;padding:0;list-style:none}
+.callouts li{font-size:13.5px;padding-left:26px;position:relative}
+.callouts li i{position:absolute;left:0;top:3px;width:19px;height:19px;border-radius:50%;background:var(--accent);color:#10101a;font-style:normal;font-weight:800;font-size:11.5px;display:grid;place-items:center}
+.pin{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;background:var(--accent);color:#10101a;font-weight:800;font-size:11.5px;vertical-align:1px}
+
+/* 画面の見取り図 */
+.screen{display:grid;gap:6px;background:#101017;border:1px solid var(--line);border-radius:12px;padding:8px;margin:14px 0;font-size:12.5px;color:#c8c8d8}
+.screen>div{background:var(--panel);border:1px solid #2c2c3c;border-radius:7px;padding:8px 10px;line-height:1.5}
+.screen b{color:#fff;font-size:13px}
+.screen small{display:block;color:var(--dim)}
+.btnlike{display:inline-block;font-size:12.5px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:0 8px;white-space:nowrap;line-height:1.7}
+.btnlike.pri{background:linear-gradient(90deg,var(--tech),var(--power));border:0;color:#1a0a12;font-weight:700}
+
+footer{color:#6a6a82;font-size:13px;padding-top:10px}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:18px 16px}
+  nav.toc ol{columns:2;column-gap:10px}
+  nav.toc li.sub{display:none}
+  main{padding:20px 16px 60px}
+  h2{font-size:21px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" id="toc">
+  <a class="home" href="index.html">⌂ トップ（エディタ一覧・ボード）へ</a>
+  <h1>MS2026 <b>Chart Editor</b><br>使い方</h1>
+  <ol>
+    <li><a href="#start">はじめに</a></li>
+    <li><a href="#flow">作業の流れ</a></li>
+    <li><a href="#setup">最初の準備</a></li>
+    <li><a href="#board">譜面ボード</a></li>
+    <li class="sub"><a href="#board-read">マスの見方</a></li>
+    <li class="sub"><a href="#board-ops">操作</a></li>
+    <li class="sub"><a href="#audio">音源の一覧</a></li>
+    <li><a href="#common">エディタ共通</a></li>
+    <li><a href="#tech">TECH Chart Editor</a></li>
+    <li><a href="#power">POWER Chart Editor</a></li>
+    <li><a href="#shiftsync">SHIFT / SYNC Editor</a></li>
+    <li><a href="#song">SONG Editor</a></li>
+    <li><a href="#unity">Unity に取り込む</a></li>
+    <li><a href="#faq">困ったとき</a></li>
+    <li><a href="#terms">用語集</a></li>
+  </ol>
+</nav>
+<main>
+
+<section id="start">
+  <h2>はじめに</h2>
+  <p class="lead">MS2026 Chart Editor は、ゲーム「MS2026」の譜面（ノーツ）をブラウザで作り、チームで共有するためのツールです。
+    作った譜面は Google ドライブに保存され、Unity に取り込むとそのままゲームで使えます。</p>
+  <p>ツールは、トップページの <b>譜面ボード</b>（誰が何を作っているかの一覧）と、4つの <b>エディタ</b> でできています。</p>
+  <div class="cards">
+    <a href="#tech" style="--c:var(--tech)"><b>TECH Chart Editor</b><span>銃で撃つ TECH 側の譜面。難易度ごとに1つ</span></a>
+    <a href="#power" style="--c:var(--power)"><b>POWER Chart Editor</b><span>Joy-Con で殴る POWER 側の譜面。難易度ごとに1つ</span></a>
+    <a href="#shiftsync" style="--c:var(--sync)"><b>SHIFT / SYNC Editor</b><span>Time Shift（担当の入れ替え）と Sync Action（二人で腕を上げる）のタイミング。曲に1つ</span></a>
+    <a href="#song" style="--c:var(--song)"><b>SONG Editor</b><span>上の3つと音源を選んで、1曲（SongData）にまとめる。曲に1つ</span></a>
+  </div>
+  <div class="note"><b>ℹ</b>1曲を完成させるには、<b>POWER 4つ（Easy・Normal・Hard・Extra）＋ TECH 4つ ＋ SHIFT/SYNC 1つ ＋ SONG 1つ = 10個</b> を作ります。譜面ボードではこの10個を1枚のカードにまとめて表示します。</div>
+  <div class="tip"><b>💡</b>ブラウザは <b>Microsoft Edge か Google Chrome</b> を使ってください（ファイルの保存に必要な機能が Firefox・Safari にはありません）。</div>
+</section>
+
+<section id="flow">
+  <h2>作業の流れ</h2>
+  <p>1曲がゲームに入るまでの流れです。番号順に進めれば迷いません。</p>
+  <div class="flow">
+    <div style="--c:#9696ad"><span class="n">1</span><b>音源を置く</b>曲の音声ファイルを Google ドライブの<b>音源フォルダ</b>に入れる<br><small>ファイル名の最後に BPM（例 <code>iris_190.wav</code>）</small></div>
+    <div style="--c:var(--accent)"><span class="n">2</span><b>ボードに登録</b>トップページの「音源」から「ボードに追加」。10個のマスができる</div>
+    <div style="--c:var(--doing)"><span class="n">3</span><b>担当を決めて作る</b>マスをクリック →「自分」で担当に →「エディタで開く」</div>
+    <div style="--c:var(--review)"><span class="n">4</span><b>保存して提出</b>エディタで「☁ ドライブに保存」→「✓ 作業完了」で<b>確認待ち</b>に</div>
+    <div style="--c:var(--done)"><span class="n">5</span><b>確認して完成</b>確認した人がボードで状態を<b>完成</b>にする</div>
+    <div style="--c:var(--song)"><span class="n">6</span><b>SONG にまとめる</b>SONG Editor で譜面・SHIFT/SYNC・音源を選んで保存</div>
+    <div style="--c:#ff8a96"><span class="n">7</span><b>Unity に取り込む</b><code>Tools &gt; SyncShift &gt; Drive Chart Sync</code> で取り込む</div>
+  </div>
+</section>
+
+<section id="setup">
+  <h2>最初の準備</h2>
+  <ol class="steps">
+    <li><b>ページを開く</b><br>チームで共有されている URL（GitHub Pages）を開きます。Windows なら、リポジトリにある <code>MS2026 Chart Editor.lnk</code> などのショートカットからアプリのように開けます（Edge のアプリモード）。</li>
+    <li><b>名前を入れる</b><br>最初に「あなたの名前を入力してください」と出ます。ボードの担当や「保存した人」として記録されるので、<b>チームで同じ書き方</b>にしてください（下に出る候補から選べます）。あとで右上の 👤 から変えられます。</li>
+    <li><b>（管理者だけ）ボードの設定</b><br>譜面ボードは Google スプレッドシート ＋ Apps Script で動いています。最初の設定や Apps Script を更新したときの手順は <a href="https://github.com/YamadaSeigo/chart-editor/blob/main/BOARD_SETUP.md" target="_blank" rel="noopener">BOARD_SETUP.md</a> を見てください。ふつうに使う人は何もしなくて大丈夫です。</li>
+  </ol>
+</section>
+
+<section id="board">
+  <h2>譜面ボード</h2>
+  <p>トップページの下半分が譜面ボードです。<b>「どの曲の、どの譜面を、誰が作っていて、今どうなっているか」</b>をチーム全員で同じ画面で見られます。内容は30秒ごとに自動で最新になります。</p>
+
+  <h3 id="board-read">マスの見方</h3>
+  <p>ボードは<b>曲ごとのカード</b>です。1枚のカードに、その曲で作るもの10個が並びます。</p>
+  <div class="demo">
+    <div class="sh"><h4>iris_190</h4><span style="color:#8fd9a8">♪</span>
+      <span class="pbar"><i class="st-done" style="width:30%"></i><i class="st-review" style="width:20%"></i><i class="st-doing" style="width:30%"></i><i class="st-todo" style="width:20%"></i></span>
+      <span class="ok" style="color:var(--dim)"><b style="color:#fff">3</b>/10 完成・期限 10/20</span> <span class="pin">1</span></div>
+    <div class="mx">
+      <span></span><span class="h Easy">Easy</span><span class="h Normal">Normal</span><span class="h Hard">Hard</span><span class="h Extra">Extra</span>
+      <span class="lab"><span class="ptag POWER">POWER</span></span>
+      <div class="tile st-done"><span class="t1">完成<span class="cl">☁ 48 ノーツ</span></span><span class="t2">山田</span><span class="t3"></span></div>
+      <div class="tile st-done"><span class="t1">完成<span class="cl">☁ 72 ノーツ</span></span><span class="t2">山田</span><span class="t3"></span></div>
+      <div class="tile st-doing editing"><span class="t1">作成中<span class="cl">☁ 30 ノーツ</span></span><span class="t2">青木 ★</span><span class="t3">● 青木 が編集中</span></div>
+      <div class="tile st-todo"><span class="t1">未着手<span class="cl no">☁ 未保存</span></span><span class="t2 none">担当未定</span><span class="t3"></span></div>
+      <span class="lab"><span class="ptag TECH">TECH</span></span>
+      <div class="tile st-done"><span class="t1">完成<span class="cl">☁ 55 ノーツ</span></span><span class="t2">佐藤</span><span class="t3"></span></div>
+      <div class="tile st-review"><span class="t1">確認待ち<span class="cl">☁ 80 ノーツ</span></span><span class="t2">佐藤</span><span class="t3"></span></div>
+      <div class="tile st-doing"><span class="t1">作成中<span class="cl no">☁ 未保存</span></span><span class="t2">佐藤</span><span class="t3 over">期限切れ 10/08</span></div>
+      <div class="tile add">＋ 追加</div>
+      <span class="lab">曲全体</span>
+      <div class="tile st-review wide"><span class="t1"><span class="ptag SHIFTSYNC">SHIFT/SYNC</span>確認待ち<span class="cl">☁ TS 2・SA 3</span></span><span class="t2">青木</span><span class="t3">期限 10/15</span></div>
+      <div class="tile st-todo wide"><span class="t1"><span class="ptag SONG">SONG</span>未着手<span class="cl no">☁ 未保存</span></span><span class="t2 none">担当未定</span><span class="t3"></span></div>
+    </div>
+  </div>
+  <p><b>マスの色＝状態</b>です。</p>
+  <div class="legend"><span class="st-todo">未着手：まだ誰も手を付けていない</span><span class="st-doing">作成中：作っている途中</span><span class="st-review">確認待ち：作り終わって、確認してほしい</span><span class="st-done">完成：確認も終わった</span></div>
+  <div class="tw"><table>
+    <tr><th>マスの中</th><th>意味</th></tr>
+    <tr><td>1行目の右（☁ …）</td><td>Google ドライブに保存されている中身。<code>48 ノーツ</code> などの数が出ていれば保存済み、<code>☁ 未保存</code> ならまだドライブにない。SHIFT/SYNC は <code>TS</code>＝Time Shift の数・<code>SA</code>＝Sync Action の数</td></tr>
+    <tr><td>2行目</td><td>担当の人。自分が担当のマスには <b>★</b></td></tr>
+    <tr><td>3行目</td><td>期限（過ぎていると<b style="color:#ff9aa8">赤</b>）か、メモ</td></tr>
+    <tr><td>黄色い枠</td><td><b>いま誰かがエディタで開いている</b>（「○○ が編集中」）。同じ譜面を同時に編集しないように気を付けてください</td></tr>
+    <tr><td>点線の「＋ 追加」</td><td>まだボードに登録されていない。押すと登録される</td></tr>
+  </table></div>
+  <p><span class="pin">1</span> 曲名の行には、全体の進み具合（色の帯）と「完成した数 / 全部の数」、まだ終わっていないものの中で一番近い期限が出ます。</p>
+
+  <h3 id="board-ops">操作</h3>
+  <div class="tw"><table>
+    <tr><th>やりたいこと</th><th>やり方</th></tr>
+    <tr><td>担当になる・状態を変える</td><td>マスをクリック → 詳細が開く。上の <b>未着手 / 作成中 / 確認待ち / 完成</b> を押す。担当欄の <span class="btnlike">自分</span> で自分を担当に（未着手なら作成中になる）</td></tr>
+    <tr><td>期限・メモを付ける</td><td>詳細の「期限」「メモ」に入れる（入れた瞬間に保存されます）</td></tr>
+    <tr><td>エディタで開く</td><td>詳細の <span class="btnlike pri">○○ のエディタで開く ▶</span>。ドライブに保存されていればそれが開き、なければその名前で新しく作られる</td></tr>
+    <tr><td>新しい曲を登録する</td><td>右上の <span class="btnlike pri">＋ 曲・譜面を追加</span> → 曲名を入れ、作るものにチェック → 追加する。下の「音源」から追加するのが一番かんたん</td></tr>
+    <tr><td>足りないものを追加</td><td>曲名の行の <span class="btnlike">＋ 足りない n</span>、または点線のマスの「＋ 追加」</td></tr>
+    <tr><td>曲名を変える</td><td>曲名の行の <span class="btnlike">✎</span>（その曲のすべてのマスの曲名が変わる）</td></tr>
+    <tr><td>ボードから消す</td><td>詳細の <span class="btnlike">🗑 削除</span>（ドライブのファイルは消えません）</td></tr>
+    <tr><td>カードを閉じる・開く</td><td>曲名の行をクリック。閉じていても小さな四角10個で状態が分かる。完成した曲は最初から閉じています</td></tr>
+  </table></div>
+  <h3>絞り込み</h3>
+  <ul>
+    <li><b>検索欄</b>：曲名・担当・アセット名で絞り込み</li>
+    <li><b>曲</b>：未完成の曲だけ / 完成した曲だけ / すべて</li>
+    <li><b>強調</b>：選んだ状態のマスだけを目立たせて、ほかを薄くする（例：「確認待ち」で、確認しないといけないものが一目で分かる）</li>
+    <li><b>自分の担当</b>：自分が担当しているものがある曲だけにする</li>
+  </ul>
+  <h3>ボードとドライブのチェック</h3>
+  <p>ボードの上に「⚠ ボードとドライブの食い違い」と出ることがあります。「詳しく見る」で内容とボタンが出ます。</p>
+  <ul>
+    <li><b>完成・確認待ちなのにドライブにない</b>：保存を忘れていないか確認</li>
+    <li><b>ドライブに保存済みなのに未着手</b>：「作成中にする」で直せる</li>
+    <li><b>ボード外</b>：ドライブにあるのにボードにないファイル。「ボードに追加」するか、いらなければ「🗑 ゴミ箱へ」（ゴミ箱フォルダへ移すだけなので元に戻せます）</li>
+  </ul>
+
+  <h3 id="audio">音源の一覧</h3>
+  <p>ボードの下に、Google ドライブの音源フォルダの曲が並びます。</p>
+  <ul>
+    <li>▶ で試聴できます</li>
+    <li>まだボードにない曲は「<b style="color:#ffb38a">未登録</b>」。<span class="btnlike">ボードに追加</span> で、上にチェックしてあるもの（POWER・TECH × 難易度、SHIFT/SYNC、SONG）がまとめて登録されます</li>
+    <li>曲名は<b>音源のファイル名（拡張子なし）</b>になります。曲名と音源のファイル名が同じだと、エディタで開いたときに音源が自動で読み込まれます</li>
+  </ul>
+</section>
+
+<section id="common">
+  <h2>エディタ共通</h2>
+  <p>4つのエディタは、上のバー（ヘッダー）の作りがだいたい同じです。</p>
+  <div class="screen">
+    <div><b>⌂ TECH POWER SHIFT/SYNC SONG</b><small>エディタの切り替え（⌂ でトップへ）。保存していない変更があると確認が出ます</small></div>
+    <div><b>名前</b> <small>アセット名＝ドライブ・Unity でのファイル名。<b>ボードのアセット名と同じにすると、ボードに「編集中」と出て、保存したときにボードの状態も更新されます</b></small></div>
+    <div><b><span class="btnlike pri">☁ ドライブに保存</span> <span class="btnlike">☁ 開く</span> <span class="btnlike">♪ ドライブの音源</span></b><small>チームの Google ドライブに保存・ドライブから開く・ドライブの音源を読み込む。<b>ふだんはこちらを使います</b></small></div>
+    <div><b><span class="btnlike">保存</span> <span class="btnlike">名前を付けて保存</span> <span class="btnlike">開く</span> <span class="btnlike">YAMLコピー</span></b><small>自分のパソコンの .asset ファイルに保存・開く（Unity のフォルダに直接保存したいとき）</small></div>
+  </div>
+  <div class="tip"><b>💡</b>編集中の内容はブラウザに<b>自動で保存</b>されています。うっかりタブを閉じても、同じブラウザで開き直せば元に戻ります。ただしチームに共有されるのは「☁ ドライブに保存」したときだけです。</div>
+  <div class="warn"><b>⚠</b>ほかの人が先に同じファイルをドライブに保存していると、「上書きしますか？」と確認が出ます。迷ったらキャンセルして「☁ 開く」で相手の内容を確認してください。</div>
+  <h3>共通のキー</h3>
+  <div class="tw"><table>
+    <tr><th>キー</th><th>動き</th></tr>
+    <tr><td><kbd>Space</kbd></td><td>再生 / 停止</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>元に戻す / やり直し</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>上書き保存（SONG Editor ではドライブに保存）</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>選んでいるものを消す</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+ホイール</td><td>タイムラインの拡大・縮小</td></tr>
+  </table></div>
+</section>
+
+<section id="tech">
+  <h2><span class="tag" style="background:var(--tech)">TECH</span>TECH Chart Editor</h2>
+  <p>銃（Wii リモコン）で撃つ TECH 側の譜面を作ります。<b>上のタイムラインで「いつ」</b>、<b>真ん中のプレイフィールドで「どこに」</b>出すかを決めます（osu! の編集画面に似ています）。時刻は<b>秒</b>です。</p>
+  <h3>ノーツの種類</h3>
+  <div class="tw"><table>
+    <tr><th>キー</th><th>ツール</th><th>置き方</th></tr>
+    <tr><td><kbd>1</kbd></td><td>選択</td><td>ノーツを選んで動かす・消す</td></tr>
+    <tr><td><kbd>2</kbd></td><td>単発撃ち（Shot）</td><td>プレイフィールドをクリック</td></tr>
+    <tr><td><kbd>3</kbd></td><td>長撃ち（Hold）</td><td>クリックしたまま終点までドラッグ</td></tr>
+    <tr><td><kbd>4</kbd></td><td>同時撃ち（Sync）</td><td>クリックしたまま相方の位置までドラッグ</td></tr>
+    <tr><td><kbd>5</kbd></td><td>連射（Rush）</td><td>クリックで置き、タイムラインで末尾をドラッグして長さを決める</td></tr>
+  </table></div>
+  <h3>作り方</h3>
+  <ol class="steps">
+    <li>ボードからマスを開く（または「名前」をボードのアセット名にする）。音源が自動で読み込まれなければ「♪ ドライブの音源」で選ぶ</li>
+    <li>ヘッダーの <b>BPM</b> と <b>Offset</b> を曲に合わせる（グリッドが拍に合う）</li>
+    <li>再生して、置きたいところで止め、ツールを選んでプレイフィールドをクリック。置く時刻はスナップ（拍の刻み）に合わせられます</li>
+    <li>右のパネルで、ノーツごとの大きさ・出現までの時間・連射の回数などを細かく変えられる（複数選んでまとめて変更も可）</li>
+    <li>できたら「☁ ドライブに保存」→「✓ 作業完了」</li>
+  </ol>
+  <h3>便利なキー</h3>
+  <div class="tw"><table>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd> / ホイール</td><td>スナップ単位で移動（<kbd>Shift</kbd> で1拍単位）</td></tr>
+    <tr><td><kbd>G</kbd></td><td>プレイフィールドのグリッドに吸着</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd></td><td>コピー / 今の時刻に貼り付け</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>J</kbd></td><td>選んだノーツを左右 / 上下に反転</td></tr>
+    <tr><td><kbd>F</kbd> / <kbd>A</kbd></td><td>選んだノーツに表示を合わせる / 全体を表示</td></tr>
+  </table></div>
+  <div class="note"><b>ℹ</b>ノーツが重なっているときは、選んでいるノーツをもう一度クリックすると下のノーツが選ばれます。くわしくはエディタ右上の <span class="btnlike">?</span> を見てください。</div>
+</section>
+
+<section id="power">
+  <h2><span class="tag" style="background:var(--power)">POWER</span>POWER Chart Editor</h2>
+  <p>Joy-Con で殴る POWER 側の譜面を作ります。ゲームと同じく<b>左手・右手の2レーン</b>があり、ノーツは上から流れてきて、判定の拍ちょうどに下の的に着きます。時刻は<b>拍</b>です。</p>
+  <h3>ノーツの種類</h3>
+  <div class="tw"><table>
+    <tr><th>キー</th><th>ツール</th><th>見た目・動き</th></tr>
+    <tr><td><kbd>1</kbd></td><td>選択</td><td>ノーツを選んで動かす・消す</td></tr>
+    <tr><td><kbd>2</kbd></td><td>ジャブ（Jab）</td><td>点。まっすぐ打つ</td></tr>
+    <tr><td><kbd>3</kbd></td><td>アッパー（Upper）</td><td>上向きの矢印</td></tr>
+    <tr><td><kbd>4</kbd></td><td>フック（Hook）</td><td>内向きの矢印。左レーンに置けば左フック、右レーンなら右フック</td></tr>
+    <tr><td><kbd>5</kbd></td><td>連打（Rush）</td><td>長い帯。末尾をドラッグして長さを決める。左右両方のレーンに置くのが基本</td></tr>
+  </table></div>
+  <h3>作り方</h3>
+  <ol class="steps">
+    <li>ボードからマスを開く。音源・<b>BPM</b>・<b>Offset</b> を合わせる</li>
+    <li>ツールを選んで、プレビューかタイムラインの<b>左右どちらかのレーン</b>をクリック。クリックしたレーンの手で置かれる</li>
+    <li>左のツール欄の「配置先」を <b>L+R</b> にすると左右同時に置ける（<kbd>Z</kbd> 左 / <kbd>C</kbd> 右 / <kbd>X</kbd> 両方）</li>
+    <li>ノーツを反対のレーンへドラッグすると手が変わる</li>
+    <li>できたら「☁ ドライブに保存」→「✓ 作業完了」</li>
+  </ol>
+  <h3>リアルタイム打ち込み</h3>
+  <p>「打ち込み」をオン（<kbd>R</kbd>）にして再生し、曲に合わせてキーを押すと、その瞬間に一番近いスナップ位置へ置かれます。</p>
+  <div class="tw"><table>
+    <tr><th></th><th>ジャブ</th><th>アッパー</th><th>フック</th></tr>
+    <tr><td>左手</td><td><kbd>A</kbd></td><td><kbd>S</kbd></td><td><kbd>D</kbd></td></tr>
+    <tr><td>右手</td><td><kbd>J</kbd></td><td><kbd>K</kbd></td><td><kbd>L</kbd></td></tr>
+  </table></div>
+  <h3>便利なキー</h3>
+  <div class="tw"><table>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>左右反転（レーンと左右フックが入れ替わる）</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>反対のレーンに複製</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd></td><td>コピー / 今の時刻に貼り付け</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>スナップ単位で移動（<kbd>Shift</kbd> で1拍単位）</td></tr>
+  </table></div>
+</section>
+
+<section id="shiftsync">
+  <h2><span class="tag" style="background:var(--sync)">SHIFT/SYNC</span>SHIFT / SYNC Editor</h2>
+  <p>曲の中の2つの演出のタイミングを決めます。<b>難易度に関係なく1曲に1つ</b>です。時刻は<b>拍</b>です。</p>
+  <div class="tw"><table>
+    <tr><th>演出</th><th>ゲームで起きること</th></tr>
+    <tr><td><b style="color:#5ad1ff">Time Shift</b></td><td>POWER と TECH の担当ディスプレイが入れ替わる。入れ替わる<b>4秒前</b>から「TIME CHANGE」とカウントダウンが出て、その間はノーツが出ない（プレイヤーが移動する時間）</td></tr>
+    <tr><td><b style="color:#b98bff">Sync Action</b></td><td>二人が同時に片腕を上げて保つと成功。<b>制限時間</b>（何も入れなければ10秒）のうちに成功しないと失敗。その間はノーツが出ない</td></tr>
+  </table></div>
+  <h3>画面</h3>
+  <div class="screen" style="grid-template-columns:1fr 200px">
+    <div><b>タイムライン</b><small>上から「音源の波形」「Time Shift の行」「Sync Action の行」。<br>Time Shift の線の手前の帯が準備時間、Sync Action の帯の長さが制限時間</small></div>
+    <div style="grid-row:span 2"><b>右のパネル</b><small>拍・制限時間を数字で直す一覧と、<b>チェック</b>（重なりなどの警告）、プレビューの設定</small></div>
+    <div><b>再生バー</b><small>再生・メトロノーム・合図の音</small></div>
+  </div>
+  <h3>作り方</h3>
+  <ol class="steps">
+    <li>ボードから開く（曲の音源が自動で読み込まれる）。ヘッダーの <b>BPM</b> と <b>Offset</b> を曲に合わせる</li>
+    <li>入れ替えたい拍で、<b>Time Shift の行をクリック</b>（または再生中に <kbd>T</kbd>）</li>
+    <li>腕を上げてほしい拍で、<b>Sync Action の行をクリック</b>（または <kbd>Y</kbd>）。帯の右端をドラッグで制限時間を変える</li>
+    <li>再生して確認。ゲームと同じ案内（<code>TIME CHANGE 3</code>、<code>SYNC ACTION 残り…</code>）が右上に出て、合図の音も鳴る</li>
+    <li>右の<b>チェック</b>に警告が出ていないか見る（Sync Action が Time Shift の準備時間と重なっている、など）</li>
+    <li>「☁ ドライブに保存」。ボードの SHIFT/SYNC のマスで状態を「確認待ち」にする</li>
+  </ol>
+  <div class="tw"><table>
+    <tr><td>ドラッグ</td><td>移動</td></tr>
+    <tr><td>右クリック / <kbd>Delete</kbd></td><td>削除</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>選んだものを1スナップ動かす</td></tr>
+    <tr><td><kbd>Shift</kbd>+クリック</td><td>複数選択</td></tr>
+    <tr><td>ホイール / <kbd>Ctrl</kbd>+ホイール</td><td>横スクロール / 拡大縮小</td></tr>
+  </table></div>
+  <div class="note"><b>ℹ</b>BPM と Offset は拍と秒の換算に使うだけで、保存されるファイルには入りません（曲の BPM は SONG Editor で決めます）。</div>
+</section>
+
+<section id="song">
+  <h2><span class="tag" style="background:var(--song)">SONG</span>SONG Editor</h2>
+  <p>ドライブにある譜面（POWER 4つ・TECH 4つ）・SHIFT/SYNC・音源を<b>選んで、1曲にまとめます</b>。これが Unity の <code>SongData</code> になり、楽曲セレクトに並びます。</p>
+  <h3>作り方</h3>
+  <ol class="steps">
+    <li>ボードの SONG のマスから開く（または「＋ 新しい曲」）。左には保存済みの曲が並ぶ</li>
+    <li><b>音源</b>を選ぶ。ファイル名から曲名・BPM・アセット名が自動で入る（例 <code>Future Stage _150.wav</code> → BPM 150）。▶ で試聴</li>
+    <li>曲名・アーティスト・セレクトで使う色・Offset を入れる</li>
+    <li><span class="btnlike">⚡ 曲名から自動で選ぶ</span> を押すと、ボードの登録に合わせて8マスと SHIFT/SYNC が埋まる。違っていればプルダウンで選び直す</li>
+    <li>各マスの下に、ボードの状態とドライブのノーツ数が出る。下の<b>チェック</b>に「まだ完成していない」「選ばれていない」などが出ていないか確認</li>
+    <li>「☁ ドライブに保存」（<kbd>Ctrl</kbd>+<kbd>S</kbd>）</li>
+  </ol>
+  <div class="note"><b>ℹ</b>SONG Editor が保存するのは「どの譜面を使うか」の<b>名前の一覧</b>（.json）です。中の譜面を直したいときは、それぞれのエディタで直して保存すれば、SONG を作り直す必要はありません。</div>
+</section>
+
+<section id="unity">
+  <h2>Unity に取り込む</h2>
+  <p>ドライブに保存したものは、Unity のメニュー <code>Tools &gt; SyncShift &gt; Drive Chart Sync</code> から取り込みます。</p>
+  <ol class="steps">
+    <li>ウィンドウを開くと、ドライブのファイルが並ぶ（TECH・POWER・SHIFTSYNC・SONG）</li>
+    <li>「更新あり」は <span class="btnlike">取り込む</span>、「プロジェクトにない」は <span class="btnlike">作る</span>。まとめてなら「更新をすべて取り込む」「ないものも作って取り込む」</li>
+    <li>SONG を取り込むと、使っている譜面・SHIFT/SYNC がプロジェクトになければ先に取り込んでから、<code>SongData</code> を作る（音源は同じ名前の AudioClip を探す）</li>
+    <li>できた SongData を楽曲セレクト（SongSelect）に並べる</li>
+  </ol>
+  <div class="tip"><b>💡</b>「自動で取り込む」をオンにすると、ウィンドウを閉じていても数秒おきにドライブを確認して、更新された譜面を自動で取り込みます（再生中も）。</div>
+  <div class="note"><b>ℹ</b>すでにプロジェクトにある同じ名前のアセットは中身だけ書き換えるので、ほかからの参照は切れません。</div>
+</section>
+
+<section id="faq">
+  <h2>困ったとき</h2>
+  <div class="tw"><table>
+    <tr><th>こんなとき</th><th>こうする</th></tr>
+    <tr><td>「ドライブに保存できませんでした」</td><td>通信を確認してもう一度。「パートが不正です」などが出るときは、Apps Script が古いので管理者に更新してもらう（<a href="https://github.com/YamadaSeigo/chart-editor/blob/main/BOARD_SETUP.md" target="_blank" rel="noopener">BOARD_SETUP.md</a>）</td></tr>
+    <tr><td>「上書きしますか？」と出た</td><td>ほかの人が先に保存しています。キャンセルして「☁ 開く」で中身を確かめ、話し合ってから保存</td></tr>
+    <tr><td>ボードに「編集中」と出ない</td><td>エディタの「名前」がボードのアセット名と同じか確認。名前を入れていない（👤 未設定）と出ません</td></tr>
+    <tr><td>「編集中」が消えない</td><td>エディタを閉じれば消えます。強制終了したときは3分で自動で消えます</td></tr>
+    <tr><td>音源が自動で読み込まれない</td><td>ボードの曲名と音源のファイル名（拡張子なし）が同じか確認。エディタの「♪ ドライブの音源」から手で選べます</td></tr>
+    <tr><td>ノーツが音とずれる</td><td>BPM と Offset を確認。Offset は「譜面と音のズレ」（秒）。SONG Editor の Offset がゲームで使われます</td></tr>
+    <tr><td>タブを閉じてしまった</td><td>同じブラウザで開き直せば、最後の内容が自動で戻ります</td></tr>
+    <tr><td>いらない譜面を消したい</td><td>ボードの詳細の「🗑 削除」でボードから消す。ドライブのファイルは、ボードのチェックの「🗑 ゴミ箱へ」でゴミ箱フォルダへ（元に戻せます）</td></tr>
+  </table></div>
+</section>
+
+<section id="terms">
+  <h2>用語集</h2>
+  <div class="tw"><table>
+    <tr><td><b>アセット名</b></td><td>ファイルの名前（拡張子なし）。例 <code>TechChart_iris190_Hard</code>。ボード・エディタの「名前」・ドライブ・Unity で同じ名前を使って結び付ける</td></tr>
+    <tr><td><b>BPM</b></td><td>1分あたりの拍の数。曲の速さ</td></tr>
+    <tr><td><b>Offset</b></td><td>譜面と音のズレを直す秒数</td></tr>
+    <tr><td><b>スナップ</b></td><td>ノーツを置ける拍の細かさ（1/4 なら4分の1拍ごと）</td></tr>
+    <tr><td><b>.asset</b></td><td>Unity のデータファイル。TECH は <code>NotesRecord</code>、POWER は <code>PowerChart</code>、SHIFT/SYNC は <code>ShiftSyncChart</code></td></tr>
+    <tr><td><b>SongData</b></td><td>1曲ぶんのデータ。曲・BPM・難易度ごとの譜面・SHIFT/SYNC をまとめたもの</td></tr>
+    <tr><td><b>難易度</b></td><td>Easy・Normal・Hard・Extra。ゲーム中、プレイの正確さに合わせて自動で切り替わる</td></tr>
+  </table></div>
+  <footer>このページ: <code>guide.html</code>。ボードの設定（管理者向け）は <a href="https://github.com/YamadaSeigo/chart-editor/blob/main/BOARD_SETUP.md" target="_blank" rel="noopener">BOARD_SETUP.md</a>。</footer>
+</section>
+
+</main>
+</div>
+<script>
+// 目次：今読んでいるところを光らせる
+(function () {
+  const links = [...document.querySelectorAll('nav.toc li a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function update() {
+    let cur = targets[0];
+    for (const t of targets) if (t.getBoundingClientRect().top < 120) cur = t;
+    links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + cur.id));
+  }
+  addEventListener('scroll', update, { passive: true }); update();
+})();
+</script>
+</body>
+</html>
