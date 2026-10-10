@@ -111,7 +111,18 @@
   // エディタの音源読み込み（ファイル選択・ドロップも）を処理中にする
   if (typeof loadAudio === 'function') {
     const orig = loadAudio;
-    loadAudio = async file => { busy('音源を読み込み中…'); try { return await orig(file); } finally { unbusy(); } };
+    loadAudio = async file => {
+      busy('音源を読み込み中…');
+      try { const r = await orig(file); if (file && file.name) setBpm(DA && DA.bpmOf(file.name), '音源のファイル名から'); return r; }
+      finally { unbusy(); }
+    };
+  }
+  // BPM を曲名・音源のファイル名（最後の「_150」など）から合わせる。エディタの BPM 欄を書き換えて、エディタ自身の処理で反映する
+  function setBpm(v, why) {
+    if (!(v > 0) || typeof S === 'undefined' || Math.abs(S.bpm - v) < 1e-6) return;
+    const el = document.getElementById('bpm'); if (!el) return;
+    el.value = v; el.dispatchEvent(new Event('change'));
+    if (typeof toast === 'function') toast(`BPM を ${v} にしました（${why}）`);
   }
 
   const user = () => { try { return localStorage.getItem(USER_KEY) || ''; } catch (e) { return ''; } };
@@ -356,7 +367,16 @@
   addEventListener('hashchange', openFromHash);
 
   // ====== ボードとのやり取り ======
-  function setRows(r) { rows = r; try { localStorage.setItem(ROWS_KEY, JSON.stringify(r)); } catch (e) { } }
+  function setRows(r) { rows = r; try { localStorage.setItem(ROWS_KEY, JSON.stringify(r)); } catch (e) { } autoBpm(); }
+  // 譜面を開いたら、ボードの曲名から BPM を合わせる（譜面ごとに1回。ボードの行がまだ読めていなければ、読めたときに）
+  let bpmDoneFor = null;
+  function autoBpm() {
+    if (!DA || !asset() || bpmDoneFor === asset()) return;
+    const row = rows.find(r => r.part === PART && String(r.asset).toLowerCase() === asset().toLowerCase());
+    if (!row) return;
+    bpmDoneFor = asset();
+    setBpm(DA.bpmOf(row.song), `曲名「${row.song}」から`);
+  }
   async function post(body) {
     const res = await fetch(CFG.boardApiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: CFG.boardKey, ...body }) });
     const j = await res.json();
@@ -381,7 +401,10 @@
   // 名前欄（アセット名）が変わったらすぐ反映。音源を外したら表示を戻す
   var lastAsset = '', lastHas = false;
   setInterval(() => {
-    if (asset() !== lastAsset) { lastAsset = asset(); render(); beat(); }
+    if (asset() !== lastAsset) {
+      lastAsset = asset(); render(); beat();
+      autoBpm();
+    }
     else if (hasAudio() !== lastHas) { if (!hasAudio()) loadedId = null; render(); }
     lastHas = hasAudio();
   }, 1000);

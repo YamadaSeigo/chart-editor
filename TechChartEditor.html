@@ -736,6 +736,8 @@ function drawTimeline() {
     c.globalAlpha = 1;
   }
 
+  if (window.ShiftSyncOverlay) ShiftSyncOverlay.draw(c); // Time Shift / Sync Action（ドライブの SHIFT/SYNC）
+
   // ノーツ：帯（ホールド/連射）→ 円 の順に描く。円が重なる場合、下にあるものほど一回り大きく描く
   layoutTimeline();
   const vis = S.notes.map((n, i) => ({ n, i, x: tX(n.t), xe: tX(endT(n)), d: tlDepth.get(n.id) || 0 }))
@@ -1965,5 +1967,6 @@ function frame() {
 <script src="drive-audio.js"></script>
 <script src="drive-charts.js"></script>
 <script src="board.js" data-part="TECH"></script>
+<script src="shiftsync-overlay.js"></script>
 </body>
 </html>

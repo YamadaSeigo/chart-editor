@@ -249,7 +249,9 @@ async function openFromHash() {
   S = blank(); S.name = want; openedId = null; stopPreview();
   if (row) {
     const a = DriveAudio.find(audios, row.song);
-    if (a) { S.audio = a.name; const m2 = DriveAudio.songOf(a.name).match(/_(\d{2,3}(?:\.\d+)?)$/); if (m2) S.bpm = +m2[1]; }
+    if (a) S.audio = a.name;
+    const bpm = DriveAudio.bpmOf(a ? a.name : row.song);
+    if (bpm) S.bpm = bpm;
     S.title = row.song.replace(/[\s_]*_\d{2,3}(?:\.\d+)?$/, '').trim() || row.song;
   }
   syncForm(); markDirty(); renderSongs();
@@ -273,9 +275,9 @@ $('#audio').addEventListener('change', e => {
   const song = DriveAudio.songOf(S.audio);
   // 音源を選んだら、空いているところは曲名から埋める。ファイル名の最後の「_150」は BPM
   if (S.audio) {
-    const m = song.match(/^(.*?)[\s_]*_(\d{2,3}(?:\.\d+)?)$/);
-    if (m && +m[2] >= 40 && +m[2] <= 400) S.bpm = +m[2];
-    if (!S.title) S.title = (m ? m[1] : song).trim();
+    const bpm = DriveAudio.bpmOf(S.audio);
+    if (bpm) S.bpm = bpm;
+    if (!S.title) S.title = (bpm ? song.replace(/[\s_\-]*\d{2,3}(?:\.\d+)?\s*(?:bpm)?$/i, '') : song).trim() || song;
     if (!S.name) S.name = 'SongData_' + song.replace(/[^\w\-.]+/g, '');
     syncForm();
   }

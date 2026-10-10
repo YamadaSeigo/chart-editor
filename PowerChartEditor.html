@@ -809,6 +809,8 @@ function drawTimeline() {
   c.strokeStyle = 'rgba(255,255,255,.1)'; c.lineWidth = 1;
   { const y = Math.round(RULER + lh) + .5; line(c, [0, y], [w, y]); }
 
+  if (window.ShiftSyncOverlay) ShiftSyncOverlay.draw(c); // Time Shift / Sync Action（ドライブの SHIFT/SYNC）
+
   const idx = new Map(S.notes.map((n, i) => [n.id, i + 1]));
   const vis = S.notes.filter(n => tX(endT(n)) >= -Rr * 3 && tX(tOf(n)) <= w + Rr * 3);
   // 左右同時のノーツを縦線でつなぐ
@@ -1913,5 +1915,6 @@ function frame() {
 <script src="drive-audio.js"></script>
 <script src="drive-charts.js"></script>
 <script src="board.js" data-part="POWER"></script>
+<script src="shiftsync-overlay.js"></script>
 </body>
 </html>

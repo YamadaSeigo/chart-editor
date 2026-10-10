@@ -102,8 +102,15 @@ window.DriveAudio = (function () {
   const norm = s => String(s).toLowerCase().replace(/[\s_\-・.]+/g, '');
   /** 曲名に合う音源（なければ null） */
   const find = (files, song) => song ? files.find(f => norm(songOf(f.name)) === norm(song)) || null : null;
+  /** 曲名・ファイル名から BPM を読む（最後の「_150」「 150」、または「150bpm」）。分からなければ null */
+  function bpmOf(name) {
+    const s = String(name || '').replace(/\.(mp3|wav|ogg|m4a|aac|flac|opus|webm)$/i, '').trim();
+    const m = s.match(/(\d{2,3}(?:\.\d+)?)\s*bpm/i) || s.match(/[\s_\-]+(\d{2,3}(?:\.\d+)?)$/);
+    const v = m ? +m[1] : NaN;
+    return v >= 40 && v <= 400 ? v : null;
+  }
   const isCached = async f => !!(await cached(f));
   const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 
-  return { enabled, list, peek, load, songOf, norm, find, isCached, fmtSize };
+  return { enabled, list, peek, load, songOf, norm, find, isCached, fmtSize, bpmOf };
 })();

@@ -505,6 +505,7 @@ async function loadAudioFile(file) {
     stopPlayback();
     buffer = await ac().decodeAudioData(data);
     audioName = file.name; computePeaks();
+    if (window.DriveAudio) setBpm(DriveAudio.bpmOf(file.name), '音源のファイル名から');
     $('#audioName').textContent = '♪ ' + audioName; $('#audioName').title = audioName;
     if (S.name === 'ShiftSyncChart' && !S.shifts.length && !S.cues.length) {
       S.name = 'ShiftSync_' + file.name.replace(/\.[^.]+$/, '').replace(/\s+/g, ''); syncHeader(); save();
@@ -1090,18 +1091,26 @@ async function openFromHash() {
       }
     } catch (e) { toast('ドライブを読めませんでした: ' + e.message, 4000); }
   }
-  // ボードの行の曲名から音源を探して読み込む
-  if (buffer || !window.DriveAudio || !DriveAudio.enabled()) return;
+  // ボードの行の曲名から BPM を合わせ、音源を探して読み込む
+  if (!window.DriveAudio) return;
   let rows = [];
   try { rows = JSON.parse(localStorage.getItem('ms2026.chartBoard.rows')) || []; } catch (e) { }
   const row = rows.find(r => r.part === PART && String(r.asset).toLowerCase() === want.toLowerCase());
   if (!row) return;
+  setBpm(DriveAudio.bpmOf(row.song), `曲名「${row.song}」から`);
+  if (buffer || !DriveAudio.enabled()) return;
   try {
     const a = DriveAudio.find(DriveAudio.peek() || await DriveAudio.list(), row.song);
     if (a) loadAudioFile(await DriveAudio.load(a, p => { $('#audioName').textContent = `♪ ${a.name} を読み込み中… ${Math.round(p * 100)}%`; }));
   } catch (e) { /* 音源は手で選べる */ }
 }
 addEventListener('hashchange', openFromHash);
+// 曲名・音源のファイル名から読んだ BPM にする（拍の位置はそのまま。秒が変わる）
+function setBpm(v, why) {
+  if (!(v > 0) || Math.abs(S.bpm - v) < 1e-6) return;
+  S.bpm = v; syncHeader(); save(); refreshPanels();
+  setTimeout(() => toast(`BPM を ${v} にしました（${why}）`, 3000), 50);
+}
 </script>
 </body>
 </html>

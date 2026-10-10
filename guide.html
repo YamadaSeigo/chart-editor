@@ -271,6 +271,7 @@ footer{color:#6a6a82;font-size:13px;padding-top:10px}
     <div><b><span class="btnlike pri">☁ ドライブに保存</span> <span class="btnlike">☁ 開く</span> <span class="btnlike">♪ ドライブの音源</span></b><small>チームの Google ドライブに保存・ドライブから開く・ドライブの音源を読み込む。<b>ふだんはこちらを使います</b></small></div>
     <div><b><span class="btnlike">保存</span> <span class="btnlike">名前を付けて保存</span> <span class="btnlike">開く</span> <span class="btnlike">YAMLコピー</span></b><small>自分のパソコンの .asset ファイルに保存・開く（Unity のフォルダに直接保存したいとき）</small></div>
   </div>
+  <div class="tip"><b>💡</b><b>BPM は自動で入ります</b>：ボードから開いたときや音源を読み込んだとき、曲名・音源のファイル名の最後の数字（例 <code>iris_190</code> → 190）を BPM にします（右下に「BPM を 190 にしました」と出ます）。違っていたら BPM 欄を直してください。</div>
   <div class="tip"><b>💡</b>編集中の内容はブラウザに<b>自動で保存</b>されています。うっかりタブを閉じても、同じブラウザで開き直せば元に戻ります。ただしチームに共有されるのは「☁ ドライブに保存」したときだけです。</div>
   <div class="warn"><b>⚠</b>ほかの人が先に同じファイルをドライブに保存していると、「上書きしますか？」と確認が出ます。迷ったらキャンセルして「☁ 開く」で相手の内容を確認してください。</div>
   <h3>共通のキー</h3>
@@ -312,6 +313,14 @@ footer{color:#6a6a82;font-size:13px;padding-top:10px}
     <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>J</kbd></td><td>選んだノーツを左右 / 上下に反転</td></tr>
     <tr><td><kbd>F</kbd> / <kbd>A</kbd></td><td>選んだノーツに表示を合わせる / 全体を表示</td></tr>
   </table></div>
+  <h3>Time Shift / Sync Action をタイムラインに表示する</h3>
+  <p>ヘッダーの <span class="btnlike">⇄ SHIFT/SYNC</span> で、ドライブの SHIFT/SYNC を選ぶと、タイムラインに重ねて表示されます。ボードに同じ曲の SHIFT/SYNC があれば<b>自動で選ばれます</b>。</p>
+  <ul>
+    <li><b style="color:#5ad1ff">水色の線と帯</b>＝Time Shift。線の手前の帯が準備時間（案内とカウントダウンが出る時間）</li>
+    <li><b style="color:#b98bff">紫の帯</b>＝Sync Action の制限時間</li>
+    <li>帯の中のノーツは<b>ゲームでは出ません</b>。ボタンに <b style="color:#ffd97a">⚠数字</b> が出たら、その数のノーツが帯の中にあります（ボタンにマウスを乗せると場所が出ます）</li>
+    <li>再生位置が帯の中にあると、右上にゲームと同じ案内（<code>TIME CHANGE 3</code> など）が出ます</li>
+  </ul>
   <div class="note"><b>ℹ</b>ノーツが重なっているときは、選んでいるノーツをもう一度クリックすると下のノーツが選ばれます。くわしくはエディタ右上の <span class="btnlike">?</span> を見てください。</div>
 </section>
 
@@ -335,6 +344,8 @@ footer{color:#6a6a82;font-size:13px;padding-top:10px}
     <li>ノーツを反対のレーンへドラッグすると手が変わる</li>
     <li>できたら「☁ ドライブに保存」→「✓ 作業完了」</li>
   </ol>
+  <h3>Time Shift / Sync Action の表示</h3>
+  <p>TECH と同じく、ヘッダーの <span class="btnlike">⇄ SHIFT/SYNC</span> でタイムラインに重ねて表示できます（<a href="#tech">TECH の説明</a>を見てください）。帯の中のノーツはゲームでは出ません。</p>
   <h3>リアルタイム打ち込み</h3>
   <p>「打ち込み」をオン（<kbd>R</kbd>）にして再生し、曲に合わせてキーを押すと、その瞬間に一番近いスナップ位置へ置かれます。</p>
   <div class="tw"><table>
