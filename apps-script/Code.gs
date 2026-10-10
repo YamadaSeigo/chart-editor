@@ -296,21 +296,31 @@ function doPost(e) {
     const find = id => rows.find(r => r.id === id);
 
     switch (req.action) {
-      case 'add': {
-        const row = { id: Utilities.getUuid().slice(0, 8), status: 'todo' };
-        EDITABLE.forEach(k => { if (req.row && req.row[k] != null) row[k] = String(req.row[k]); });
-        row.updatedAt = now; row.updatedBy = user;
-        sh.appendRow(HEAD.map(k => row[k] == null ? '' : row[k]));
-        break;
-      }
+      case 'add':
       case 'addMany': {
-        const list = (req.rows || []).slice(0, 50).map(src => {
+        // 同じマス（パート × 曲 × 難易度。SHIFTSYNC・SONG は難易度なし）がもうあれば足さない。
+        // 「追加」を続けて押したときや、二人が同時に追加したときに同じ行が2つできないように
+        const have = {};
+        rows.forEach(r => { have[cellKey_(r)] = true; });
+        const src = req.action === 'add' ? [req.row || {}] : (req.rows || []).slice(0, 50);
+        const list = [];
+        src.forEach(s => {
           const row = { id: Utilities.getUuid().slice(0, 8), status: 'todo' };
-          EDITABLE.forEach(k => { if (src[k] != null) row[k] = String(src[k]); });
+          EDITABLE.forEach(k => { if (s[k] != null) row[k] = String(s[k]); });
+          const key = cellKey_(row);
+          if (have[key]) return;
+          have[key] = true;
           row.updatedAt = now; row.updatedBy = user;
-          return HEAD.map(k => row[k] == null ? '' : row[k]);
+          list.push(HEAD.map(k => row[k] == null ? '' : row[k]));
         });
         if (list.length) sh.getRange(sh.getLastRow() + 1, 1, list.length, HEAD.length).setValues(list);
+        break;
+      }
+      case 'removeMany': {
+        // 下の行から消す（上から消すと行番号がずれる）
+        const ids = {};
+        (req.ids || []).slice(0, 200).forEach(id => { ids[id] = true; });
+        rows.filter(r => ids[r.id]).sort((a, b) => b._row - a._row).forEach(r => sh.deleteRow(r._row));
         break;
       }
       case 'update': {
@@ -360,6 +370,14 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** ボードの1マスを表すキー（パート|曲名|難易度）。曲名は大文字小文字・空白・記号の違いを無視（drive-audio.js の norm と同じ） */
+function cellKey_(r) {
+  const part = String(r.part || '');
+  const song = String(r.song || '').toLowerCase().replace(/[\s_\-・.]+/g, '');
+  const diff = (part === SHIFTSYNC || part === SONG) ? '' : String(r.difficulty || '');
+  return part + '|' + song + '|' + diff;
 }
 
 function sheet_() {

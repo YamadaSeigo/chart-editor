@@ -64,17 +64,30 @@
   const isLive = r => r.editingBy && r.editingAt && (serverNow + (Date.now() - fetchedAt)) - Date.parse(r.editingAt) < LIVE_MS;
   function msg(html) { $('bmsg').innerHTML = html; $('bmsg').hidden = !html; }
 
-  async function api(body) {
+  // 書き込み（POST）の途中や後に、それより前に読み始めた一覧（GET）が返ってきたら使わない。
+  // 使うと追加したばかりの行が一瞬消えて「追加」をもう一度押せてしまい、同じ行が2つできる
+  let posting = 0, postSeq = 0;
+  /** 成功なら true、失敗ならエラーの文 */
+  async function api(body, quiet) {
+    const seq = postSeq;
+    if (body) posting++;
     try {
       const res = body
         ? await fetch(CFG.boardApiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: CFG.boardKey, user: me(), ...body }) })
         : await fetch(CFG.boardApiUrl);
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || '失敗しました');
+      if (!body && (posting || seq !== postSeq)) return true; // 古い一覧
       rows = j.rows; serverNow = Date.parse(j.now) || Date.now(); fetchedAt = Date.now();
       ls.set(ROWS_KEY, JSON.stringify(rows));
       msg(''); render(); refreshRowDlg();
-    } catch (e) { msg(`ボードと通信できませんでした（${esc(e.message)}）。少し待ってから「↻ 更新」を押してください。`); }
+      return true;
+    } catch (e) {
+      if (!quiet) msg(`ボードと通信できませんでした（${esc(e.message)}）。少し待ってから「↻ 更新」を押してください。`);
+      return e.message || '失敗しました';
+    } finally {
+      if (body) { posting--; postSeq++; }
+    }
   }
   const load = () => api();
   function update(id, fields) {
@@ -82,9 +95,22 @@
     render(); refreshRowDlg(); return api({ action: 'update', id, fields });
   }
   function addRows(list) {
+    // もうボードにあるマスは足さない（Apps Script 側でも同じように弾く）
+    const have = new Set(rows.map(cellKey));
+    list = list.filter(r => { const k = cellKey(r); if (have.has(k)) return false; have.add(k); return true; });
     if (!list.length) return;
     rows = rows.concat(list.map(r => ({ ...r, id: 'tmp' + Math.random(), status: r.status || 'todo' }))); render();
     api({ action: 'addMany', rows: list });
+  }
+  /** ボードから行を消す（Apps Script が古くて removeMany がなければ1行ずつ） */
+  async function removeRows(ids) {
+    if (!ids.length) return;
+    const set = new Set(ids);
+    rows = rows.filter(r => !set.has(r.id)); render();
+    const res = await api({ action: 'removeMany', ids }, true);
+    if (res === true) return;
+    if (/不明な操作/.test(res)) { for (const id of ids) await api({ action: 'remove', id }); return; }
+    msg(`ボードから削除できませんでした（${esc(res)}）。「↻ 更新」で確かめてください。`);
   }
 
   // アセット名：エディタの名前欄・ドライブのファイル名と同じ形
@@ -104,13 +130,31 @@
   }
 
   // ====== 曲ごとにまとめる ======
+  // 1マス＝パート × 曲 × 難易度（SHIFT/SYNC・SONG は難易度なし）。同じマスの行が2つ以上あれば、
+  // 進んでいるもの（完成 > 確認待ち > 作成中 > 未着手、担当あり、先に作った方）を使い、残りは「重複」としてチェックに出す
+  const cellKey = r => `${r.part}|${songKey(r.song)}|${isSongPart(r.part) ? '' : r.difficulty}`;
+  const ST_RANK = { done: 3, review: 2, doing: 1, todo: 0 };
+  function splitDups(list) {
+    const best = new Map(), dups = [];
+    list.forEach((r, i) => {
+      const k = cellKey(r), cur = best.get(k);
+      const score = x => (ST_RANK[x.r.status] ?? 0) * 10 + (x.r.assignee ? 2 : 0) + (isLive(x.r) ? 1 : 0);
+      const me2 = { r, i };
+      if (!cur) { best.set(k, me2); return; }
+      if (score(me2) > score(cur)) { dups.push(cur.r); best.set(k, me2); } else dups.push(r);
+    });
+    return { primary: [...best.values()].sort((a, b) => a.i - b.i).map(x => x.r), dups };
+  }
+  const cells = () => splitDups(rows);
   function groups() {
     const map = new Map();
-    for (const r of rows) {
+    const { primary, dups } = cells();
+    for (const r of primary) {
       const key = songKey(r.song) || '(no-song)';
-      if (!map.has(key)) map.set(key, { key, song: r.song || '（曲名なし）', rows: [] });
+      if (!map.has(key)) map.set(key, { key, song: r.song || '（曲名なし）', rows: [], dups: [] });
       map.get(key).rows.push(r);
     }
+    for (const r of dups) map.get(songKey(r.song) || '(no-song)')?.dups.push(r);
     for (const g of map.values()) {
       g.count = Object.fromEntries(STATUS.map(([k]) => [k, g.rows.filter(r => r.status === k).length]));
       g.complete = g.rows.length > 0 && g.count.done === g.rows.length;
@@ -157,7 +201,9 @@
         <span class="sprog">${pbar(g.count, total)}<span class="cnt"><b>${g.count.done}</b>/${total} 完成${g.due && !g.complete ? `・期限 ${esc(g.due.slice(5).replace('-', '/'))}` : ''}</span></span>
         <span class="sact">
           ${g.missing.length ? `<button data-addmissing="${esc(g.song)}" title="${esc(g.missing.map(([p, d]) => PART_JP[p] + (d ? ' ' + d : '')).join('、'))}">＋ 足りない ${g.missing.length}</button>` : ''}
+          ${g.dups.length ? `<button class="warnbtn" data-dedupe="${esc(g.key)}" title="同じマスの行が2つ以上あります。進んでいる方を残して、残りをボードから消します">⚠ 重複 ${g.dups.length} 件を削除</button>` : ''}
           <button class="ghost" data-rename="${esc(g.song)}" title="この曲の曲名を変える（ボードのすべての行）">✎</button>
+          <button class="ghost danger" data-delsong="${esc(g.key)}" title="この曲をボードからまとめて削除（ドライブのファイルも一緒にゴミ箱フォルダへ移せます）">🗑</button>
           ${songRow ? `<a class="btn" style="--c:var(--song)" href="${esc(editorUrl(songRow))}" title="SONG Editor でこの曲の SongData を開く">♫ SONG Editor</a>` : ''}
         </span>
       </div>`;
@@ -181,7 +227,8 @@
       .sort((a, b) => (a.complete - b.complete) || (b.live.length > 0) - (a.live.length > 0)
         || (a.due || '9').localeCompare(b.due || '9') || a.song.localeCompare(b.song));
 
-    const total = rows.length, cnt = Object.fromEntries(STATUS.map(([k]) => [k, rows.filter(r => r.status === k).length]));
+    const { primary } = cells();
+    const total = primary.length, cnt = Object.fromEntries(STATUS.map(([k]) => [k, primary.filter(r => r.status === k).length]));
     $('bsum').innerHTML = total ? `曲 <b>${all.length}</b>（完成 <b>${all.filter(g => g.complete).length}</b>）・譜面 <b>${total}</b> 件` + (list.length !== all.length ? `　表示 ${list.length} 曲` : '') : '';
     $('bprog').hidden = !total;
     if (total) $('bprog').innerHTML = `${pbar(cnt, total)}<span class="legend">${STATUS.map(([k, t]) => `<span class="st-${k}">${t} <b>${cnt[k]}</b></span>`).join('')}</span>`;
@@ -215,6 +262,10 @@
     if (miss) { openAddDlg(miss.dataset.addmissing); return; }
     const ren = e.target.closest('[data-rename]');
     if (ren) { renameSong(ren.dataset.rename); return; }
+    const del = e.target.closest('[data-delsong]');
+    if (del) { deleteSong(del.dataset.delsong); return; }
+    const dd = e.target.closest('[data-dedupe]');
+    if (dd) { const g = groups().find(x => x.key === dd.dataset.dedupe); if (g) removeDups(g.dups); return; }
     if (e.target.closest('a,button')) return;
     const h = e.target.closest('[data-fold]');
     if (h) { const g = groups().find(x => x.key === h.dataset.fold); if (g) { setOpen(g.key, !isOpen(g)); render(); } }
@@ -224,6 +275,35 @@
     list.forEach(g => { fold[g.key] = open; });
     ls.set(FOLD_KEY, JSON.stringify(fold)); render();
   });
+  // 曲をまとめて削除：ボードの行（重複も含む）と、選べばドライブのファイルも（ゴミ箱フォルダへ移すだけなので戻せる）
+  async function deleteSong(key) {
+    const list = rows.filter(r => (songKey(r.song) || '(no-song)') === key);
+    if (!list.length) return;
+    const song = list[0].song || '（曲名なし）';
+    const live = list.filter(isLive);
+    if (!confirm(`「${song}」をボードからまとめて削除しますか？（${list.length} 件）`
+      + (live.length ? `\n\n⚠ ${[...new Set(live.map(r => r.editingBy))].join('、')} が編集中です。` : '')
+      + '\n\n（この後、ドライブのファイルも消すか聞きます）')) return;
+    const files = chartsErr ? [] : [...new Map(list.map(driveFile).filter(Boolean).map(f => [f.id, f])).values()];
+    let trash = false;
+    if (files.length) {
+      const names = files.slice(0, 12).map(f => `・${f.path}${f.name}（${driveWhat(f)}）`).join('\n') + (files.length > 12 ? `\n…ほか ${files.length - 12} 件` : '');
+      trash = confirm(`ドライブに保存されているファイル ${files.length} 件も、ゴミ箱フォルダへ移しますか？\n\n${names}\n\n［OK］ゴミ箱フォルダへ移す（元に戻せます）\n［キャンセル］ドライブのファイルは残す`);
+    }
+    await removeRows(list.map(r => r.id));
+    if (trash) {
+      try {
+        const j = await DriveCharts.trash(files.map(f => f.id), me());
+        charts = j.files; checkMsg = `「${song}」のファイル ${j.moved} 件をゴミ箱フォルダへ移しました。`;
+      } catch (e) { checkMsg = `ドライブのファイルをゴミ箱へ移せませんでした（${e.message}）。`; }
+      render();
+    }
+  }
+  function removeDups(dups) {
+    if (!dups.length) return;
+    const names = dups.slice(0, 15).map(r => `・${rowLabel(r)}（${ST_JP[r.status] || r.status}${r.assignee ? '・' + r.assignee : ''}）`).join('\n');
+    if (confirm(`同じマスに2つ以上ある行のうち、次の ${dups.length} 件をボードから削除しますか？\n（進んでいる方・担当がいる方を残します。ドライブのファイルは消えません）\n\n${names}`)) removeRows(dups.map(r => r.id));
+  }
   async function renameSong(song) {
     const to = prompt(`「${song}」の新しい曲名（音源のファイル名と同じにすると音源が自動で読み込まれます）`, song);
     if (!to || !to.trim() || to.trim() === song) return;
@@ -368,9 +448,17 @@
   }
   let checkMsg = '';
   function issues() {
-    if (!DriveCharts.enabled() || chartsErr) return [];
+    const { primary, dups } = cells();
     const out = [];
-    for (const r of rows) {
+    if (dups.length) {
+      out.push({
+        lv: 'warn', tag: '重複', text: `同じマスの行が2つ以上あります（${dups.length} 件）`,
+        sub: [...new Set(dups.map(rowLabel))].slice(0, 6).join('、') + (dups.length > 6 ? ' …' : '') + '　— 曲の進み具合が10件を超えて数えられる原因です',
+        acts: [['重複をすべて削除', () => removeDups(dups)]],
+      });
+    }
+    if (!DriveCharts.enabled() || chartsErr) return out;
+    for (const r of primary) {
       const f = driveFile(r), name = rowLabel(r), file = `${r.asset}${r.part === 'SONG' ? '.json' : '.asset'}`;
       if (!r.asset) out.push({ lv: 'warn', tag: '注意', text: name, sub: 'アセット名が空なので、ドライブのファイルと結び付けられません' });
       else if (!f && (r.status === 'done' || r.status === 'review')) out.push({ lv: 'warn', tag: '注意', text: name, sub: `${ST_JP[r.status]}なのに、ドライブに「${file}」がありません`, acts: [['作成中に戻す', () => update(r.id, { status: 'doing' })]] });
