@@ -347,6 +347,7 @@
       </div>
       <div class="df">
         <button class="danger" data-del title="ボードから削除（ドライブのファイルは消えません）">🗑 削除</button>
+        ${f && r.part !== 'SONG' ? `<button data-copy title="ドライブに保存されているこの中身を、同じパートのほかのマス（ほかの難易度・ほかの曲）にコピーする">📋 ほかのマスにコピー</button>` : ''}
         <span class="sp"></span>
         <a class="btn open" style="--c:${color}" href="${esc(editorUrl(r))}" title="エディタで開く（ドライブにあればそれを、なければこの名前で新しく作る）">${esc(PART_JP[r.part] || r.part)} のエディタで開く ▶</a>
       </div>`;
@@ -357,6 +358,7 @@
     const st = e.target.closest('[data-st]');
     if (st && r.status !== st.dataset.st) { update(r.id, { status: st.dataset.st }); return; }
     if (e.target.closest('[data-take]')) { update(r.id, { assignee: me(), ...(r.status === 'todo' ? { status: 'doing' } : {}) }); return; }
+    if (e.target.closest('[data-copy]')) { rowDlg.close(); openCopyDlg(r); return; }
     if (e.target.closest('[data-del]') && confirm(`「${rowLabel(r)}」をボードから削除しますか？\n（ドライブに保存されたファイルは消えません）`)) {
       rows = rows.filter(x => x !== r); rowDlg.close(); render(); api({ action: 'remove', id: r.id });
     }
@@ -366,6 +368,102 @@
     update(dlgId, { [k]: e.target.value.trim() });
   });
   rowDlg.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.k) e.target.blur(); });
+
+  // ---- ほかのマスにコピー ----
+  // ドライブに保存されている中身（.asset）を、同じパートのほかのマスへ。コピー先のファイルは「コピー先のアセット名.asset」で作る・上書きする
+  // （m_Name はコピー先の名前に書き換える）。ボードにまだないマスなら行も追加する。SONG は譜面の名前の一覧なのでコピーしない
+  const copyDlg = $('copyDlg');
+  let copySrc = null, copying = false;
+  function openCopyDlg(r) {
+    copySrc = r; copying = false;
+    const f = driveFile(r);
+    copyDlg.innerHTML = `<div class="dh"><span class="ptag ${esc(r.part)}">${esc(PART_JP[r.part])}</span><h3>ほかのマスにコピー</h3><button class="ghost icon" data-x title="閉じる">✕</button></div>
+      <div class="db">
+        <div class="info">コピー元：<b>${esc(rowLabel(r))}</b>${f ? `<span class="dv">☁ ${esc(driveWhat(f))}・${esc(DriveCharts.fmtDate(f.updated))}${f.savedBy ? ' ' + esc(f.savedBy) : ''}</span>` : ''}</div>
+        <div class="fld"><span>コピー先（同じパートだけ。複数選べます）</span></div>
+        <input type="search" id="cpFilter" placeholder="曲名で絞り込み" spellcheck="false">
+        <div class="cpwrap"><table class="cpgrid" id="cpGrid"></table></div>
+        <div class="dim" style="line-height:1.7"><b style="color:#ffb38a">上書き</b>＝ドライブに保存済み（中身が置き換わります）　<b style="color:#8fd9a8">新規</b>＝まだドライブにない　<b style="color:#9fcaff">＋行</b>＝ボードにも追加</div>
+        <ul class="cplog" id="cpLog" hidden></ul>
+      </div>
+      <div class="df"><span class="dim" id="cpInfo"></span><span class="sp"></span><button data-x>閉じる</button><button class="primary" id="cpOk" disabled>コピーする</button></div>`;
+    renderCopyGrid();
+    copyDlg.showModal();
+  }
+  function copyTargets() {
+    return [...$('cpGrid').querySelectorAll('input:checked')].map(x => { const [key, diff] = x.dataset.v.split('|'); return { key, diff }; });
+  }
+  function renderCopyGrid() {
+    const r = copySrc, part = r.part, diffs = isSongPart(part) ? [''] : DIFFS;
+    const prev = new Set(copyTargets().map(t => t.key + '|' + t.diff));
+    const q = DriveAudio.norm($('cpFilter').value.trim());
+    const srcKey = songKey(r.song);
+    // コピー元の曲を一番上に
+    const list = groups().filter(g => !q || g.key.includes(q)).sort((a, b) => (b.key === srcKey) - (a.key === srcKey) || a.song.localeCompare(b.song));
+    $('cpGrid').innerHTML = `<tr><th>曲</th>${diffs.map(d => `<th class="${d}">${d || PART_JP[part]}</th>`).join('')}</tr>`
+      + list.map(g => `<tr><td class="cps" title="${esc(g.song)}">${esc(g.song)}</td>${diffs.map(d => {
+        const t = cellRow(g, part, d), self = t && t.id === r.id || (g.key === srcKey && (isSongPart(part) || d === r.difficulty));
+        if (self) return '<td><span class="cpself">コピー元</span></td>';
+        const tf = t ? driveFile(t) : null, live = t && isLive(t), v = `${g.key}|${d}`;
+        const tag = tf ? '<b class="ow">上書き</b>' : '<b class="nw">新規</b>';
+        return `<td><label class="${live ? 'cplive' : ''}" title="${esc(t ? `${t.asset || '（アセット名なし）'}${tf ? `\n☁ ${driveWhat(tf)}・${DriveCharts.fmtDate(tf.updated)} ${tf.savedBy || ''}` : ''}${live ? `\n⚠ ${t.editingBy} が編集中` : ''}` : 'ボードにまだないマス（行も追加します）')}">
+          <input type="checkbox" data-v="${esc(v)}" ${prev.has(v) ? 'checked' : ''} ${copying ? 'disabled' : ''}>${tag}${t ? '' : '<b class="ad">＋行</b>'}${live ? '<b class="lv">編集中</b>' : ''}</label></td>`;
+      }).join('')}</tr>`).join('');
+    updateCopyInfo();
+  }
+  function updateCopyInfo() {
+    const n = copyTargets().length;
+    $('cpInfo').textContent = n ? `${n} マスにコピー` : '';
+    $('cpOk').disabled = !n || copying;
+  }
+  copyDlg.addEventListener('input', e => { if (e.target.id === 'cpFilter') renderCopyGrid(); });
+  copyDlg.addEventListener('change', e => { if (e.target.closest('#cpGrid')) updateCopyInfo(); });
+  copyDlg.addEventListener('cancel', e => { if (copying) e.preventDefault(); });
+  copyDlg.addEventListener('click', e => {
+    if (e.target.closest('[data-x]') || e.target === copyDlg) { if (!copying) copyDlg.close(); return; }
+    if (e.target.id === 'cpOk') runCopy();
+  });
+  async function runCopy() {
+    const r = copySrc, part = r.part, user = me();
+    if (!user) { NameGate.ask(); return; }
+    const src = driveFile(r);
+    if (!src) { alert('コピー元がドライブに保存されていません'); return; }
+    const all = groups();
+    const targets = copyTargets().map(({ key, diff }) => {
+      const g = all.find(x => x.key === key), t = g && cellRow(g, part, diff);
+      return { g, diff, row: t, asset: (t && t.asset) || assetName(part, g.song, diff), file: t ? driveFile(t) : null };
+    }).filter(t => t.g);
+    const over = targets.filter(t => t.file), live = targets.filter(t => t.row && isLive(t.row));
+    if (over.length && !confirm(`次の ${over.length} 件はドライブに保存済みです。コピー元の中身で上書きしますか？\n\n${over.map(t => '・' + rowLabel(t.row)).join('\n')}`
+      + (live.length ? `\n\n⚠ ${live.map(t => `${rowLabel(t.row)}（${t.row.editingBy}）`).join('、')} は編集中です。開いているエディタで保存すると、コピーした中身が上書きされます。` : ''))) return;
+
+    copying = true; renderCopyGrid();
+    const logEl = $('cpLog'); logEl.hidden = false; logEl.innerHTML = '';
+    const log = (html, cls = '') => { logEl.insertAdjacentHTML('beforeend', `<li class="${cls}">${html}</li>`); logEl.scrollTop = logEl.scrollHeight; };
+    try {
+      log(`コピー元「${esc(src.name)}」を読み込み中…`);
+      const content = (await DriveCharts.read(src.id)).content;
+      // ボードにないマスは行を足す。行はあるけれどアセット名が空なら付ける
+      const add = targets.filter(t => !t.row).map(t => ({ part, song: t.g.song, difficulty: t.diff, asset: t.asset, status: 'doing', assignee: user }));
+      if (add.length) { log(`ボードに ${add.length} 行を追加中…`); await api({ action: 'addMany', rows: add }); }
+      for (const t of targets.filter(t => t.row && !t.row.asset)) await api({ action: 'update', id: t.row.id, fields: { asset: t.asset } });
+      let ok = 0;
+      for (const t of targets) {
+        const label = `${t.g.song} ${isSongPart(part) ? PART_JP[part] : t.diff}`;
+        try {
+          const body = content.replace(/^(\s*m_Name:).*$/m, '$1 ' + t.asset);
+          const j = await DriveCharts.save({ part, asset: t.asset, content: body, user, force: true });
+          if (!j.ok) throw new Error(j.error || '失敗しました');
+          ok++; log(`✓ ${esc(label)} → ${esc(j.file.path)}${esc(j.file.name)}`, 'ok');
+        } catch (err) { log(`✕ ${esc(label)}：${esc(err.message)}`, 'ng'); }
+      }
+      log(`${ok} / ${targets.length} 件をコピーしました。${ok ? 'エディタで開いて中身を確かめてください。' : ''}`, ok === targets.length ? 'ok' : 'ng');
+    } catch (err) { log(`コピーできませんでした：${esc(err.message)}`, 'ng'); }
+    copying = false;
+    $('cpGrid').querySelectorAll('input').forEach(x => { x.checked = false; });
+    await Promise.all([load(), loadCharts(true)]);
+    if (copyDlg.open) renderCopyGrid();
+  }
 
   // ---- 曲・譜面の追加 ----
   const addDlg = $('addDlg');

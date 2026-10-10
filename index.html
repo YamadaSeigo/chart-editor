@@ -168,6 +168,23 @@ dialog.bd::backdrop{background:rgba(8,8,14,.7)}
 .pick label:has(input:checked){background:#25402f;border-color:#8fd9a8}
 .pick label.have{opacity:.45;cursor:default;border-style:dashed}
 .pick .wide{grid-column:span 2}
+dialog.bd.wide{width:720px}
+.cpwrap{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.cpgrid{width:100%;border-collapse:collapse;font-size:12.5px}
+.cpgrid th{position:sticky;top:0;background:#191922;color:var(--dim);font-weight:700;font-size:11.5px;padding:7px 8px;text-align:center;z-index:1}
+.cpgrid th:first-child{text-align:left}
+.cpgrid th.Easy{color:#7CF29A}.cpgrid th.Normal{color:#6CC8FF}.cpgrid th.Hard{color:#FFB347}.cpgrid th.Extra{color:#FF5C8A}
+.cpgrid td{padding:4px;border-top:1px solid #26263a;text-align:center}
+.cpgrid td.cps{text-align:left;padding-left:10px;font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cpgrid label{display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;min-height:34px;padding:2px 6px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.cpgrid label:has(input:checked){background:#25402f;border-color:#8fd9a8}
+.cpgrid label.cplive{border-color:#ffd24a}
+.cpgrid b{font-size:10.5px;font-weight:700}
+.cpgrid b.ow{color:#ffb38a}.cpgrid b.nw{color:#8fd9a8}.cpgrid b.ad{color:#9fcaff}.cpgrid b.lv{color:#ffd24a}
+.cpself{display:inline-block;font-size:11px;color:var(--dim);border:1px dashed #3a3a4c;border-radius:8px;padding:6px 8px}
+.cplog{list-style:none;margin:0;padding:8px 12px;max-height:160px;overflow:auto;background:#12121a;border:1px solid var(--line);border-radius:8px;font-size:12.5px}
+.cplog li{padding:2px 0;color:#c8c8d8}
+.cplog li.ok{color:#8fd9a8}.cplog li.ng{color:#ff9aa8}
 /* ---- ボードとドライブのチェック ---- */
 #bcheck{border-bottom:1px solid var(--line);background:#1a1a22}
 .chead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 20px}
@@ -267,6 +284,7 @@ th{color:var(--dim);font-weight:500;font-size:12px;background:#191922}
 </section>
 <dialog class="bd" id="rowDlg"></dialog>
 <dialog class="bd" id="addDlg"></dialog>
+<dialog class="bd wide" id="copyDlg"></dialog>
 <section id="audio">
   <div class="bhead">
     <div class="btitle"><h2>音源</h2><span class="sum" id="asum"></span></div>
