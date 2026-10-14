@@ -50,7 +50,16 @@
 #bdBusy .bar{width:100%;height:6px;border-radius:3px;background:#2a2a38;overflow:hidden}
 #bdBusy .bar[hidden]{display:none}
 #bdBusy .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
-#bdBusy small{color:var(--dim,#9696ad);font-size:12px}`;
+#bdBusy small{color:var(--dim,#9696ad);font-size:12px}
+.bddiff{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.bddiff[hidden]{display:none}
+.bddiff button{border:0;border-radius:0;border-left:1px solid var(--line);background:none;padding:2px 8px;font-size:11px;line-height:18px;color:var(--dim);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.bddiff button:first-child{border-left:0}
+.bddiff button:hover{background:#2e2e3e;color:var(--text)}
+.bddiff button.on{background:var(--accent);color:#14141b;font-weight:700;cursor:default}
+.bddiff button.none{opacity:.45}
+.bddiff i{width:6px;height:6px;border-radius:50%;background:#9696ad}
+.bddiff i.doing{background:#ffd24a}.bddiff i.review{background:#9fcaff}.bddiff i.done{background:#8fd9a8}`;
   document.head.append(css);
 
   const nav = document.querySelector('.edsw');
@@ -78,11 +87,15 @@
   doneBtn.hidden = !(DC && DC.enabled());
   const chip = document.createElement('span');
   chip.className = 'bdchip';
+  // 同じ曲の難易度を切り替える（ページを開き直さないので、読み込んだ音源はそのまま使える）
+  const diffSw = document.createElement('span');
+  diffSw.className = 'bddiff'; diffSw.hidden = true;
+  diffSw.setAttribute('role', 'group'); diffSw.setAttribute('aria-label', '難易度を切り替える');
   const meBtn = document.createElement('button');
   meBtn.className = 'bdlink'; meBtn.title = 'あなたの名前（譜面ボードの担当・保存した人）。クリックで変更';
   const showMe = () => { meBtn.textContent = '👤 ' + (user() || '未設定'); };
   meBtn.addEventListener('click', () => window.NameGate && NameGate.ask(true));
-  nav.after(drive, saveBtn, openBtn, pickBtn, doneBtn, chip, meBtn);
+  nav.after(drive, saveBtn, openBtn, pickBtn, doneBtn, chip, diffSw, meBtn);
 
   // ====== 処理中は画面を止める（音源の読み込み・ドライブへの保存など） ======
   const busyEl = document.createElement('div');
@@ -171,6 +184,7 @@
       else html += ` <button data-load title="音源フォルダの「${esc(f.name)}」を読み込む（${DA.fmtSize(f.size)}）">♪ ${esc(DA.songOf(f.name))} を読み込む</button>`;
     }
     chip.innerHTML = html;
+    renderDiffs(r);
     // 作業完了ボタン
     doneBtn.classList.toggle('sent', !!r && (r.status === 'review' || r.status === 'done'));
     doneBtn.textContent = r && r.status === 'review' ? '✓ 確認待ち' : r && r.status === 'done' ? '✓ 完成' : '✓ 作業完了';
@@ -194,6 +208,61 @@
     const r = rows.find(x => x.part === PART && String(x.asset).toLowerCase() === asset().toLowerCase());
     const f = matchFile(r); if (f) useDriveAudio(f);
   });
+
+  // ====== 同じ曲の難易度の切り替え ======
+  const DIFFS = ['Easy', 'Normal', 'Hard', 'Extra'];
+  const PREFIX = PART === 'TECH' ? 'TechChart' : 'PowerChart';
+  const assetFor = (song, diff) => `${PREFIX}_${String(song).replace(/[^\w-]+/g, '')}_${diff}`;
+  // 今の譜面の曲と難易度（ボードの行。なければ名前欄の「TechChart_曲名_Hard」から）
+  function current(r) {
+    if (r) return { song: r.song, diff: r.difficulty };
+    const m = asset().match(new RegExp(`^${PREFIX}_(.+)_(${DIFFS.join('|')})$`, 'i'));
+    return m ? { song: m[1], diff: DIFFS.find(d => d.toLowerCase() === m[2].toLowerCase()) } : null;
+  }
+  function renderDiffs(r) {
+    const c = current(r);
+    diffSw.hidden = !c || !(DC && DC.enabled());
+    if (diffSw.hidden) return;
+    const norm = s => DA ? DA.norm(s) : String(s).toLowerCase();
+    diffSw.innerHTML = DIFFS.map(d => {
+      const row = rows.find(x => x.part === PART && x.difficulty === d && norm(x.song) === norm(c.song));
+      const name = row && row.asset ? row.asset : assetFor(c.song, d), on = d === c.diff;
+      const tip = on ? `いま開いている難易度（${name}）`
+        : `${c.song} ${d} に切り替える（${name}）${row ? '・' + (STATUS_JP[row.status] || row.status) : '・ボード未登録'}。音源はそのまま使います`;
+      return `<button data-asset="${esc(name)}" class="${on ? 'on' : ''}${row ? '' : ' none'}" title="${esc(tip)}" aria-pressed="${on}">` +
+        `${row ? `<i class="${esc(row.status)}"></i>` : ''}${d}</button>`;
+    }).join('');
+  }
+  diffSw.addEventListener('click', e => {
+    const b = e.target.closest('button[data-asset]');
+    if (b && !b.classList.contains('on')) switchTo(b.dataset.asset);
+  });
+  let switching = false;
+  async function switchTo(want) {
+    if (switching || saving || loading) return;
+    if (dirty) {
+      if (!confirm(`今の譜面「${asset()}」に未保存の変更があります。
+ドライブに保存してから「${want}」に切り替えますか？
+（キャンセルで切り替えをやめます）`)) return;
+      if (!await saveToDrive(false)) return;
+    }
+    switching = true;
+    try {
+      const prev = asset();
+      let f = DC.find(DC.peek() || [], PART, want);
+      if (!f) { busy('ドライブの譜面を探しています…'); try { f = DC.find(await DC.list(true), PART, want); } finally { unbusy(); } }
+      if (f) { if (!await openFromDrive(f)) return; }
+      else {
+        if (!confirm(`「${want}」はまだドライブに保存されていません。この名前で新しい譜面を作りますか？
+（BPM・オフセットは今の譜面のまま。音源もそのまま使います）`)) return;
+        loadChartObj({ name: want, notes: [] }); rememberHandle(null); seek(0);
+        toast(`新しい譜面「${want}」を作りました。できたら「☁ ドライブに保存」で保存してください`);
+      }
+      leave(prev); // 前の譜面の「作成中」を外す
+      lastAsset = ''; // ボードの表示をすぐ更新
+    } catch (e) { toast('切り替えられませんでした: ' + e.message); }
+    finally { switching = false; render(); }
+  }
 
   // ====== 音源を選ぶダイアログ ======
   const dlg = document.createElement('dialog');
@@ -393,11 +462,12 @@
     render();
   }
   // 閉じる・切り替えるときは「作成中」を解除
-  addEventListener('pagehide', () => {
-    if (!CFG.boardApiUrl || !user() || !asset()) return;
-    const body = JSON.stringify({ key: CFG.boardKey, action: 'heartbeat', leaving: true, part: PART, asset: asset(), user: user() });
+  function leave(name) {
+    if (!CFG.boardApiUrl || !user() || !name) return;
+    const body = JSON.stringify({ key: CFG.boardKey, action: 'heartbeat', leaving: true, part: PART, asset: name, user: user() });
     try { navigator.sendBeacon(CFG.boardApiUrl, new Blob([body], { type: 'text/plain;charset=utf-8' })); } catch (e) { }
-  });
+  }
+  addEventListener('pagehide', () => leave(asset()));
   // 名前欄（アセット名）が変わったらすぐ反映。音源を外したら表示を戻す
   var lastAsset = '', lastHas = false;
   setInterval(() => {
