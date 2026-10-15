@@ -205,7 +205,36 @@ footer{display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--
 .audiobox{display:inline-flex;align-items:center;gap:4px}
 .audiobox button{padding:0 6px;font-size:11px;line-height:16px}
 #audioName{color:var(--dim);font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#vol{width:70px;accent-color:var(--accent)}
+/* サウンド（ミキサー） */
+.mixbtn{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;border-radius:8px;line-height:18px}
+.mixbtn .lv{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+.mixbtn .tags{display:inline-flex;gap:3px}
+.mixbtn .tags i{font-style:normal;font-size:10px;line-height:14px;padding:0 5px;border-radius:7px;background:#262633;color:#6a6a82}
+.mixbtn .tags i.on{background:#3a2a36;color:var(--accent)}
+.mixbtn.open,.mixbtn:hover{border-color:var(--accent)}
+.mixbtn.muted{opacity:.6}
+.fsep{width:1px;align-self:stretch;margin:14px 0;background:var(--line)}
+.mixpop{width:340px;padding:14px 16px 12px}
+.mixpop h4{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.mixpop h4 small{margin-left:auto;font-weight:400;color:var(--dim);font-size:11px}
+.mxrow{display:grid;grid-template-columns:34px 1fr 42px;grid-template-rows:auto auto;column-gap:10px;row-gap:3px;align-items:center;padding:9px 10px;margin:0 -4px 6px;border-radius:9px;background:#181820;border:1px solid #262633}
+.mxrow.master{background:#1f1a22;border-color:#3a2a36}
+.mxrow .sw{grid-row:1/3}
+.mxrow .nm{font-size:12px;font-weight:600;color:var(--text);display:flex;gap:6px;align-items:baseline;min-width:0}
+.mxrow .nm small{font-weight:400;color:var(--dim);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mxrow input[type=range]{grid-column:2;width:100%;margin:0;min-width:0}
+.mixpop .mxrow output{grid-column:3;grid-row:1/3;width:auto;text-align:right;font-size:12px}
+.mxrow.off input[type=range],.mxrow.off output{opacity:.35}
+.sw{position:relative;width:34px;height:20px;flex:none;cursor:pointer}
+.sw input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.sw span{position:absolute;inset:0;border-radius:10px;background:#33334a;transition:background .15s}
+.sw span::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#c8c8d8;transition:transform .15s}
+.sw input:checked+span{background:var(--accent)}
+.sw input:checked+span::after{transform:translateX(14px);background:#fff}
+.sw input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.mixpop .ft{display:flex;align-items:center;gap:8px;margin-top:8px}
+.mixpop .ft .muted{flex:1;font-size:11px}
+.mixpop .ft button{padding:1px 9px;font-size:11px}
 input[type=checkbox]{accent-color:var(--accent)}
 
 #toast{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);background:#2b2b3a;border:1px solid var(--line);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10}
@@ -318,13 +347,40 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
     </div>
     <label>速度 <select id="rate"><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option></select></label>
     <label title="再生中に 左 A S D / 右 J K L（2〜5 は配置先のレーン）でノーツを打ち込む (R)"><input type="checkbox" id="rec"> 打ち込み</label>
-    <label><input type="checkbox" id="hs" checked> ヒット音</label>
-    <label><input type="checkbox" id="metro"> メトロノーム</label>
-    <input type="range" id="vol" min="0" max="1" step="0.05" value="0.7" title="音量">
+    <span class="fsep"></span>
+    <button id="mixBtn" class="mixbtn" title="サウンド（全体・音源・ヒット音・メトロノームの音量）" aria-haspopup="dialog"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg><span class="lv" id="mixLv"></span><span class="tags"><i id="mixHitTag">ヒット</i><i id="mixMetroTag">メトロ</i></span></button>
     <span class="audiobox"><span id="audioName">音源なし</span><button id="audioClear" data-act="unloadAudio" title="音源を外す" hidden>×</button></span>
   </footer>
 </div>
 <div id="toast"></div>
+<div id="mixPop" class="pop mixpop" hidden role="dialog" aria-label="サウンド">
+  <h4><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>サウンド<small>設定はこのブラウザに保存されます</small></h4>
+  <div class="mxrow master">
+    <label class="sw" title="オンで音を出す / オフですべて消音"><input type="checkbox" id="mxAllOn"><span></span></label>
+    <span class="nm">全体</span>
+    <input type="range" id="vol" min="0" max="1" step="0.01" title="全体の音量">
+    <output id="volV"></output>
+  </div>
+  <div class="mxrow music">
+    <label class="sw" title="オンで音源を鳴らす"><input type="checkbox" id="mxMusicOn"><span></span></label>
+    <span class="nm">音源<small id="mxMusicName"></small></span>
+    <input type="range" id="mxMusic" min="0" max="1" step="0.01" title="音源の音量">
+    <output id="mxMusicV"></output>
+  </div>
+  <div class="mxrow hit">
+    <label class="sw" title="オンでノーツのヒット音を鳴らす"><input type="checkbox" id="hs"><span></span></label>
+    <span class="nm">ヒット音</span>
+    <input type="range" id="mxHit" min="0" max="2" step="0.01" title="ヒット音の音量（動かすと試し聞き）">
+    <output id="mxHitV"></output>
+  </div>
+  <div class="mxrow metro">
+    <label class="sw" title="オンで拍に合わせてメトロノームを鳴らす"><input type="checkbox" id="metro"><span></span></label>
+    <span class="nm">メトロノーム<small>小節の頭は高い音</small></span>
+    <input type="range" id="mxMetro" min="0" max="2" step="0.01" title="メトロノームの音量（動かすと試し聞き）">
+    <output id="mxMetroV"></output>
+  </div>
+  <div class="ft"><span class="muted">ヒット音・メトロノームは動かすと試し聞きできます</span><button data-mix="reset">元に戻す</button></div>
+</div>
 <div id="layoutPop" class="pop" hidden>
   <h4>レイアウト</h4>
   <div class="pr"><span>プリセット</span><div class="seg"><button data-layout="default">標準</button><button data-layout="timeline">タイムライン重視</button><button data-layout="field">プレビュー重視</button></div></div>
@@ -421,6 +477,7 @@ const S = {
   notes: [], name: 'PowerChart', bpm: 120, offset: 0, approach: 4, snap: 4,
   time: 0, playing: false, tool: 'select', hand: L, rec: false,
   sel: new Set(), zoom: 140, viewStart: 0, viewEnd: null, rate: 1, hitsound: true, metronome: false, volume: 0.7,
+  volMusic: 1, volHit: 1, volMetro: 1, muteAll: false, muteMusic: false,
 };
 let nextId = 1, drag = null, pfMouse = null, clip = null, tab = 'edit', listFilter = '', lastSelKey = '', keepTab = false;
 
@@ -524,7 +581,7 @@ function toJSONObj() {
 }
 function save() {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify({ chart: toJSONObj(), ui: { snap: S.snap, zoom: S.zoom, hand: S.hand, hitsound: S.hitsound, metronome: S.metronome, volume: S.volume, time: S.time, viewStart: S.viewStart, viewEnd: S.viewEnd } }));
+    localStorage.setItem(LS_KEY, JSON.stringify({ chart: toJSONObj(), ui: { snap: S.snap, zoom: S.zoom, hand: S.hand, hitsound: S.hitsound, metronome: S.metronome, volume: S.volume, volMusic: S.volMusic, volHit: S.volHit, volMetro: S.volMetro, muteAll: S.muteAll, muteMusic: S.muteMusic, time: S.time, viewStart: S.viewStart, viewEnd: S.viewEnd } }));
   } catch (e) { /* ストレージが使えない環境では何もしない */ }
 }
 const parseType = v => typeof v === 'number' ? VAL_TYPE[v] || null : TYPES.includes(v) ? v : null;
@@ -608,10 +665,15 @@ async function copyText(text) {
 }
 
 // ====== オーディオ ======
-let actx = null, master = null, buffer = null, peaks = null, src = null, startCtx = 0, startT = 0;
+let actx = null, master = null, musicBus = null, hitBus = null, metroBus = null, buffer = null, peaks = null, src = null, startCtx = 0, startT = 0;
 function ac() {
-  if (!actx) { actx = new AudioContext(); master = actx.createGain(); master.connect(actx.destination); }
-  master.gain.value = S.volume;
+  if (!actx) {
+    actx = new AudioContext(); master = actx.createGain(); master.connect(actx.destination);
+    // 音源・ヒット音・メトロノームはそれぞれの音量を通してから全体の音量へ
+    [musicBus, hitBus, metroBus] = [0, 0, 0].map(() => { const g = actx.createGain(); g.connect(master); return g; });
+    master.gain.value = S.muteAll ? 0 : S.volume; musicBus.gain.value = S.muteMusic ? 0 : S.volMusic;
+    hitBus.gain.value = S.volHit; metroBus.gain.value = S.volMetro;
+  }
   return actx;
 }
 function duration() {
@@ -623,7 +685,7 @@ function startPlayback() {
   const c = ac(); c.resume();
   startCtx = c.currentTime + 0.03; startT = S.time;
   if (buffer) {
-    src = c.createBufferSource(); src.buffer = buffer; src.playbackRate.value = S.rate; src.connect(master);
+    src = c.createBufferSource(); src.buffer = buffer; src.playbackRate.value = S.rate; src.connect(musicBus);
     const at = S.time + S.offset;
     if (at >= 0) src.start(startCtx, at); else src.start(startCtx - at / S.rate, 0);
   }
@@ -670,30 +732,31 @@ async function loadAudio(file) {
     toast(`音源を読み込みました (${fmtTime(buffer.duration)})`);
   } catch (e) { toast('音源の読み込みに失敗しました'); }
 }
-function blip(freq, dur, vol, type, pan = 0) {
+function blip(freq, dur, vol, type, bus = hitBus, pan = 0) {
   const c = actx, t = c.currentTime, o = c.createOscillator(), g = c.createGain(), p = c.createStereoPanner();
   o.type = type; o.frequency.value = freq; p.pan.value = pan;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
-  o.connect(g).connect(p).connect(master); o.start(t); o.stop(t + dur + 0.02);
+  o.connect(g).connect(p).connect(bus); o.start(t); o.stop(t + dur + 0.02);
 }
 // パンチっぽい低めの音。左右のレーンで左右に振る
 const HIT_FREQ = { Jab: 420, Upper: 520, HookLeft: 380, HookRight: 380, Rush: 600 };
 const PAN = h => h === L ? -0.6 : 0.6;
+const previewHit = () => { blip(HIT_FREQ.Jab, 0.09, 0.3, 'triangle'); blip(HIT_FREQ.Jab * 3, 0.03, 0.08, 'square'); };
 function tickSounds(prev, now) {
   if (now <= prev) return;
   const hits = S.notes.filter(n => tOf(n) > prev && tOf(n) <= now);
   if (hits.length) mascotPop = performance.now();
   if (S.hitsound) {
-    for (const n of hits) { blip(HIT_FREQ[n.type], 0.09, 0.3, 'triangle', PAN(n.hand)); blip(HIT_FREQ[n.type] * 3, 0.03, 0.08, 'square', PAN(n.hand)); }
+    for (const n of hits) { blip(HIT_FREQ[n.type], 0.09, 0.3, 'triangle', hitBus, PAN(n.hand)); blip(HIT_FREQ[n.type] * 3, 0.03, 0.08, 'square', hitBus, PAN(n.hand)); }
     // 連打中は目標の速さ（1レーンあたり）で軽く鳴らす
     for (const n of S.notes) if (isRush(n) && now > tOf(n) && prev < endT(n) && now < endT(n)) {
       const k = Math.floor((now - tOf(n)) / rushGap(n));
-      if (k > Math.floor((prev - tOf(n)) / rushGap(n))) blip(700, 0.03, 0.1, 'square', PAN(n.hand));
+      if (k > Math.floor((prev - tOf(n)) / rushGap(n))) blip(700, 0.03, 0.1, 'square', hitBus, PAN(n.hand));
     }
   }
   if (S.metronome) {
     const bl = beatLen(), b = Math.floor(now / bl);
-    if (b > Math.floor(prev / bl) && b >= 0) blip(b % 4 === 0 ? 1500 : 1000, 0.04, 0.18, 'sine');
+    if (b > Math.floor(prev / bl) && b >= 0) blip(b % 4 === 0 ? 1500 : 1000, 0.04, 0.18, 'sine', metroBus);
   }
 }
 
@@ -1619,7 +1682,7 @@ document.querySelector('.ptabs').addEventListener('click', e => { const b = e.ta
 // ====== ヘッダー / フッター ======
 function syncHeader() {
   $('#name').value = S.name; $('#bpm').value = S.bpm; $('#offset').value = S.offset; $('#approach').value = S.approach;
-  $('#snap').value = S.snap; $('#hs').checked = S.hitsound; $('#metro').checked = S.metronome; $('#vol').value = S.volume;
+  $('#snap').value = S.snap; applyMix();
 }
 const CHART_INPUTS = ['#name'];
 const onVal = (sel, fn) => $(sel).addEventListener('change', e => { fn(e.target); if (CHART_INPUTS.includes(sel)) markDirty(); save(); refreshPanels(); });
@@ -1628,10 +1691,62 @@ onVal('#bpm', el => { const v = +el.value; if (v > 0) { const b = S.time / beatL
 onVal('#offset', el => { S.offset = +el.value || 0; if (S.playing) seek(curTime()); });
 onVal('#approach', el => { const v = +el.value; if (v >= 0.5) S.approach = v; else el.value = S.approach; });
 onVal('#snap', el => S.snap = +el.value);
-onVal('#hs', el => S.hitsound = el.checked);
-onVal('#metro', el => S.metronome = el.checked);
 $('#rec').addEventListener('change', e => setRec(e.target.checked));
-$('#vol').addEventListener('input', e => { S.volume = +e.target.value; if (master) master.gain.value = S.volume; save(); });
+// ====== サウンド（全体・音源・ヒット音・メトロノームの音量） ======
+const MIX_DEFAULT = { volume: 0.7, volMusic: 1, volHit: 1, volMetro: 1, muteAll: false, muteMusic: false, hitsound: true, metronome: false };
+// [スライダー, 音量のキー, オン/オフのキー, オン/オフが「消音」か]
+const MIX_ROWS = [['#vol', 'volume', 'muteAll', true], ['#mxMusic', 'volMusic', 'muteMusic', true], ['#mxHit', 'volHit', 'hitsound', false], ['#mxMetro', 'volMetro', 'metronome', false]];
+const SW_OF = { muteAll: '#mxAllOn', muteMusic: '#mxMusicOn', hitsound: '#hs', metronome: '#metro' };
+function applyMix() {
+  if (actx) {
+    const set = (g, v) => g.gain.setTargetAtTime(v, actx.currentTime, 0.015);
+    set(master, S.muteAll ? 0 : S.volume); set(musicBus, S.muteMusic ? 0 : S.volMusic);
+    set(hitBus, S.volHit); set(metroBus, S.volMetro);
+  }
+  for (const [sel, k, sw, inv] of MIX_ROWS) {
+    const on = inv ? !S[sw] : S[sw];
+    $(sel).value = S[k]; $(sel + 'V').textContent = Math.round(S[k] * 100) + '%';
+    $(SW_OF[sw]).checked = on; $(sel).closest('.mxrow').classList.toggle('off', !on);
+  }
+  $('#mxMusicName').textContent = buffer ? $('#audioName').textContent : '（音源なし）';
+  $('#mixLv').textContent = S.muteAll ? '消音' : Math.round(S.volume * 100) + '%';
+  $('#mixBtn').classList.toggle('muted', S.muteAll);
+  $('#mixHitTag').classList.toggle('on', S.hitsound); $('#mixMetroTag').classList.toggle('on', S.metronome);
+}
+for (const [sel, k, sw, inv] of MIX_ROWS) {
+  $(sel).addEventListener('input', e => {
+    S[k] = +e.target.value; applyMix();
+    if (k === 'volHit' || k === 'volMetro') mixPreview(k);
+  });
+  $(sel).addEventListener('change', () => save());
+  $(SW_OF[sw]).addEventListener('change', e => { S[sw] = inv ? !e.target.checked : e.target.checked; applyMix(); save(); });
+}
+// 試し聞き（再生中は鳴らさない。続けて動かしたときは間をあける）
+let previewAt = 0;
+function mixPreview(k) {
+  if (S.playing || performance.now() - previewAt < 140) return;
+  previewAt = performance.now(); ac(); if (actx.state === 'suspended') actx.resume();
+  if (k === 'volHit') previewHit(); else blip(1500, 0.04, 0.18, 'sine', metroBus);
+}
+function toggleMixPop() {
+  const pop = $('#mixPop'), btn = $('#mixBtn');
+  if (!pop.hidden) { pop.hidden = true; btn.classList.remove('open'); return; }
+  applyMix();
+  pop.hidden = false;
+  const r = btn.getBoundingClientRect();
+  pop.style.top = Math.max(8, r.top - pop.offsetHeight - 8) + 'px';
+  pop.style.left = clamp(r.right - pop.offsetWidth, 8, innerWidth - pop.offsetWidth - 8) + 'px';
+  btn.classList.add('open');
+}
+$('#mixBtn').addEventListener('click', toggleMixPop);
+$('#mixPop').addEventListener('click', e => {
+  if (e.target.closest('[data-mix="reset"]')) { Object.assign(S, MIX_DEFAULT); applyMix(); save(); }
+});
+$('#mixPop').addEventListener('keydown', e => { if (e.key === 'Escape') { toggleMixPop(); $('#mixBtn').focus(); } e.stopPropagation(); });
+document.addEventListener('mousedown', e => {
+  const pop = $('#mixPop');
+  if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('#mixBtn')) toggleMixPop();
+});
 $('#rate').addEventListener('change', e => { const t = curTime(); S.rate = +e.target.value; if (S.playing) { stopSource(); S.time = t; startPlayback(); } });
 $('#tools').addEventListener('click', e => {
   const b = e.target.closest('[data-tool]'); if (b) setTool(b.dataset.tool);

@@ -58,6 +58,7 @@
 .bddiff button:hover{background:#2e2e3e;color:var(--text)}
 .bddiff button.on{background:var(--accent);color:#14141b;font-weight:700;cursor:default}
 .bddiff button.none{opacity:.45}
+.bddiff button:disabled{cursor:default;background:none;color:var(--dim)}
 .bddiff i{width:6px;height:6px;border-radius:50%;background:#9696ad}
 .bddiff i.doing{background:#ffd24a}.bddiff i.review{background:#9fcaff}.bddiff i.done{background:#8fd9a8}`;
   document.head.append(css);
@@ -221,8 +222,13 @@
   }
   function renderDiffs(r) {
     const c = current(r);
-    diffSw.hidden = !c || !(DC && DC.enabled());
+    diffSw.hidden = !(DC && DC.enabled());
     if (diffSw.hidden) return;
+    if (!c) { // ボードの譜面ではないとき：押せない形で出して、使い方を知らせる
+      const tip = `ボードの譜面（名前が「${PREFIX}_曲名_難易度」）を開くと、同じ曲のほかの難易度に切り替えられます`;
+      diffSw.innerHTML = DIFFS.map(d => `<button disabled class="none" title="${esc(tip)}">${d}</button>`).join('');
+      return;
+    }
     const norm = s => DA ? DA.norm(s) : String(s).toLowerCase();
     diffSw.innerHTML = DIFFS.map(d => {
       const row = rows.find(x => x.part === PART && x.difficulty === d && norm(x.song) === norm(c.song));
