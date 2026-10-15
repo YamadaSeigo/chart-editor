@@ -249,6 +249,7 @@ dialog p,dialog li{color:#c8c8d8;font-size:12.5px}
     <div class="grp">
       <label title="BGMManager.bpm">BPM <input id="bpm" type="number" step="0.01" min="1"></label>
       <label title="BGMManager.offset (秒)">Offset <input id="offset" type="number" step="0.001"></label>
+      <button data-act="beatSync" title="音源の波形から拍を見つけて BPM / Offset を合わせる">拍合わせ</button>
       <label title="出現してから判定までの秒数">Approach <input id="approach" type="number" step="0.05" min="0.1"></label>
     </div>
     <div class="grp">
@@ -665,8 +666,9 @@ function startPlayback() {
     if (at >= 0) src.start(startCtx, at); else src.start(startCtx - at / S.rate, 0);
   }
   S.playing = true;
+  schedT = S.time - 1e-4; scheduleUpTo(S.time + LOOKAHEAD * S.rate);
 }
-function stopSource() { if (src) { try { src.stop(); } catch (e) { } src.disconnect(); src = null; } }
+function stopSource() { stopVoices(); if (src) { try { src.stop(); } catch (e) { } src.disconnect(); src = null; } }
 function play() { if (S.time >= duration() - 0.01) S.time = 0; startPlayback(); updatePlayBtn(); }
 function pause() { if (!S.playing) return; S.time = curTime(); stopSource(); S.playing = false; updatePlayBtn(); }
 function togglePlay() { S.playing ? pause() : play(); }
@@ -708,22 +710,33 @@ async function loadAudio(file) {
     toast(`音源を読み込みました (${fmtTime(buffer.duration)})`);
   } catch (e) { toast('音源の読み込みに失敗しました'); }
 }
-function blip(freq, dur, vol, type, bus = hitBus) {
-  const c = actx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+function blip(freq, dur, vol, type, bus = hitBus, at = 0) {
+  const c = actx, t = Math.max(c.currentTime, at), o = c.createOscillator(), g = c.createGain();
   o.type = type; o.frequency.value = freq;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
   o.connect(g).connect(bus); o.start(t); o.stop(t + dur + 0.02);
+  if (at) { voices.push(o); o.onended = () => { const i = voices.indexOf(o); if (i >= 0) voices.splice(i, 1); }; }
 }
 const HIT_FREQ = { Shot: 1250, Sync: 1600, Hold: 950, Rush: 760 };
 const previewHit = () => blip(HIT_FREQ.Shot, 0.06, 0.22, 'square');
+// 音は少し先まで、鳴らす時刻を決めて予約する（描画のフレームに合わせて鳴らすと、遅れたり揺れたりして音源とずれて聞こえるため）
+const LOOKAHEAD = 0.12;
+let schedT = 0, voices = [];
+const ctxAt = t => startCtx + (t - startT) / S.rate;
+function stopVoices() { for (const o of voices) { try { o.stop(); } catch (e) { } } voices = []; }
+function scheduleUpTo(t) { if (t > schedT) { scheduleSounds(schedT, t); schedT = t; } }
+/** 譜面の時刻 (a, b] に鳴る音を予約する */
+function scheduleSounds(a, b) {
+  if (S.hitsound) for (const n of S.notes) if (n.t > a && n.t <= b) blip(HIT_FREQ[n.type], 0.06, 0.22, 'square', hitBus, ctxAt(n.t));
+  if (S.metronome) {
+    const bl = beatLen();
+    for (let k = Math.max(0, Math.floor(a / bl) + 1); k * bl <= b; k++) blip(k % 4 === 0 ? 1500 : 1000, 0.04, 0.18, 'sine', metroBus, ctxAt(k * bl));
+  }
+}
 function tickSounds(prev, now) {
   if (now <= prev) return;
   if (S.notes.some(n => n.t > prev && n.t <= now)) mascotPop = performance.now();
-  if (S.hitsound) for (const n of S.notes) if (n.t > prev && n.t <= now) blip(HIT_FREQ[n.type], 0.06, 0.22, 'square');
-  if (S.metronome) {
-    const bl = beatLen(), b = Math.floor(now / bl);
-    if (b > Math.floor(prev / bl) && b >= 0) blip(b % 4 === 0 ? 1500 : 1000, 0.04, 0.18, 'sine', metroBus);
-  }
+  scheduleUpTo(now + LOOKAHEAD * S.rate);
 }
 
 // ====== キャンバス ======
@@ -1749,6 +1762,21 @@ onVal('#fieldW', onFieldSize); onVal('#fieldH', onFieldSize);
 onVal('#name', el => S.name = el.value.trim().replace(/[\\/:*?"<>|]/g, '') || 'TechChart');
 onVal('#bpm', el => { const v = +el.value; if (v > 0) S.bpm = v; else el.value = S.bpm; });
 onVal('#offset', el => { S.offset = +el.value || 0; if (S.playing) seek(curTime()); });
+function beatSync() {
+  if (!buffer) { toast('先に音源を読み込んでください'); return; }
+  BeatSync.open({
+    buffer, bpm: S.bpm, offset: S.offset, notesInBeats: false,
+    apply(bpm, offset, opt) {
+      const before = `BPM ${S.bpm} / Offset ${S.offset}`, k = (60 / bpm) / beatLen(), move = opt.moveNotes && k !== 1;
+      // ノーツは秒で持っているので、拍の位置を保つには時間を BPM の比で伸び縮みさせる
+      if (move) for (const n of S.notes) { n.t = r6(n.t * k); n.hold = r6(n.hold * k); }
+      S.bpm = bpm; S.offset = offset; seek(move ? S.time * k : S.time);
+      $('#bpm').value = S.bpm; $('#offset').value = S.offset;
+      if (move) commit(); else { save(); refreshPanels(); }
+      toast(`拍を合わせました（元の値: ${before}）`, 4000);
+    },
+  });
+}
 onVal('#approach', el => { const v = +el.value; if (v >= 0.1) S.approach = v; else el.value = S.approach; });
 onVal('#snap', el => S.snap = +el.value);
 onVal('#grid', el => S.grid = +el.value);
@@ -1972,6 +2000,7 @@ const ACTIONS = {
   open: openChart,
   sample() { if (S.notes.length && !confirm('TechTestChart を読み込みます。現在の譜面は破棄されます。')) return; loadSample(); rememberHandle(null); toast('TechTestChart を読み込みました'); },
   audio() { $('#fileAudio').click(); },
+  beatSync,
   saveFile, saveAs, unloadAudio,
   rangeIn() { zoomView(0.5); }, rangeOut() { zoomView(2); }, rangeAll() { setView(0, duration()); },
   forgetTarget() { rememberHandle(null); toast('保存先を解除しました'); },
@@ -2083,5 +2112,6 @@ function frame() {
 <script src="drive-charts.js"></script>
 <script src="board.js" data-part="TECH"></script>
 <script src="shiftsync-overlay.js"></script>
+<script src="beat-sync.js"></script>
 </body>
 </html>
