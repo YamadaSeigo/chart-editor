@@ -116,14 +116,15 @@ function chartInfo_(text) {
   const notes = (text.match(part === 'POWER' ? /^\s*-\s*beat:/gm : /^\s*-\s*spawnTime:/gm) || []).length;
   return { part, notes };
 }
-/** 曲の JSON なら、選んである譜面の数と曲名（曲の JSON でなければ null） */
+/** 曲の JSON なら、選んである譜面の数・曲名・歌い手・ジャケットの有無（曲の JSON でなければ null。ジャケットの画像そのものは一覧に入れない） */
 function songInfo_(text) {
   if (!/^\s*\{/.test(text)) return null;
   let o;
   try { o = JSON.parse(text); } catch (e) { return null; }
   if (!o || o.format !== 'ms2026-song') return null;
   const charts = [].concat(o.powerCharts || [], o.techCharts || []).filter(Boolean).length;
-  return { part: SONG, notes: charts + (o.shiftSync ? 1 : 0), charts: charts, title: String(o.title || ''), hasShiftSync: !!o.shiftSync };
+  return { part: SONG, notes: charts + (o.shiftSync ? 1 : 0), charts: charts, title: String(o.title || ''), vocal: String(o.vocal || ''),
+    hasShiftSync: !!o.shiftSync, hasJacket: /^data:image\//.test(o.jacket || '') };
 }
 /** ShiftSyncChart の timeShiftBeats の数（「  - 45」の行） */
 function shiftBeatCount_(text) {
@@ -155,7 +156,7 @@ function fileInfo_(f, path, known) {
   return {
     id: id, name: f.getName(), asset: f.getName().replace(/\.[^.]+$/, ''), path: path,
     part: info.part || (SAVE_PARTS.indexOf(path.split('/')[0]) >= 0 ? path.split('/')[0] : ''), notes: info.notes,
-    shifts: info.shifts, cues: info.cues, charts: info.charts, title: info.title, hasShiftSync: info.hasShiftSync,
+    shifts: info.shifts, cues: info.cues, charts: info.charts, title: info.title, vocal: info.vocal, hasShiftSync: info.hasShiftSync, hasJacket: info.hasJacket,
     size: f.getSize(), updated: updated.toISOString(), savedBy: f.getDescription() || '', url: f.getUrl(),
   };
 }

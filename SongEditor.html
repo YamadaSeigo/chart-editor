@@ -62,6 +62,18 @@ section h3 button{margin-left:auto}
 .row{display:flex;gap:6px;align-items:center}
 .row>select,.row>input[type=text]{flex:1}
 .mono{font-family:Consolas,"Cascadia Mono",monospace}
+#jacketBox{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+#jacketDrop{width:150px;height:150px;flex:none;border:2px dashed var(--line);border-radius:8px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#12121a}
+#jacketDrop.has{border-style:solid}
+#jacketDrop.over{border-color:var(--accent)}
+#jacketDrop img{width:100%;height:100%;object-fit:cover;display:block}
+#jacketDrop [hidden]{display:none}
+#jacketPh{font-weight:700;font-size:15px;text-align:center;padding:10px;word-break:break-word}
+.jmeta{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.jmeta b{font-size:16px}
+.jmeta .dim{color:var(--dim);display:inline-block;width:48px;font-size:12px}
+#songList .sl{display:flex;gap:8px;align-items:center}
+#songList .sl i{font-style:normal;font-size:11px;opacity:.7}
 
 table.grid{width:100%;border-collapse:separate;border-spacing:8px 6px;margin:-6px -8px}
 .grid th{font-size:12px;font-weight:700;text-align:left;padding:0 2px}
@@ -121,10 +133,23 @@ pre{background:#12121a;border:1px solid var(--line);border-radius:8px;padding:10
           <div class="row"><select id="audio"></select><button id="playBtn" title="試聴">▶</button></div></label>
         <label class="fld"><span>アセット名（SongData のファイル名）</span><input id="name" type="text" class="mono" spellcheck="false" placeholder="SongData_曲名"></label>
         <label class="fld"><span>曲名（title）</span><input id="title" type="text" spellcheck="false"></label>
-        <label class="fld"><span>アーティスト（artist）</span><input id="artist" type="text" spellcheck="false"></label>
+        <label class="fld"><span>作曲（artist）— セレクトの Music</span><input id="artist" type="text" spellcheck="false"></label>
+        <label class="fld"><span>歌い手（vocal）— セレクトの Song</span><input id="vocal" type="text" spellcheck="false"></label>
         <label class="fld"><span>セレクトで使う色（color）</span><input id="color" type="color"></label>
         <label class="fld"><span>BPM</span><input id="bpm" type="number" step="0.01" min="1"></label>
         <label class="fld"><span>Offset（秒）— 譜面と音のズレ</span><input id="offset" type="number" step="0.001"></label>
+        <div class="fld wide"><span>トップ画像（jacket）— セレクトのジャケット。正方形に切り抜いて 512px にする。なければ色と曲名の仮のジャケット</span>
+          <div id="jacketBox">
+            <div id="jacketDrop" tabindex="0" title="クリックで画像を選ぶ（ドロップ・Ctrl+V の貼り付けでも入る）"><img id="jacketImg" alt="" hidden><span id="jacketPh"></span></div>
+            <div class="jmeta">
+              <b id="jTitle"></b>
+              <div><span class="dim">Music</span> <span id="jArtist"></span></div>
+              <div><span class="dim">Song</span> <span id="jVocal"></span></div>
+              <div class="row" style="margin-top:8px"><button id="jacketPick">🖼 画像を選ぶ</button><button class="ghost" id="jacketClear">✕ 外す</button></div>
+              <span class="hint" id="jacketInfo"></span>
+            </div>
+            <input type="file" id="jacketFile" accept="image/*" hidden>
+          </div></div>
       </div>
     </section>
     <section>
@@ -163,22 +188,27 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lc = s => String(s || '').toLowerCase();
 
-const blank = () => ({ name: '', title: '', artist: '', color: '#ffffff', bpm: 120, offset: 0, audio: '',
-  powerCharts: ['', '', '', ''], techCharts: ['', '', '', ''], shiftSync: '' });
+const JACKET_SIZE = 512; // ジャケットは正方形（Unity の MusicSelectView が正方形で出す）
+const JACKET_RE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
+const blank = () => ({ name: '', title: '', artist: '', vocal: '', color: '#ffffff', bpm: 120, offset: 0, audio: '',
+  powerCharts: ['', '', '', ''], techCharts: ['', '', '', ''], shiftSync: '', jacket: '' });
 let S = blank();
 let charts = [], audios = [], rows = [], openedId = null, dirty = false, saving = false;
 
 // ====== 保存する形 ======
 function toJSONObj() {
   return {
-    format: 'ms2026-song', version: 1, name: S.name, title: S.title, artist: S.artist, color: S.color,
+    format: 'ms2026-song', version: 1, name: S.name, title: S.title, artist: S.artist, vocal: S.vocal, color: S.color,
     bpm: S.bpm, offset: S.offset, audio: S.audio,
     powerCharts: S.powerCharts.slice(0, 4), techCharts: S.techCharts.slice(0, 4), shiftSync: S.shiftSync,
+    // ジャケットは画像そのもの（data URL。PNG か JPEG の base64）。Unity では Texture2D.LoadImage で読める
+    jacket: S.jacket,
   };
 }
 function loadObj(o) {
   S = blank();
-  for (const k of ['name', 'title', 'artist', 'audio', 'shiftSync']) if (o[k] != null) S[k] = String(o[k]);
+  for (const k of ['name', 'title', 'artist', 'vocal', 'audio', 'shiftSync']) if (o[k] != null) S[k] = String(o[k]);
+  if (JACKET_RE.test(o.jacket)) S.jacket = o.jacket;
   if (/^#[0-9a-f]{6}$/i.test(o.color)) S.color = o.color;
   if (o.bpm > 0) S.bpm = +o.bpm;
   if (isFinite(+o.offset)) S.offset = +o.offset;
@@ -213,7 +243,7 @@ function renderSongs() {
   const list = songFiles().filter(f => !q || lc(f.asset + ' ' + (f.title || '')).includes(q));
   $('#songCount').textContent = `${songFiles().length} 曲`;
   $('#songList').innerHTML = list.map(f => `<button data-id="${esc(f.id)}" class="${f.id === openedId ? 'on' : ''}">
-      <b>${esc(f.title || f.asset)}</b><small class="mono">${esc(f.asset)}</small>
+      <span class="sl"><b>${esc(f.title || f.asset)}</b>${f.hasJacket ? '<i title="トップ画像あり">🖼</i>' : ''}</span>${f.vocal ? `<small>歌 ${esc(f.vocal)}</small>` : ''}<small class="mono">${esc(f.asset)}</small>
       <small>譜面 ${f.charts ?? '?'}/8${f.hasShiftSync ? '・SHIFT/SYNC' : ''}・${esc(DriveCharts.fmtDate(f.updated))}${f.savedBy ? ' ' + esc(f.savedBy) : ''}</small></button>`).join('')
     || '<div class="hint" style="padding:8px 12px">まだ曲がありません。「＋ 新しい曲」から作ってください</div>';
 }
@@ -262,9 +292,9 @@ addEventListener('hashchange', openFromHash);
 
 // ====== フォーム ======
 function syncForm() {
-  for (const k of ['name', 'title', 'artist', 'color', 'bpm', 'offset']) $('#' + k).value = S[k];
+  for (const k of ['name', 'title', 'artist', 'vocal', 'color', 'bpm', 'offset']) $('#' + k).value = S[k];
 }
-for (const k of ['name', 'title', 'artist', 'color']) {
+for (const k of ['name', 'title', 'artist', 'vocal', 'color']) {
   $('#' + k).addEventListener('input', e => { S[k] = e.target.value; if (k === 'name') { openedId = null; } markDirty(); });
 }
 $('#name').addEventListener('change', e => { S.name = e.target.value.trim(); e.target.value = S.name; markDirty(); });
@@ -282,6 +312,55 @@ $('#audio').addEventListener('change', e => {
     syncForm();
   }
   stopPreview(); markDirty();
+});
+
+// ====== トップ画像（ジャケット） ======
+// 中央を正方形に切り抜いて JACKET_SIZE に縮める。透明なところがあれば PNG、なければ JPEG
+async function setJacket(file) {
+  if (!file || !/^image\//.test(file.type)) { toast('画像ファイルを選んでください'); return; }
+  let bmp;
+  try { bmp = await createImageBitmap(file); } catch (e) { toast('画像を読めませんでした: ' + file.name, 3500); return; }
+  const side = Math.min(bmp.width, bmp.height), size = Math.min(JACKET_SIZE, side);
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, size, size);
+  bmp.close();
+  const px = ctx.getImageData(0, 0, size, size).data;
+  let alpha = false;
+  for (let i = 3; i < px.length; i += 4) if (px[i] < 255) { alpha = true; break; }
+  S.jacket = alpha ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.88);
+  markDirty();
+  toast(`トップ画像を入れました（${size}×${size}・${alpha ? 'PNG' : 'JPEG'}）`);
+}
+function renderJacket() {
+  const has = !!S.jacket;
+  $('#jacketDrop').classList.toggle('has', has);
+  $('#jacketDrop').style.background = has ? '' : S.color;
+  $('#jacketImg').hidden = !has;
+  if (has && $('#jacketImg').src !== S.jacket) $('#jacketImg').src = S.jacket;
+  $('#jacketPh').hidden = has;
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(S.color.slice(i, i + 2), 16));
+  $('#jacketPh').style.color = r * 0.299 + g * 0.587 + b * 0.114 > 160 ? '#14141b' : '#fff';
+  $('#jacketPh').textContent = S.title || '（仮のジャケット）';
+  $('#jTitle').textContent = S.title || '（曲名なし）';
+  $('#jArtist').textContent = S.artist || '-';
+  $('#jVocal').textContent = S.vocal || '-';
+  $('#jacketClear').disabled = !has;
+  $('#jacketInfo').textContent = has ? `約 ${DriveAudio.fmtSize(Math.round((S.jacket.length - S.jacket.indexOf(',') - 1) * 3 / 4))}（曲の JSON に入れて保存）` : '';
+}
+$('#jacketPick').addEventListener('click', e => { e.preventDefault(); $('#jacketFile').click(); });
+$('#jacketDrop').addEventListener('click', () => $('#jacketFile').click());
+$('#jacketDrop').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#jacketFile').click(); } });
+$('#jacketFile').addEventListener('change', e => { setJacket(e.target.files[0]); e.target.value = ''; });
+$('#jacketClear').addEventListener('click', e => { e.preventDefault(); S.jacket = ''; markDirty(); });
+$('#jacketDrop').addEventListener('dragover', e => { e.preventDefault(); $('#jacketDrop').classList.add('over'); });
+$('#jacketDrop').addEventListener('dragleave', () => $('#jacketDrop').classList.remove('over'));
+$('#jacketDrop').addEventListener('drop', e => { e.preventDefault(); $('#jacketDrop').classList.remove('over'); setJacket(e.dataTransfer.files[0]); });
+document.addEventListener('paste', e => {
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) { e.preventDefault(); setJacket(item.getAsFile()); }
 });
 
 // ドライブの譜面を選ぶ <select>
@@ -320,8 +399,12 @@ function render() {
   const ssMissing = S.shiftSync && !filesOf('SHIFTSYNC').some(f => lc(f.asset) === lc(S.shiftSync));
   $('#ssCell').className = 'cell' + (ssMissing ? ' missing' : '');
   $('#ssCell').innerHTML = chartSelect('SHIFTSYNC', S.shiftSync, 'id="ssSelect"', '') + `<div class="info">${chartInfo('SHIFTSYNC', S.shiftSync)}</div>`;
+  renderJacket();
   renderChecks();
-  $('#jsonPreview').textContent = JSON.stringify(toJSONObj(), null, 2);
+  // ジャケットの base64 は長いので、プレビューでは頭だけ出す
+  const preview = toJSONObj();
+  if (preview.jacket) preview.jacket = preview.jacket.slice(0, 48) + `…（${preview.jacket.length} 文字）`;
+  $('#jsonPreview').textContent = JSON.stringify(preview, null, 2);
 }
 $('#grid').addEventListener('change', e => {
   const s = e.target.closest('select[data-key]'); if (!s) return;
@@ -363,6 +446,8 @@ function renderChecks() {
     if (same) out.push(['warn', `ドライブに同じ名前の曲「${same.name}」があります。保存すると上書きになります`]);
   }
   if (!S.title) out.push(['warn', '曲名（title）が空です']);
+  if (!S.vocal) out.push(['info', '歌い手（vocal）が空です（セレクトの Song は「-」になります）']);
+  if (!S.jacket) out.push(['info', 'トップ画像がありません（セレクトでは色と曲名の仮のジャケットになります）']);
   if (!S.audio) out.push(['info', '音源が選ばれていません（Unity では BPM の仮のビートが流れます）']);
   for (const [part, key] of PARTS) DIFFS.forEach((d, i) => {
     const v = S[key][i];

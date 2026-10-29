@@ -402,12 +402,13 @@ footer{color:#6a6a82;font-size:13px;padding-top:10px}
   <ol class="steps">
     <li>ボードの SONG のマスから開く（または「＋ 新しい曲」）。左には保存済みの曲が並ぶ</li>
     <li><b>音源</b>を選ぶ。ファイル名から曲名・BPM・アセット名が自動で入る（例 <code>Future Stage _150.wav</code> → BPM 150）。▶ で試聴</li>
-    <li>曲名・アーティスト・セレクトで使う色・Offset を入れる</li>
+    <li>曲名・作曲（Music）・歌い手（Song）・セレクトで使う色・Offset を入れる</li>
+    <li><b>トップ画像</b>（楽曲セレクトのジャケット）を「🖼 画像を選ぶ」・ドロップ・<kbd>Ctrl</kbd>+<kbd>V</kbd> で入れる。真ん中を正方形に切り抜いて 512px に縮める。なければ色と曲名の仮のジャケットになる</li>
     <li><span class="btnlike">⚡ 曲名から自動で選ぶ</span> を押すと、ボードの登録に合わせて8マスと SHIFT/SYNC が埋まる。違っていればプルダウンで選び直す</li>
     <li>各マスの下に、ボードの状態とドライブのノーツ数が出る。下の<b>チェック</b>に「まだ完成していない」「選ばれていない」などが出ていないか確認</li>
     <li>「☁ ドライブに保存」（<kbd>Ctrl</kbd>+<kbd>S</kbd>）</li>
   </ol>
-  <div class="note"><b>ℹ</b>SONG Editor が保存するのは「どの譜面を使うか」の<b>名前の一覧</b>（.json）です。中の譜面を直したいときは、それぞれのエディタで直して保存すれば、SONG を作り直す必要はありません。</div>
+  <div class="note"><b>ℹ</b>SONG Editor が保存するのは「どの譜面を使うか」の<b>名前の一覧</b>（.json。トップ画像だけは画像そのものを入れる）です。中の譜面を直したいときは、それぞれのエディタで直して保存すれば、SONG を作り直す必要はありません。</div>
 </section>
 
 <section id="unity">
@@ -416,7 +417,7 @@ footer{color:#6a6a82;font-size:13px;padding-top:10px}
   <ol class="steps">
     <li>ウィンドウを開くと、ドライブのファイルが並ぶ（TECH・POWER・SHIFTSYNC・SONG）</li>
     <li>「更新あり」は <span class="btnlike">取り込む</span>、「プロジェクトにない」は <span class="btnlike">作る</span>。まとめてなら「更新をすべて取り込む」「ないものも作って取り込む」</li>
-    <li>SONG を取り込むと、使っている譜面・SHIFT/SYNC がプロジェクトになければ先に取り込んでから、<code>SongData</code> を作る（音源は同じ名前の AudioClip を探す）</li>
+    <li>SONG を取り込むと、使っている譜面・SHIFT/SYNC がプロジェクトになければ先に取り込んでから、<code>SongData</code> を作る（音源は同じ名前の AudioClip を探す。トップ画像は <code>ScriptableObjects/Drive/JACKET</code> に画像として書き出してジャケットの Sprite にする）</li>
     <li>できた SongData を楽曲セレクト（SongSelect）に並べる</li>
   </ol>
   <div class="tip"><b>💡</b>「自動で取り込む」をオンにすると、ウィンドウを閉じていても数秒おきにドライブを確認して、更新された譜面を自動で取り込みます（再生中も）。</div>
@@ -446,7 +447,7 @@ footer{color:#6a6a82;font-size:13px;padding-top:10px}
     <tr><td><b>Offset</b></td><td>譜面と音のズレを直す秒数</td></tr>
     <tr><td><b>スナップ</b></td><td>ノーツを置ける拍の細かさ（1/4 なら4分の1拍ごと）</td></tr>
     <tr><td><b>.asset</b></td><td>Unity のデータファイル。TECH は <code>NotesRecord</code>、POWER は <code>PowerChart</code>、SHIFT/SYNC は <code>ShiftSyncChart</code></td></tr>
-    <tr><td><b>SongData</b></td><td>1曲ぶんのデータ。曲・BPM・難易度ごとの譜面・SHIFT/SYNC をまとめたもの</td></tr>
+    <tr><td><b>SongData</b></td><td>1曲ぶんのデータ。曲名・作曲・歌い手・トップ画像（ジャケット）・BPM・難易度ごとの譜面・SHIFT/SYNC をまとめたもの</td></tr>
     <tr><td><b>難易度</b></td><td>Easy・Normal・Hard・Extra。ゲーム中、プレイの正確さに合わせて自動で切り替わる</td></tr>
   </table></div>
   <footer>このページ: <code>guide.html</code>。ボードの設定（管理者向け）は <a href="https://github.com/YamadaSeigo/chart-editor/blob/main/BOARD_SETUP.md" target="_blank" rel="noopener">BOARD_SETUP.md</a>。</footer>
