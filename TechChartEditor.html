@@ -898,6 +898,27 @@ function drawTimeline() {
   const cx = Math.round(w / 2) + 0.5;
   c.strokeStyle = '#ff66aa'; c.lineWidth = 2; line(c, [cx, 0], [cx, h]);
   c.fillStyle = '#ff66aa'; c.beginPath(); c.moveTo(cx - 6, 0); c.lineTo(cx + 6, 0); c.lineTo(cx, 8); c.fill();
+  if (!S.playing) drawNextBeatGap(c, cx, h);
+}
+// 止めているとき：再生位置から次の拍までのずれ（秒・拍）をルーラーの下に出す
+function drawNextBeatGap(c, cx, h) {
+  const p = tB(S.time), onBeat = Math.abs(p - Math.round(p)) < 1e-4;
+  const next = onBeat ? Math.round(p) : Math.ceil(p), dt = bT(next) - S.time;
+  const label = onBeat ? '拍の上' : `次の拍まで +${dt.toFixed(3)} 秒（+${r3(next - p)} 拍）`;
+  const y = RULER + 12;
+  c.save();
+  if (!onBeat) {
+    const xn = Math.round(tX(bT(next))) + 0.5;
+    c.strokeStyle = 'rgba(255,102,170,.9)'; c.lineWidth = 1.5; c.setLineDash([3, 3]);
+    line(c, [xn, RULER], [xn, h]); c.setLineDash([]);
+    line(c, [cx, y], [xn, y]); line(c, [xn, y - 4], [xn, y + 4]);
+  }
+  c.font = 'bold 11px "Segoe UI",sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+  const tw = c.measureText(label).width + 10, lx = Math.min(cx + 6, tlW - tw - 2), ly = y + 14;
+  c.fillStyle = 'rgba(20,20,27,.9)'; c.fillRect(lx, ly - 9, tw, 18);
+  c.strokeStyle = 'rgba(255,102,170,.8)'; c.lineWidth = 1; c.strokeRect(lx + .5, ly - 8.5, tw - 1, 17);
+  c.fillStyle = '#ffd0e4'; c.fillText(label, lx + 5, ly);
+  c.restore();
 }
 // 円の重なり：直前の円と重なっていたら1段深くする（深いほど大きく描く）
 const TL_MAX_DEPTH = 3;
