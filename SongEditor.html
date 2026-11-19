@@ -138,6 +138,9 @@ pre{background:#12121a;border:1px solid var(--line);border-radius:8px;padding:10
         <label class="fld"><span>セレクトで使う色（color）</span><input id="color" type="color"></label>
         <label class="fld"><span>BPM</span><input id="bpm" type="number" step="0.01" min="1"></label>
         <label class="fld"><span>Offset（秒）— 譜面と音のズレ</span><input id="offset" type="number" step="0.001"></label>
+        <label class="fld wide"><span>BPM の変化（bpmChanges）— 曲の途中で BPM が変わるところ。「拍:BPM」をカンマ区切り（例 64:180, 128:150 → 64 拍目から 180、128 拍目から 150）。なければ空</span>
+          <div class="row"><input id="bpmChanges" type="text" class="mono" spellcheck="false" placeholder="（変化なし）" style="flex:1"><button id="tempoEdit" title="表で編集する">表で編集</button></div>
+          <span class="hint" id="tempoInfo"></span></label>
         <div class="fld wide"><span>トップ画像（jacket）— セレクトのジャケット。正方形に切り抜いて 512px にする。なければ色と曲名の仮のジャケット</span>
           <div id="jacketBox">
             <div id="jacketDrop" tabindex="0" title="クリックで画像を選ぶ（ドロップ・Ctrl+V の貼り付けでも入る）"><img id="jacketImg" alt="" hidden><span id="jacketPh"></span></div>
@@ -178,6 +181,7 @@ pre{background:#12121a;border:1px solid var(--line);border-radius:8px;padding:10
 <script src="drive-audio.js"></script>
 <script src="drive-charts.js"></script>
 <script src="board-beat.js"></script>
+<script src="tempo.js"></script>
 <script>
 'use strict';
 const CFG = window.CHART_EDITOR_CONFIG || {};
@@ -190,7 +194,7 @@ const lc = s => String(s || '').toLowerCase();
 
 const JACKET_SIZE = 512; // ジャケットは正方形（Unity の MusicSelectView が正方形で出す）
 const JACKET_RE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
-const blank = () => ({ name: '', title: '', artist: '', vocal: '', color: '#ffffff', bpm: 120, offset: 0, audio: '',
+const blank = () => ({ name: '', title: '', artist: '', vocal: '', color: '#ffffff', bpm: 120, bpmChanges: [], offset: 0, audio: '',
   powerCharts: ['', '', '', ''], techCharts: ['', '', '', ''], shiftSync: '', jacket: '' });
 let S = blank();
 let charts = [], audios = [], rows = [], openedId = null, dirty = false, saving = false;
@@ -199,7 +203,7 @@ let charts = [], audios = [], rows = [], openedId = null, dirty = false, saving 
 function toJSONObj() {
   return {
     format: 'ms2026-song', version: 1, name: S.name, title: S.title, artist: S.artist, vocal: S.vocal, color: S.color,
-    bpm: S.bpm, offset: S.offset, audio: S.audio,
+    bpm: S.bpm, bpmChanges: Tempo.normalize(S.bpmChanges), offset: S.offset, audio: S.audio,
     powerCharts: S.powerCharts.slice(0, 4), techCharts: S.techCharts.slice(0, 4), shiftSync: S.shiftSync,
     // ジャケットは画像そのもの（data URL。PNG か JPEG の base64）。Unity では Texture2D.LoadImage で読める
     jacket: S.jacket,
@@ -211,6 +215,7 @@ function loadObj(o) {
   if (JACKET_RE.test(o.jacket)) S.jacket = o.jacket;
   if (/^#[0-9a-f]{6}$/i.test(o.color)) S.color = o.color;
   if (o.bpm > 0) S.bpm = +o.bpm;
+  S.bpmChanges = Tempo.normalize(o.bpmChanges);
   if (isFinite(+o.offset)) S.offset = +o.offset;
   for (const [, key] of PARTS) S[key] = DIFFS.map((_, i) => String((o[key] || [])[i] || ''));
 }
@@ -293,7 +298,23 @@ addEventListener('hashchange', openFromHash);
 // ====== フォーム ======
 function syncForm() {
   for (const k of ['name', 'title', 'artist', 'vocal', 'color', 'bpm', 'offset']) $('#' + k).value = S[k];
+  $('#bpmChanges').value = Tempo.format(S.bpmChanges); tempoInfo();
 }
+// BPM の変化の説明（それぞれ何秒から変わるか）
+function tempoInfo() {
+  const tm = Tempo.make(S.bpm, S.bpmChanges);
+  $('#tempoInfo').textContent = tm.constant ? '' : tm.segs.map(g => `${Tempo.fmtBeat(g.b)}（${g.t.toFixed(2)} 秒）から BPM ${g.bpm}`).join(' → ');
+}
+$('#bpmChanges').addEventListener('change', e => {
+  const p = Tempo.parse(e.target.value);
+  if (p.bad.length) { toast('読めない書き方があります: ' + p.bad.join(' '), 3500); return; }
+  S.bpmChanges = p.list; syncForm(); markDirty();
+});
+$('#tempoEdit').addEventListener('click', e => {
+  e.preventDefault();
+  Tempo.openEditor({ bpm: S.bpm, changes: S.bpmChanges, curBeat: 0,
+    onApply: ch => { S.bpmChanges = ch; syncForm(); markDirty(); } });
+});
 for (const k of ['name', 'title', 'artist', 'vocal', 'color']) {
   $('#' + k).addEventListener('input', e => { S[k] = e.target.value; if (k === 'name') { openedId = null; } markDirty(); });
 }

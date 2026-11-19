@@ -129,15 +129,15 @@ window.ShiftSyncOverlay = (function () {
   btn.addEventListener('click', openDlg);
 
   // ====== タイムラインに描く ======
-  // 秒で表す：Time Shift の準備時間 [at - prepare, at + 休み]、Sync Action [at, at + 制限時間]（ゲームの SyncShift と同じ、拍 × 60 / BPM）
+  // 秒で表す：Time Shift の準備時間 [at - prepare, at + 休み]、Sync Action [at, at + 制限時間]（ゲームの SyncShift と同じ。拍はテンポ表で秒にする）
   function windows() {
     if (!data || typeof S === 'undefined' || !(S.bpm > 0)) return [];
-    const spb = 60 / S.bpm, st = settings(), out = [];
-    for (const b of data.shifts) { const at = b * spb; out.push({ kind: 'shift', beat: b, at, from: at - st.prepare, to: at + Math.max(st.shifted, st.breakAfter), skipTo: at + st.breakAfter }); }
-    for (const c of data.cues) { const at = c.beat * spb, lim = c.limit > 0 ? c.limit : st.defLimit; out.push({ kind: 'cue', beat: c.beat, at, from: at, to: at + lim, skipTo: at + lim, limit: lim }); }
+    const tm = window.Tempo ? Tempo.get(S.bpm, S.bpmChanges) : { sec: b => b * 60 / S.bpm }, st = settings(), out = [];
+    for (const b of data.shifts) { const at = tm.sec(b); out.push({ kind: 'shift', beat: b, at, from: at - st.prepare, to: at + Math.max(st.shifted, st.breakAfter), skipTo: at + st.breakAfter }); }
+    for (const c of data.cues) { const at = tm.sec(c.beat), lim = c.limit > 0 ? c.limit : st.defLimit; out.push({ kind: 'cue', beat: c.beat, at, from: at, to: at + lim, skipTo: at + lim, limit: lim }); }
     return out;
   }
-  const noteTime = n => n.t != null ? n.t : n.b != null ? n.b * 60 / S.bpm : null;
+  const noteTime = n => n.t != null ? n.t : n.b != null ? (window.Tempo ? Tempo.get(S.bpm, S.bpmChanges).sec(n.b) : n.b * 60 / S.bpm) : null;
   let warnCount = 0, lastWarnAt = 0;
   function checkNotes(ws) {
     // ゲームで出ないノーツ（帯の中）を数える。重いので 0.5 秒ごと

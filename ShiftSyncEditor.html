@@ -118,6 +118,7 @@ dialog td{white-space:normal;padding:2px 10px 2px 0}
     </div>
     <div class="grp">
       <label title="SongData.bpm（拍と秒の換算に使う。.asset には保存されない）">BPM <input id="bpm" type="number" step="0.01" min="1"></label>
+      <button id="tempoBtn" data-act="editTempo" title="曲の途中で BPM が変わるところ（SongData.bpmChanges。.asset には保存されない）">BPM変化</button>
       <label title="SongData.offset（秒）。音源と拍のズレの調整。.asset には保存されない">Offset <input id="offset" type="number" step="0.001"></label>
       <label>Snap
         <select id="snap"><option value="1">1/1</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option></select>
@@ -218,6 +219,7 @@ dialog td{white-space:normal;padding:2px 10px 2px 0}
 <script src="drive-audio.js"></script>
 <script src="drive-charts.js"></script>
 <script src="board-beat.js"></script>
+<script src="tempo.js"></script>
 <script>
 'use strict';
 // ====== ゲーム側の定数（ShiftSyncChart / TimeShiftDirector / SyncAction に合わせる） ======
@@ -228,7 +230,7 @@ const SHIFT_COL = '#5ad1ff', SYNC_COL = '#b98bff';
 
 // ====== 状態 ======
 const S = {
-  shifts: [], cues: [], name: 'ShiftSyncChart', bpm: 120, offset: 0, snap: 1,
+  shifts: [], cues: [], name: 'ShiftSyncChart', bpm: 120, bpmChanges: [], offset: 0, snap: 1,
   prepare: 4, shifted: 1, breakAfter: 0.5, defLimit: 10,
   time: 0, playing: false, sel: new Set(), pps: 40, viewStart: -1, volume: 0.7, metronome: false, cueSound: true,
 };
@@ -238,10 +240,12 @@ const $ = s => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const r3 = v => Math.round(v * 1000) / 1000;
 const r6 = v => Math.round(v * 1e6) / 1e6;
-const spb = () => 60 / S.bpm;
+// 拍 ⇔ 秒はテンポ表（最初の BPM と BPM の変化）で変換する（tempo.js。ゲームの SongData と同じ）
+const TM = () => Tempo.get(S.bpm, S.bpmChanges);
+const spb = () => TM().spbAtT(S.time); // 今の位置の1拍の秒
 const snapB = b => Math.max(0, r6(Math.round(b * S.snap) / S.snap));
-const tOfB = b => b * spb();
-const bOfT = t => t / spb();
+const tOfB = b => TM().sec(b);
+const bOfT = t => TM().beat(t);
 const limitOf = c => c.limit > 0 ? c.limit : S.defLimit;
 const all = () => [...S.shifts, ...S.cues];
 const byId = id => all().find(n => n.id === id);
@@ -283,7 +287,7 @@ function resetHistory() { hist = [snapshot()]; hi = 0; }
 
 function toJSONObj() {
   return {
-    format: 'ms2026-shift-sync-chart', version: 1, name: S.name, bpm: S.bpm, offset: S.offset,
+    format: 'ms2026-shift-sync-chart', version: 1, name: S.name, bpm: S.bpm, bpmChanges: Tempo.normalize(S.bpmChanges), offset: S.offset,
     timeShiftBeats: S.shifts.map(n => n.b),
     syncCues: S.cues.map(c => ({ beat: c.b, limitSeconds: c.limit })),
   };
@@ -298,6 +302,7 @@ function save() {
 function loadChartObj(o) {
   if (o.name) S.name = String(o.name);
   if (o.bpm > 0) S.bpm = +o.bpm;
+  if (Array.isArray(o.bpmChanges)) S.bpmChanges = Tempo.normalize(o.bpmChanges);
   if (o.offset != null && isFinite(+o.offset)) S.offset = +o.offset;
   nextId = 1;
   S.shifts = (o.timeShiftBeats || []).map(b => ({ id: nextId++, b: Math.max(0, +b || 0) }));
@@ -581,7 +586,7 @@ function draw() {
   }
 
   // 拍のグリッド
-  const bpx = spb() * S.pps, sub = bpx / S.snap > 7 ? S.snap : 1;
+  const bpx = TM().spbAtT(Math.max(0, t0)) * S.pps, sub = bpx / S.snap > 7 ? S.snap : 1;
   const bStart = Math.max(0, Math.floor(bOfT(t0) * sub) / sub);
   c.font = '11px Segoe UI, sans-serif'; c.textBaseline = 'middle';
   for (let b = bStart; tOfB(b) <= t1; b = r6(b + 1 / sub)) {
@@ -594,6 +599,17 @@ function draw() {
     if (isBar && (bpx * 4 > 34)) { c.fillStyle = '#9696ad'; c.fillText(String(Math.round(b) / 4 + 1), x + 3, RULER / 2); }
     else if (isBeat && bpx > 30) { c.fillStyle = '#5a5a72'; c.fillText(String(Math.round(b)), x + 3, RULER / 2); }
   }
+  // BPM が変わるところ
+  for (const sg of TM().segs.slice(1)) {
+    const x = Math.round(xOf(sg.t)) + 0.5; if (x < LABEL_W || x > W) continue;
+    c.strokeStyle = 'rgba(120,220,255,.75)'; c.lineWidth = 1.5; c.setLineDash([4, 3]);
+    c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); c.setLineDash([]); c.lineWidth = 1;
+    const label = 'BPM ' + r3(sg.bpm); c.font = 'bold 10px Segoe UI, sans-serif';
+    const tw = c.measureText(label).width + 8;
+    c.fillStyle = 'rgba(30,70,90,.95)'; c.fillRect(x + 1, 2, tw, RULER - 4);
+    c.fillStyle = '#9fe6ff'; c.fillText(label, x + 5, RULER / 2);
+  }
+  c.font = '11px Segoe UI, sans-serif';
   c.strokeStyle = '#363648'; c.beginPath();
   c.moveTo(0, RULER + 0.5); c.lineTo(W, RULER + 0.5);
   c.moveTo(0, R.shift[0] + 0.5); c.lineTo(W, R.shift[0] + 0.5);
@@ -664,7 +680,7 @@ function draw() {
     c.fillStyle = '#fff'; c.fillText(msg.text, W - w, RULER + 23);
   }
 
-  $('#time').textContent = `${fmtTime(t)}  ${fmtBeat(bOfT(t))}  (${r3(bOfT(t))} 拍)`;
+  $('#time').textContent = `${fmtTime(t)}  ${fmtBeat(bOfT(t))}  (${r3(bOfT(t))} 拍)` + (TM().constant ? '' : `  BPM ${r3(TM().bpmAt(bOfT(t)))}`);
   requestAnimationFrame(draw);
 }
 function roundRect(c, x, y, w, h, r) {
@@ -867,6 +883,7 @@ function refreshWarnings() {
 // ====== ヘッダー ======
 function syncHeader() {
   $('#name').value = S.name; $('#bpm').value = S.bpm; $('#offset').value = S.offset; $('#snap').value = S.snap;
+  $('#tempoBtn').textContent = S.bpmChanges.length ? `BPM変化 ${S.bpmChanges.length}` : 'BPM変化'; $('#tempoBtn').classList.toggle('on', S.bpmChanges.length > 0);
   $('#prepare').value = S.prepare; $('#shifted').value = S.shifted; $('#breakAfter').value = S.breakAfter; $('#defLimit').value = S.defLimit;
   $('#metro').checked = S.metronome; $('#cueSound').checked = S.cueSound; $('#vol').value = S.volume;
 }
@@ -893,6 +910,11 @@ const ACTS = {
   open: openChart,
   audio() { $('#fileAudio').click(); },
   driveAudio: openDriveAudio,
+  editTempo() {
+    Tempo.openEditor({ bpm: S.bpm, changes: S.bpmChanges, curBeat: bOfT(curTime()),
+      note: '拍と秒の換算に使うだけで .asset には入りません。曲の BPM の変化は SONG Editor（SongData）で決めます。',
+      onApply: ch => { setTempo(S.bpm, ch); toast(ch.length ? `BPM の変化 ${ch.length} か所` : 'BPM の変化をなくしました'); } });
+  },
   saveFile, saveAs,
   async copyYaml() { await copyText(toAsset()); toast('YAML をクリップボードにコピーしました'); },
   forgetTarget() { rememberHandle(null); toast('保存先を解除しました'); },
@@ -1097,7 +1119,11 @@ async function openFromHash() {
   try { rows = JSON.parse(localStorage.getItem('ms2026.chartBoard.rows')) || []; } catch (e) { }
   const row = rows.find(r => r.part === PART && String(r.asset).toLowerCase() === want.toLowerCase());
   if (!row) return;
-  setBpm(DriveAudio.bpmOf(row.song), `曲名「${row.song}」から`);
+  // 曲の SongData（SONG Editor で保存したもの）があればその BPM・BPM の変化、なければ曲名の BPM
+  let song = null;
+  try { song = await Tempo.fromSong(PART, want, rows); } catch (e) { }
+  if (song) setTempo(song.bpm, song.bpmChanges, `曲の ${song.songAsset} から`);
+  else setBpm(DriveAudio.bpmOf(row.song), `曲名「${row.song}」から`);
   if (buffer || !DriveAudio.enabled()) return;
   try {
     const a = DriveAudio.find(DriveAudio.peek() || await DriveAudio.list(), row.song);
@@ -1105,6 +1131,16 @@ async function openFromHash() {
   } catch (e) { /* 音源は手で選べる */ }
 }
 addEventListener('hashchange', openFromHash);
+// BPM と BPM の変化をまとめて変える（拍の位置はそのまま。秒が変わる）
+function setTempo(bpm, changes, why) {
+  const before = Tempo.format(S.bpmChanges) + '|' + S.bpm;
+  if (bpm > 0) S.bpm = +bpm;
+  S.bpmChanges = Tempo.normalize(changes);
+  if (Tempo.format(S.bpmChanges) + '|' + S.bpm === before) return false;
+  syncHeader(); save(); refreshPanels();
+  if (why) setTimeout(() => toast(`BPM を合わせました（${why}）`, 3000), 50);
+  return true;
+}
 // 曲名・音源のファイル名から読んだ BPM にする（拍の位置はそのまま。秒が変わる）
 function setBpm(v, why) {
   if (!(v > 0) || Math.abs(S.bpm - v) < 1e-6) return;

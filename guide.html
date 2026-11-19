@@ -272,6 +272,7 @@ footer{color:#6a6a82;font-size:13px;padding-top:10px}
     <div><b><span class="btnlike">保存</span> <span class="btnlike">名前を付けて保存</span> <span class="btnlike">開く</span> <span class="btnlike">YAMLコピー</span></b><small>自分のパソコンの .asset ファイルに保存・開く（Unity のフォルダに直接保存したいとき）</small></div>
   </div>
   <div class="tip"><b>💡</b><b>BPM は自動で入ります</b>：ボードから開いたときや音源を読み込んだとき、曲名・音源のファイル名の最後の数字（例 <code>iris_190</code> → 190）を BPM にします（右下に「BPM を 190 にしました」と出ます）。違っていたら BPM 欄を直してください。</div>
+  <div class="tip"><b>💡</b><b>途中で BPM が変わる曲</b>：SONG Editor の「BPM の変化」に <code>拍:BPM</code>（例 <code>64:180, 128:150</code>）を入れて保存します。ボードから譜面を開くと、各エディタがその曲の SongData から BPM と BPM の変化を読み込みます（ヘッダーの <b>BPM変化</b> ボタンで確認・編集。タイムラインに水色の線で出ます）。POWER・SHIFT/SYNC は拍で保存するので、変化を入れるとノーツの秒が変わります。TECH は秒で保存するので、ノーツは動かずグリッドだけが変わります。</div>
   <div class="tip"><b>💡</b>編集中の内容はブラウザに<b>自動で保存</b>されています。うっかりタブを閉じても、同じブラウザで開き直せば元に戻ります。ただしチームに共有されるのは「☁ ドライブに保存」したときだけです。</div>
   <div class="warn"><b>⚠</b>ほかの人が先に同じファイルをドライブに保存していると、「上書きしますか？」と確認が出ます。迷ったらキャンセルして「☁ 開く」で相手の内容を確認してください。</div>
   <h3>共通のキー</h3>

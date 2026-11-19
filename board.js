@@ -443,14 +443,19 @@
 
   // ====== ボードとのやり取り ======
   function setRows(r) { rows = r; try { localStorage.setItem(ROWS_KEY, JSON.stringify(r)); } catch (e) { } autoBpm(); }
-  // 譜面を開いたら、ボードの曲名から BPM を合わせる（譜面ごとに1回。ボードの行がまだ読めていなければ、読めたときに）
+  // 譜面を開いたら、曲の SongData（SONG Editor で保存したもの）の BPM・BPM の変化に合わせる。
+  // SongData がまだなければ、ボードの曲名から BPM を合わせる（譜面ごとに1回。ボードの行がまだ読めていなければ、読めたときに）
   let bpmDoneFor = null;
-  function autoBpm() {
+  async function autoBpm() {
     if (!DA || !asset() || bpmDoneFor === asset()) return;
     const row = rows.find(r => r.part === PART && String(r.asset).toLowerCase() === asset().toLowerCase());
     if (!row) return;
-    bpmDoneFor = asset();
-    setBpm(DA.bpmOf(row.song), `曲名「${row.song}」から`);
+    const want = bpmDoneFor = asset();
+    let song = null;
+    if (window.Tempo && typeof setTempo === 'function') { try { song = await Tempo.fromSong(PART, want, rows); } catch (e) { } }
+    if (want !== asset()) return; // 読んでいる間に別の譜面を開いた
+    if (song) setTempo(song.bpm, song.bpmChanges, `曲の ${song.songAsset} から`);
+    else setBpm(DA.bpmOf(row.song), `曲名「${row.song}」から`);
   }
   async function post(body) {
     const res = await fetch(CFG.boardApiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: CFG.boardKey, ...body }) });
